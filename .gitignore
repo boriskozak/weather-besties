@@ -1,0 +1,20 @@
+# ESP-IDF build output and local config
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# PC renderer and emulator build output
+sim/build/
+sim/build-web/
+sim/render
+sim/out/
+
+# Asset tool scratch
+tools/node_modules/
+tools/build/
+tools/package-lock.json
+__pycache__/
+*.pyc
+.DS_Store
