@@ -1,8 +1,19 @@
 # Weather Besties
 
-A kitchen weather station for Cleo and Lila, built on the Waveshare ESP32-S3-Touch-LCD-4.3 (800 x 480 touch screen). It answers the one question that matters before school: **what do we wear today?**
+A weather station for Cleo and Lila, made for the two moments that decide what they wear: **bedtime and wake-up**.
+
+Built on the Waveshare ESP32-S3-Touch-LCD-4.3 (800 x 480 touch screen), it lets them check the night before, lay out the right clothes, then wake up and see at a glance whether the day is going to be cold, warm, wet, snowy, or something else entirely.
 
 ![Today screen](docs/today.png)
+
+## The idea
+
+This is not a general weather dashboard. It answers one kid-sized question in words and pictures they can understand on their own:
+
+**What kind of clothes do I need?**
+
+- **The night before:** after 7 PM, the advice switches to tomorrow, so they can lay out clothes before bed.
+- **In the morning:** they can see right away if it is going to be cold, rainy, snowy, or warm, and whether yesterday's plan still works.
 
 ## What it shows
 
@@ -10,7 +21,7 @@ A kitchen weather station for Cleo and Lila, built on the Waveshare ESP32-S3-Tou
 - A "what to wear" bubble with clothing picks (jacket, beanie, mittens, umbrella, boots...) based on feels-like temperature, rain, snow, storms, and sun.
 - Every day is compared with yesterday: warmer or colder (by the daily high), sunnier or cloudier (by hours of sun). A drop of 12°F or more says "a lot colder" and adds gloves.
 - The rest of the day in four chunks (morning, midday, afternoon, evening), then the next three days on a second page (swipe left).
-- After 7 PM the bubble switches to tomorrow, so outfits can be picked the night before.
+- After 7 PM the bubble switches to tomorrow, so they can lay out the right clothes before bed.
 - **Bike bus day** (Friday by default): if the 8 AM feels-like is 50°F or below, the bubble reminds everyone to wear gloves for bike bus. The evening before, it says to lay them out.
 - An optional "screen off at night" mode. A tap wakes the screen for a minute.
 
