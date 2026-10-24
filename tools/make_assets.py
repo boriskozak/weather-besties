@@ -58,7 +58,7 @@ def render_cropped(svg_text, w, h, path):
 
 
 def to_c(png_path, name):
-    subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8", "-o", OUT,
+    subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8", "--compress", "RLE", "-o", OUT,
                     "--name", name, png_path], check=True, stdout=subprocess.DEVNULL)
     # LVGLImage names the file after the PNG; rename to the symbol name.
     produced = os.path.join(OUT, os.path.splitext(os.path.basename(png_path))[0] + ".c")
