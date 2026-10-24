@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 22 px
  * Bpp: 4
- * Opts: --bpp 4 --size 22 --no-compress --format lvgl --lv-include lvgl.h --lv-font-name font_small --font /home/claude/weather-besties/tools/fonts/Fredoka-Medium.ttf --range 0x20-0x7E,0xB0,0xB7,0x2019,0x201C,0x201D,0x2022,0x2026 --font /home/claude/weather-besties/tools/fonts/FontAwesome5-Solid+Brands+Regular.woff --range 0xf1eb,0xf013,0xf021,0xf071,0xf00c,0xf00d,0xf053,0xf054,0xf124 -o /home/claude/weather-besties/components/wb_ui/assets/font_small.c
+ * Opts: --bpp 4 --size 22 --no-compress --format lvgl --lv-include lvgl.h --lv-font-name font_small --font /home/hatch/workspace/weather-besties/weather-besties/tools/fonts/Fredoka-Medium.ttf --range 0x20-0x7E,0xB0,0xB7,0x2019,0x201C,0x201D,0x2022,0x2026 --font /home/hatch/workspace/weather-besties/weather-besties/tools/fonts/FontAwesome5-Solid+Brands+Regular.woff --range 0xf1eb,0xf013,0xf021,0xf071,0xf00c,0xf00d,0xf053,0xf054,0xf124 -o /home/hatch/workspace/weather-besties/weather-besties/components/wb_ui/assets/font_small.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE

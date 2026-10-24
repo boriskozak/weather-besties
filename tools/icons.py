@@ -624,3 +624,556 @@ FX = {
 for _name, _col in LEAF_COLORS.items():
     for _i, _a in enumerate(LEAF_ANGLES):
         FX[f"leaf_{_name}_{_i}"] = (fx_leaf(_col, _a), 22, 22)
+
+
+# ---------------------------------------------------------------- Weather Besties 2.0: full-body cat
+# One shared stage, CAT2_W x CAT2_H px (1 unit = 1 px), cat centred at x=150 so
+# seasonal props fit at x 0..70. Every layer is an SVG on the full stage;
+# make_assets.py crops each to its pixels and records the stage offset, the
+# same convention as the old CAT_LAYERS above. Outline width 2.6 at stage scale.
+CAT2_W, CAT2_H = 260, 252
+C2SW = 2.6
+DENIM = "#4A7BD9"
+
+
+def c2svg(body):
+    return svg(body, f"0 0 {CAT2_W} {CAT2_H}")
+
+
+def c2stick(shapes, fill, sw=C2SW, extra=""):
+    return stick(shapes, fill, sw=sw, extra=extra)
+
+
+def capsule(x1, y1, x2, y2, r, fill, sw=C2SW):
+    """A rounded limb: navy outline stroke under a fill stroke."""
+    return (f'<path d="M{x1},{y1} L{x2},{y2}" stroke="{O}" stroke-width="{2*r+2*sw:.1f}" stroke-linecap="round"/>'
+            f'<path d="M{x1},{y1} L{x2},{y2}" stroke="{fill}" stroke-width="{2*r:.1f}" stroke-linecap="round"/>')
+
+
+def rrect(x, y, w, h, rx, fill, sw=C2SW):
+    return c2stick([f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}"/>'], fill, sw=sw)
+
+
+def _cat2_face(eye, whisker, line):
+    out = ""
+    for x in (128, 172):
+        out += f'<ellipse cx="{x}" cy="76" rx="9" ry="11" fill="{eye}" stroke="{O}" stroke-width="1.6"/>'
+        out += f'<ellipse cx="{x}" cy="77" rx="3.8" ry="6.8" fill="{O}"/>'
+        out += f'<circle cx="{x-3}" cy="72" r="2" fill="#fff"/>'
+    out += f'<path d="M144,89 L156,89 L150,96 Z" fill="#FF7EB3" stroke="{O}" stroke-width="1.4" stroke-linejoin="round"/>'
+    out += (f'<path d="M150,96 Q146,102 141,99 M150,96 Q154,102 159,99" fill="none" stroke="{line}" '
+            f'stroke-width="2" stroke-linecap="round"/>')
+    for x in (112, 188):
+        out += f'<ellipse cx="{x}" cy="93" rx="7" ry="4" fill="{PINK}" opacity="0.8"/>'
+    for sgn in (-1, 1):
+        out += (f'<path d="M{150+sgn*24},92 L{150+sgn*46},88 M{150+sgn*24},99 L{150+sgn*46},101" '
+                f'stroke="{whisker}" stroke-width="1.8" stroke-linecap="round" opacity="0.85"/>')
+    return out
+
+
+def _cat2_base(body, eye, whisker, line):
+    out = ""
+    # tail, behind everything: thick curve from the hip out to the right
+    out += (f'<path d="M192,206 Q232,198 238,150" fill="none" stroke="{O}" stroke-width="{18+2*C2SW:.1f}" stroke-linecap="round"/>'
+            f'<path d="M192,206 Q232,198 238,150" fill="none" stroke="{body}" stroke-width="18" stroke-linecap="round"/>')
+    # legs and feet
+    out += capsule(134, 196, 134, 234, 14, body)
+    out += capsule(166, 196, 166, 234, 14, body)
+    out += c2stick(['<ellipse cx="134" cy="240" rx="18" ry="10"/>',
+                    '<ellipse cx="166" cy="240" rx="18" ry="10"/>'], body)
+    # torso, arms, paws
+    out += rrect(110, 122, 80, 78, 20, body)
+    out += capsule(116, 134, 100, 190, 13, body)
+    out += capsule(184, 134, 200, 190, 13, body)
+    out += c2stick(['<circle cx="100" cy="190" r="14"/>', '<circle cx="200" cy="190" r="14"/>'], body)
+    # head and ears
+    head = ['<ellipse cx="150" cy="74" rx="60" ry="50"/>',
+            '<path d="M97,54 L106,20 L140,34 Z"/>', '<path d="M203,54 L194,20 L160,34 Z"/>']
+    out += c2stick(head, body)
+    out += '<path d="M107,44 L110,29 L129,37 Z" fill="#FF9EC4"/><path d="M193,44 L190,29 L171,37 Z" fill="#FF9EC4"/>'
+    out += _cat2_face(eye, whisker, line)
+    return c2svg(out)
+
+
+def _cat2_cover_eyes(body):
+    return "".join(f'<ellipse cx="{x}" cy="76" rx="12" ry="13" fill="{body}"/>' for x in (128, 172))
+
+
+def _cat2_blink(body, line):
+    out = _cat2_cover_eyes(body)
+    for x in (128, 172):
+        out += (f'<path d="M{x-7},78 Q{x},84 {x+7},78" fill="none" stroke="{line}" '
+                f'stroke-width="2.6" stroke-linecap="round"/>')
+    return c2svg(out)
+
+
+def _cat2_happy(body, line):
+    out = _cat2_cover_eyes(body)
+    for x in (128, 172):
+        out += (f'<path d="M{x-8},80 Q{x},67 {x+8},80" fill="none" stroke="{line}" '
+                f'stroke-width="3" stroke-linecap="round"/>')
+    out += '<path d="M141,95 Q150,112 159,95 Q150,101 141,95 Z" fill="#2B3450"/>'
+    out += '<ellipse cx="150" cy="103" rx="3.5" ry="2.4" fill="#FF8FB1"/>'
+    return c2svg(out)
+
+
+def _cat2_puzzled(body, line):
+    out = (f'<path d="M117,60 L139,55" stroke="{line}" stroke-width="3" stroke-linecap="round"/>'
+           f'<path d="M161,62 L183,62" stroke="{line}" stroke-width="2.6" stroke-linecap="round"/>')
+    out += '<circle cx="208" cy="46" r="4" fill="#FFFFFF" stroke="#2B3450" stroke-width="1.8"/>'
+    out += '<circle cx="218" cy="36" r="7" fill="#FFFFFF" stroke="#2B3450" stroke-width="1.8"/>'
+    out += '<ellipse cx="232" cy="20" rx="19" ry="15" fill="#FFFFFF" stroke="#2B3450" stroke-width="2.2"/>'
+    out += (f'<path d="M225,13 Q224,5 232,5 Q240,5 239,12 Q238,17 232,18 L232,21" fill="none" '
+            f'stroke="{O}" stroke-width="3" stroke-linecap="round"/>')
+    out += f'<circle cx="232" cy="26" r="2.1" fill="{O}"/>'
+    return c2svg(out)
+
+
+_CAT2_BLACK = ("#2E2E3A", "#FFD23F", "#FFFFFF", "#C9C9DA")
+_CAT2_PINK = ("#FFB3CF", "#7FD7FF", O, O)
+
+CAT2_PER_COLOR = {
+    "black": {
+        "base": lambda: _cat2_base(*_CAT2_BLACK),
+        "blink": lambda: _cat2_blink(_CAT2_BLACK[0], _CAT2_BLACK[3]),
+        "happy": lambda: _cat2_happy(_CAT2_BLACK[0], _CAT2_BLACK[3]),
+        "puzzled": lambda: _cat2_puzzled(_CAT2_BLACK[0], _CAT2_BLACK[3]),
+    },
+    "pink": {
+        "base": lambda: _cat2_base(*_CAT2_PINK),
+        "blink": lambda: _cat2_blink(_CAT2_PINK[0], _CAT2_PINK[3]),
+        "happy": lambda: _cat2_happy(_CAT2_PINK[0], _CAT2_PINK[3]),
+        "puzzled": lambda: _cat2_puzzled(_CAT2_PINK[0], _CAT2_PINK[3]),
+    },
+}
+
+
+# --- cat2 clothing layers (shared by both cat colours) --------------------
+def cat2_top_short():
+    out = capsule(116, 134, 107, 160, 15, "#FF8FB1")
+    out += capsule(184, 134, 193, 160, 15, "#FF8FB1")
+    out += rrect(108, 120, 84, 60, 18, "#FF8FB1")
+    out += f'<g fill="#FFFFFF">{heart(150, 148, 11)}</g>'
+    out += f'<path d="M136,121 Q150,132 164,121" fill="none" stroke="{O}" stroke-width="2.4"/>'
+    return c2svg(out)
+
+
+def cat2_top_long():
+    out = capsule(116, 134, 100, 190, 14, "#7FD1AE")
+    out += capsule(184, 134, 200, 190, 14, "#7FD1AE")
+    out += rrect(108, 120, 84, 82, 20, "#7FD1AE")
+    out += '<g stroke="#FFFFFF" stroke-width="5">'
+    for y in (140, 156, 172, 188):
+        out += f'<path d="M112,{y} L188,{y}"/>'
+    out += '<path d="M103,160 L119,164 M99,178 L115,182 M181,164 L197,160 M185,182 L201,178"/>'
+    out += '</g>'
+    out += f'<path d="M136,121 Q150,132 164,121" fill="none" stroke="{O}" stroke-width="2.4"/>'
+    return c2svg(out)
+
+
+def cat2_bottom_shorts():
+    out = rrect(108, 170, 84, 34, 10, DENIM)
+    out += rrect(119, 198, 30, 18, 7, DENIM)
+    out += rrect(151, 198, 30, 18, 7, DENIM)
+    out += f'<path d="M110,181 L190,181" stroke="{O}" stroke-width="2.2" opacity="0.6"/>'
+    return c2svg(out)
+
+
+def cat2_bottom_pants():
+    out = rrect(108, 170, 84, 34, 10, DENIM)
+    out += capsule(134, 196, 134, 232, 15, DENIM)
+    out += capsule(166, 196, 166, 232, 15, DENIM)
+    out += f'<path d="M110,181 L190,181" stroke="{O}" stroke-width="2.2" opacity="0.6"/>'
+    out += '<g stroke="#DCE8FF" stroke-width="3"><path d="M121,226 L147,226 M153,226 L179,226"/></g>'
+    return c2svg(out)
+
+
+def cat2_feet_sneakers():
+    out = ""
+    for cx in (134, 166):
+        out += c2stick([f'<ellipse cx="{cx}" cy="240" rx="20" ry="11"/>'], "#FFFFFF")
+        out += f'<path d="M{cx-13},237 L{cx+13},237" stroke="#FF5FA2" stroke-width="4" stroke-linecap="round"/>'
+        out += f'<path d="M{cx-18},247 Q{cx},252 {cx+18},247" fill="none" stroke="{O}" stroke-width="3"/>'
+    return c2svg(out)
+
+
+def _boot(cx, sgn, fill, cuff=None):
+    out = c2stick([f'<path d="M{cx-13},196 L{cx+13},196 L{cx+13},228 L{cx+sgn*19},236 '
+                   f'Q{cx+sgn*19},244 {cx+sgn*10},244 L{cx-13},244 Z"/>'], fill)
+    if cuff:
+        out += rrect(cx - 14, 192, 28, 12, 5, cuff)
+    return out
+
+
+def cat2_feet_rain():
+    return c2svg(_boot(134, -1, "#FFD23F") + _boot(166, 1, "#FFD23F"))
+
+
+def cat2_feet_snow():
+    return c2svg(_boot(134, -1, "#8B5E3C", "#F4F1EA") + _boot(166, 1, "#8B5E3C", "#F4F1EA"))
+
+
+def _outer(fill, h=86):
+    out = capsule(116, 134, 100, 190, 15, fill)
+    out += capsule(184, 134, 200, 190, 15, fill)
+    out += rrect(104, 118, 92, h, 22, fill)
+    return out
+
+
+def _hood_collar(fill):
+    return (f'<path d="M122,128 Q150,110 178,128" fill="none" stroke="{O}" stroke-width="15" stroke-linecap="round"/>'
+            f'<path d="M122,128 Q150,110 178,128" fill="none" stroke="{fill}" stroke-width="9" stroke-linecap="round"/>')
+
+
+def cat2_layer_hoodie():
+    out = _outer("#9C8CFF")
+    out += f'<rect x="131" y="166" width="38" height="24" rx="7" fill="none" stroke="{O}" stroke-width="2.4"/>'
+    out += _hood_collar("#9C8CFF")
+    return c2svg(out)
+
+
+def cat2_layer_light():
+    out = _outer("#FFB454", 84)
+    out += f'<path d="M150,126 L150,200" stroke="{O}" stroke-width="2.6"/>'
+    out += c2stick(['<path d="M134,119 L150,137 L141,119 Z"/>', '<path d="M166,119 L150,137 L159,119 Z"/>'], "#FFD9A0", sw=2.0)
+    out += (f'<rect x="117" y="163" width="17" height="15" rx="2" fill="none" stroke="{O}" stroke-width="2.2"/>'
+            f'<rect x="166" y="163" width="17" height="15" rx="2" fill="none" stroke="{O}" stroke-width="2.2"/>')
+    return c2svg(out)
+
+
+def cat2_layer_rain():
+    out = _outer("#FFD23F", 90)
+    out += '<g stroke="#2B3450" stroke-width="3" stroke-linecap="round">'
+    for y in (142, 162, 182):
+        out += f'<path d="M143,{y} L157,{y}"/>'
+    out += '</g>'
+    out += _hood_collar("#FFD23F")
+    return c2svg(out)
+
+
+def cat2_layer_warm():
+    out = _outer("#6F8CFF")
+    for y in (146, 168, 190):
+        out += f'<path d="M108,{y} Q150,{y+6} 192,{y}" fill="none" stroke="{O}" stroke-width="2.2" opacity="0.8"/>'
+    out += f'<path d="M150,124 L150,202" stroke="{O}" stroke-width="2.4"/>'
+    return c2svg(out)
+
+
+def cat2_layer_winter():
+    out = _outer("#3D7FE0", 98)
+    out += f'<path d="M108,176 Q150,182 192,176" fill="none" stroke="{O}" stroke-width="2.2" opacity="0.8"/>'
+    out += f'<path d="M150,124 L150,214" stroke="{O}" stroke-width="2.4"/>'
+    out += (f'<path d="M120,126 Q150,108 180,126" fill="none" stroke="{O}" stroke-width="17" stroke-linecap="round"/>'
+            f'<path d="M120,126 Q150,108 180,126" fill="none" stroke="#F4F1EA" stroke-width="12" stroke-linecap="round"/>')
+    return c2svg(out)
+
+
+def cat2_scarf():
+    shapes = ['<path d="M110,122 Q150,142 190,122 L190,138 Q150,158 110,138 Z"/>',
+              '<path d="M166,136 L184,136 L188,176 L170,174 Z"/>']
+    out = c2stick(shapes, "#2EC4B6")
+    out += '<g stroke="#FFFFFF" stroke-width="3.4"><path d="M172,148 L186,149 M173,160 L187,161"/></g>'
+    return c2svg(out)
+
+
+def cat2_gloves():
+    out = c2stick(['<circle cx="100" cy="190" r="16"/>', '<circle cx="200" cy="190" r="16"/>',
+                   '<ellipse cx="87" cy="181" rx="6" ry="9" transform="rotate(30 87 181)"/>',
+                   '<ellipse cx="213" cy="181" rx="6" ry="9" transform="rotate(-30 213 181)"/>'], "#9C8CFF")
+    for (x1, y1, x2, y2) in ((110, 174, 95, 189), (190, 174, 205, 189)):
+        out += (f'<path d="M{x1},{y1} L{x2},{y2}" stroke="{O}" stroke-width="10" stroke-linecap="round"/>'
+                f'<path d="M{x1},{y1} L{x2},{y2}" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>')
+    return c2svg(out)
+
+
+def cat2_held_umbrella():
+    out = (f'<path d="M209,26 L201,186" stroke="{O}" stroke-width="6" stroke-linecap="round"/>'
+           f'<path d="M209,26 L201,186" stroke="#8A93A6" stroke-width="3" stroke-linecap="round"/>'
+           f'<path d="M201,186 Q201,198 210,196" fill="none" stroke="{O}" stroke-width="4" stroke-linecap="round"/>')
+    canopy = ('<path d="M160,66 Q164,20 209,18 Q254,20 258,66 Q247,57 236,66 Q225,57 214,66 '
+              'Q203,57 192,66 Q181,57 170,66 Q164,60 160,66 Z"/>')
+    out += c2stick([canopy], "#FF5C8A")
+    out += (f'<path d="M209,21 L209,64 M209,21 L178,62 M209,21 L240,62" stroke="{O}" '
+            f'stroke-width="2" opacity="0.55" fill="none"/>')
+    return c2svg(out)
+
+
+def cat2_held_water():
+    out = rrect(84, 146, 32, 54, 10, "#BDEBFF")
+    out += '<path d="M86,168 L114,168 L114,190 Q114,198 106,198 L94,198 Q86,198 86,190 Z" fill="#4DC3FF"/>'
+    out += rrect(92, 132, 16, 14, 4, "#FF8FB1")
+    out += '<path d="M92,158 L92,190" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" opacity="0.8"/>'
+    return c2svg(out)
+
+
+def cat2_face_sun():
+    out = c2stick([heart(128, 77, 13), heart(172, 77, 13)], "#FF5FA2", sw=1.8)
+    out += f'<path d="M141,72 Q150,68 159,72" stroke="{O}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+    for x in (128, 172):
+        out += f'<ellipse cx="{x-4}" cy="72" rx="2.4" ry="1.5" fill="#fff" opacity="0.85"/>'
+    return c2svg(out)
+
+
+def cat2_hat_warm():
+    out = c2stick(['<path d="M108,58 Q104,18 150,16 Q196,18 192,58 Q150,46 108,58 Z"/>'], "#FF7EB3")
+    out += rrect(106, 50, 88, 15, 7, "#FFB3CF")
+    out += c2stick(['<circle cx="150" cy="14" r="11"/>'], "#FFFFFF")
+    return c2svg(out)
+
+
+def cat2_hat_witch():
+    g = 'transform="rotate(-8 150 52)"'
+    cone = ['<path d="M114,52 Q132,26 142,10 Q146,2 156,2 Q150,10 152,18 Q158,32 186,52 Z"/>']
+    brim = ['<ellipse cx="150" cy="54" rx="58" ry="11"/>']
+    out = c2stick(cone + brim, "#3B2F5C", extra=g)
+    out += f'<g {g}><path d="M121,40 L181,44 L183,52 L119,48 Z" fill="#9B6BFF"/>'
+    out += f'<rect x="146" y="40" width="9" height="8" rx="1.2" fill="none" stroke="{CAT_EYE}" stroke-width="2"/></g>'
+    return c2svg(out)
+
+
+def cat2_hat_santa():
+    body = ['<path d="M106,50 Q108,20 146,18 Q184,16 196,34 Q202,44 198,52 Q186,38 168,40 Q182,44 184,52 L106,52 Z"/>']
+    out = c2stick(body, "#E8434F")
+    out += rrect(102, 44, 96, 15, 7, "#FFFFFF")
+    out += c2stick(['<circle cx="200" cy="48" r="10"/>'], "#FFFFFF")
+    return c2svg(out)
+
+
+# --- cat2 seasonal props (stage x 0..70, y 180..252) ------------------------
+def cat2_prop_pumpkin():
+    cx, cy = 35, 218
+    ribs = [f'<ellipse cx="{cx-11}" cy="{cy}" rx="17" ry="22"/>', f'<ellipse cx="{cx+11}" cy="{cy}" rx="17" ry="22"/>',
+            f'<ellipse cx="{cx}" cy="{cy}" rx="18" ry="23"/>']
+    out = c2stick([f'<path d="M{cx-2},{cy-21} Q{cx-1},{cy-29} {cx+5},{cy-31} L{cx+4},{cy-21} Z"/>'], "#5CB85C")
+    out += c2stick(ribs, "#FF9A3C")
+    out += f'<ellipse cx="{cx}" cy="{cy}" rx="18" ry="23" fill="#FFAE5C"/>'
+    out += f'<path d="M{cx-11},{cy-4} l5,-7 l5,7 Z M{cx+1},{cy-4} l5,-7 l5,7 Z" fill="{O}"/>'
+    out += (f'<path d="M{cx-13},{cy+5} Q{cx},{cy+16} {cx+13},{cy+5} L{cx+7},{cy+7} L{cx+3},{cy+4} '
+            f'L{cx},{cy+8} L{cx-3},{cy+4} L{cx-7},{cy+7} Z" fill="{O}"/>')
+    return c2svg(out)
+
+
+MENORAH2_TOP = 196          # candle top; the shamash (i=4) sits 8 px higher
+MENORAH2_CUP_Y = 228        # candle bottom / holder bar
+
+
+def menorah2_candle_x(i):
+    return 7 + 7 * i
+
+
+def menorah2_candle_top(i):
+    return MENORAH2_TOP - 8 if i == 4 else MENORAH2_TOP
+
+
+def menorah2_flame_pos(i):
+    """Top-left of the 10x14 flame image on candle i (left to right)."""
+    return (menorah2_candle_x(i) - 5, menorah2_candle_top(i) - 13)
+
+
+def cat2_prop_menorah():
+    gold = "#F5C542"
+    parts = [f'<rect x="4" y="230" width="62" height="5" rx="2.5"/>',
+             '<rect x="33" y="230" width="4" height="12" rx="1.5"/>',
+             '<path d="M20,250 Q35,240 50,250 Z"/>']
+    for i in range(9):
+        x = menorah2_candle_x(i)
+        parts.append(f'<rect x="{x-3}" y="224" width="6" height="5" rx="1.5"/>')
+    out = c2stick(parts, gold, sw=1.8)
+    for i in range(9):
+        x = menorah2_candle_x(i)
+        top = menorah2_candle_top(i)
+        col = "#FFFFFF" if i == 4 else ("#7FB8FF" if i % 2 else "#FFFFFF")
+        out += (f'<rect x="{x-2}" y="{top}" width="4" height="{MENORAH2_CUP_Y-top}" rx="1" '
+                f'fill="{col}" stroke="{O}" stroke-width="1.2"/>')
+    return c2svg(out)
+
+
+def cat2_prop_present():
+    out = rrect(8, 204, 54, 44, 4, "#3DBE6E")
+    out += rrect(5, 196, 60, 11, 3, "#52D485")
+    out += '<rect x="31" y="196" width="8" height="52" fill="#E8434F"/>'
+    out += c2stick(['<path d="M35,196 Q23,182 20,189 Q19,195 35,196 Z"/>',
+                    '<path d="M35,196 Q47,182 50,189 Q51,195 35,196 Z"/>'], "#E8434F")
+    return c2svg(out)
+
+
+CAT2_SHARED = {
+    "bottom_shorts": cat2_bottom_shorts, "bottom_pants": cat2_bottom_pants,
+    "feet_sneakers": cat2_feet_sneakers, "feet_rain": cat2_feet_rain, "feet_snow": cat2_feet_snow,
+    "top_short": cat2_top_short, "top_long": cat2_top_long,
+    "layer_hoodie": cat2_layer_hoodie, "layer_light": cat2_layer_light, "layer_rain": cat2_layer_rain,
+    "layer_warm": cat2_layer_warm, "layer_winter": cat2_layer_winter,
+    "scarf": cat2_scarf, "gloves": cat2_gloves,
+    "held_umbrella": cat2_held_umbrella, "held_water": cat2_held_water,
+    "face_sun": cat2_face_sun,
+    "hat_warm": cat2_hat_warm, "hat_witch": cat2_hat_witch, "hat_santa": cat2_hat_santa,
+    "prop_pumpkin": cat2_prop_pumpkin, "prop_menorah": cat2_prop_menorah, "prop_present": cat2_prop_present,
+}
+
+# Stacking order, bottom to top (props sit on the ground beside the cat;
+# expression overlays go last so they always win over the face).
+CAT2_LAYER_ORDER = [
+    "base",
+    "bottom_shorts", "bottom_pants",
+    "feet_sneakers", "feet_rain", "feet_snow",
+    "top_short", "top_long",
+    "layer_hoodie", "layer_light", "layer_rain", "layer_warm", "layer_winter",
+    "scarf", "gloves",
+    "held_umbrella", "held_water",
+    "face_sun",
+    "hat_warm", "hat_witch", "hat_santa",
+    "prop_pumpkin", "prop_menorah", "prop_present",
+    "blink", "happy", "puzzled",
+]
+
+
+# ---------------------------------------------------------------- garment tile icons + extra icons (2.0)
+# Flat-lay versions of the exact garments the cat wears (same colours and
+# details), in a 100 x 100 box. GARMENTS is in garment_t order (spec 4.1).
+def g_long_sleeves():
+    ex = ('<g stroke="#FFFFFF" stroke-width="5"><path d="M31,42 L69,42 M30,58 L70,58 M30,74 L70,74"/></g>'
+          f'<path d="M43,16 Q50,26 57,16" fill="none" stroke="{O}" stroke-width="2.4"/>')
+    return svg(sleeves_body("#7FD1AE", ex))
+
+
+def g_shorts():
+    body = '<path d="M28,24 L72,24 L77,76 L58,76 L50,54 L42,76 L23,76 Z"/>'
+    out = stick([body], DENIM)
+    out += (f'<path d="M27,36 L73,36" stroke="{O}" stroke-width="2.4" opacity="0.7"/>'
+            f'<path d="M33,44 Q38,52 44,45 M56,45 Q62,52 67,44" fill="none" stroke="{O}" stroke-width="2.2"/>')
+    return svg(out)
+
+
+def g_long_pants():
+    body = '<path d="M30,12 L70,12 L75,88 L57,88 L50,42 L43,88 L25,88 Z"/>'
+    out = stick([body], DENIM)
+    out += (f'<path d="M29,24 L71,24" stroke="{O}" stroke-width="2.4" opacity="0.7"/>'
+            '<path d="M28,80 L44,80 M56,80 L72,80" stroke="#DCE8FF" stroke-width="3"/>')
+    return svg(out)
+
+
+def g_hoodie():
+    hood = stick(['<path d="M32,26 Q50,6 68,26 Q50,36 32,26 Z"/>'], "#9C8CFF")
+    ex = (f'<rect x="38" y="56" width="24" height="17" rx="4" fill="none" stroke="{O}" stroke-width="2.4"/>'
+          f'<path d="M43,16 Q50,26 57,16" fill="none" stroke="{O}" stroke-width="2.4"/>')
+    return svg(hood + sleeves_body("#9C8CFF", ex))
+
+
+def g_rain_jacket():
+    hood = stick(['<path d="M32,26 Q50,6 68,26 Q50,36 32,26 Z"/>'], "#FFD23F")
+    ex = ('<g stroke="#2B3450" stroke-width="3" stroke-linecap="round">'
+          '<path d="M44,40 L56,40 M44,56 L56,56 M44,72 L56,72"/></g>')
+    return svg(hood + sleeves_body("#FFD23F", ex))
+
+
+def g_winter_coat():
+    ex = (f'<path d="M31,52 Q50,56 69,52" fill="none" stroke="{O}" stroke-width="2.2" opacity="0.8"/>'
+          f'<path d="M50,24 L50,86" stroke="{O}" stroke-width="2.6"/>')
+    out = sleeves_body("#3D7FE0", ex)
+    out += stick(['<path d="M33,25 Q50,12 67,25 Q50,34 33,25 Z"/>'], "#F4F1EA", sw=2.6)
+    return svg(out)
+
+
+def g_sneakers():
+    out = ""
+    for cx, sgn in ((32, -1), (68, 1)):
+        shoe = (f'<path d="M{cx-13},34 L{cx+9},34 L{cx+9},58 L{cx+sgn*17},66 '
+                f'Q{cx+sgn*18},74 {cx+sgn*9},74 L{cx-13},74 Z"/>')
+        out += stick([shoe], "#FFFFFF")
+        out += f'<path d="M{cx-11},52 L{cx+9},52" stroke="#FF5FA2" stroke-width="4"/>'
+        out += stick([f'<rect x="{cx-16}" y="72" width="36" height="8" rx="3.5"/>'], "#2B3450", sw=1.2)
+    return svg(out)
+
+
+def g_snow_boots():
+    boot = '<path d="M28,22 L52,22 L52,60 L74,64 Q84,66 84,76 L84,80 L28,80 Z"/>'
+    out = stick([boot], "#8B5E3C")
+    out += stick(['<rect x="24" y="78" width="64" height="9" rx="4"/>'], "#2B3450", sw=1.2)
+    out += stick(['<rect x="24" y="16" width="32" height="13" rx="5"/>'], "#F4F1EA")
+    return svg(out)
+
+
+def _beanie100(dome, band, pom):
+    dome_s = '<path d="M22,66 Q22,24 50,24 Q78,24 78,66 Z"/>'
+    out = stick([dome_s], dome)
+    for x in (36, 50, 64):
+        out += f'<path d="M{x},30 L{x},64" stroke="{O}" stroke-width="2.4" opacity="0.25" stroke-linecap="round"/>'
+    out += stick(['<rect x="17" y="60" width="66" height="18" rx="7"/>'], band)
+    out += stick(['<circle cx="50" cy="20" r="10"/>'], pom)
+    return out
+
+
+def g_warm_hat():
+    return svg(_beanie100("#FF7EB3", "#FFB3CF", "#FFFFFF"))
+
+
+def g_sunglasses():
+    lenses = [heart(33, 52, 17), heart(67, 52, 17)]
+    out = (f'<path d="M50,44 Q50,38 50,44" fill="none" stroke="{O}" stroke-width="4"/>'
+           f'<path d="M16,42 L8,32 M84,42 L92,32" stroke="{O}" stroke-width="4.5" stroke-linecap="round"/>')
+    out += stick(lenses, "#FF5FA2", sw=2.2)
+    out += f'<path d="M46,46 Q50,42 54,46" fill="none" stroke="{O}" stroke-width="3.4" stroke-linecap="round"/>'
+    for x in (33, 67):
+        out += f'<ellipse cx="{x-5}" cy="46" rx="3" ry="2" fill="#fff" opacity="0.85"/>'
+    return svg(out)
+
+
+def g_scarf():
+    shapes = ['<path d="M20,26 Q50,44 80,26 L80,40 Q50,58 20,40 Z"/>',
+              '<rect x="58" y="40" width="17" height="44" rx="6"/>',
+              '<rect x="36" y="42" width="15" height="34" rx="6"/>']
+    out = stick(shapes, "#2EC4B6")
+    out += ('<g stroke="#FFFFFF" stroke-width="3.4"><path d="M60,54 L73,54 M60,66 L73,66 '
+            'M38,54 L49,54 M38,64 L49,64"/></g>')
+    return svg(out)
+
+
+GARMENTS = {
+    "short_sleeves": c_tshirt, "long_sleeves": g_long_sleeves,
+    "shorts": g_shorts, "long_pants": g_long_pants,
+    "hoodie": g_hoodie, "light_jacket": c_jacket, "rain_jacket": g_rain_jacket,
+    "warm_coat": c_coat, "winter_coat": g_winter_coat,
+    "sneakers": g_sneakers, "rain_boots": c_boots, "snow_boots": g_snow_boots,
+    "warm_hat": g_warm_hat, "gloves": c_mittens, "umbrella": c_umbrella,
+    "sunglasses": g_sunglasses, "water_bottle": c_water, "scarf": g_scarf,
+}
+
+
+def x_bolt():
+    return svg(stick(['<polygon points="56,6 26,56 42,56 36,94 74,40 57,40 68,6"/>'], "#FFD43B"))
+
+
+def x_hat_gloves():
+    out = f'<g transform="translate(14,-16) scale(0.72)">{_beanie100("#FF7EB3", "#FFB3CF", "#FFFFFF")}</g>'
+    out += f'<g transform="translate(38,36) scale(0.58)">{mitten(0, -8, "#9C8CFF")}</g>'
+    return svg(out)
+
+
+def x_sun_up():
+    out = stick(['<circle cx="36" cy="64" r="15"/>'], "#FFD54A")
+    out += line_stick("M36,38 L36,44 M14,50 L19,54 M58,50 L53,54", "#FFB020", 4.5, sw=2.2)
+    out += line_stick("M72,88 L72,36", "#2FA866", 7.0, sw=2.4)
+    out += stick(['<polygon points="72,16 59,38 85,38"/>'], "#2FA866", sw=2.4)
+    return svg(out)
+
+
+def x_wind():
+    out = line_stick("M12,32 Q44,20 74,30 Q88,34 84,44 Q81,51 72,47", "#7FB8FF", 6.0, sw=2.6)
+    out += line_stick("M10,56 Q42,46 88,56", "#7FB8FF", 6.0, sw=2.6)
+    out += line_stick("M16,78 Q44,70 70,78", "#7FB8FF", 6.0, sw=2.6)
+    return svg(out)
+
+
+def x_heart():
+    return svg(stick([heart(50, 50, 28)], "#E0457B", sw=2.4))
+
+
+def x_sparkle():
+    return svg(sparkle(24, 24, 15, "#FFC93C"), "0 0 48 48")
+
+
+EXTRA_ICONS = {
+    "bolt": x_bolt, "umbrella": c_umbrella, "hat_gloves": x_hat_gloves,
+    "gloves": c_mittens, "sun_up": x_sun_up, "water": c_water,
+    "sunglasses": g_sunglasses, "wind": x_wind, "heart": x_heart, "sparkle": x_sparkle,
+}

@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 40 px
  * Bpp: 4
- * Opts: --bpp 4 --size 40 --no-compress --format lvgl --lv-include lvgl.h --lv-font-name font_temp_l --font /home/claude/weather-besties/tools/fonts/Fredoka-SemiBold.ttf --range 0x20-0x7E,0xB0,0xB7,0x2019,0x201C,0x201D,0x2022,0x2026 -o /home/claude/weather-besties/components/wb_ui/assets/font_temp_l.c
+ * Opts: --bpp 4 --size 40 --no-compress --format lvgl --lv-include lvgl.h --lv-font-name font_temp_l --font /home/hatch/workspace/weather-besties/weather-besties/tools/fonts/Fredoka-SemiBold.ttf --range 0x20-0x7E,0xB0,0xB7,0x2019,0x201C,0x201D,0x2022,0x2026 -o /home/hatch/workspace/weather-besties/weather-besties/components/wb_ui/assets/font_temp_l.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
