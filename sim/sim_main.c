@@ -1,13 +1,18 @@
 /*
- * Desktop renderer: runs the real UI code (ui.c, wx.c, advice.c, same fonts and
- * images, same lv_conf.h) and saves each screen as a raw RGB565 frame.
+ * Desktop renderer: runs the real UI code (ui.c, wx.c, outfit.c, same fonts
+ * and images, same lv_conf.h) and saves each screen as a raw RGB565 frame.
  * Usage: ./render <outdir> <scenario dir>
+ *
+ * A scenario JSON may carry "sim_clock": "2026-10-27T19:30" to set the wall
+ * clock independently of the forecast's own time (the plan's stale/rollover
+ * cases). Without it the clock is the forecast time + 7 minutes, as before.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
+#include "cJSON.h"
 #include "lvgl.h"
 #include "ui.h"
 #include "wx.h"
@@ -75,6 +80,32 @@ static char *slurp(const char *path, size_t *len)
 
 static wx_t wx;
 
+/* "2026-10-27T19:30" -> tm (wday filled by wx_day_of_week). */
+static bool parse_sim_clock(const char *j, struct tm *out)
+{
+    cJSON *root = cJSON_Parse(j);
+    if (!root) {
+        return false;
+    }
+    const cJSON *sc = cJSON_GetObjectItemCaseSensitive(root, "sim_clock");
+    bool ok = false;
+    if (cJSON_IsString(sc) && sc->valuestring) {
+        int y, mo, d, h, mi;
+        if (sscanf(sc->valuestring, "%d-%d-%dT%d:%d", &y, &mo, &d, &h, &mi) == 5) {
+            memset(out, 0, sizeof(*out));
+            out->tm_year = y - 1900;
+            out->tm_mon = mo - 1;
+            out->tm_mday = d;
+            out->tm_hour = h;
+            out->tm_min = mi;
+            out->tm_wday = wx_day_of_week(y, mo, d);
+            ok = true;
+        }
+    }
+    cJSON_Delete(root);
+    return ok;
+}
+
 static void load(const char *dir, const char *name)
 {
     char path[512];
@@ -85,29 +116,29 @@ static void load(const char *dir, const char *name)
         fprintf(stderr, "parse failed: %s\n", name);
         exit(1);
     }
-    free(j);
-    memset(&now_tm, 0, sizeof(now_tm));
-    now_tm.tm_year = wx.year - 1900;
-    now_tm.tm_mon = wx.month - 1;
-    now_tm.tm_mday = wx.day;
-    now_tm.tm_hour = wx.hour;
-    now_tm.tm_min = wx.minute + 7 > 59 ? 59 : wx.minute + 7;
-    now_tm.tm_wday = wx.wday;
-    now_valid = true;
-    printf("%s: %d periods:", name, wx.nperiods);
-    for (int i = 0; i < wx.nperiods; i++) {
-        printf(" [%s %.0f code%d pop%d]", wx.periods[i].label, wx.periods[i].temp, wx.periods[i].code,
-               wx.periods[i].pop);
+    struct tm clk;
+    if (parse_sim_clock(j, &clk)) {
+        now_tm = clk;
+    } else {
+        memset(&now_tm, 0, sizeof(now_tm));
+        now_tm.tm_year = wx.year - 1900;
+        now_tm.tm_mon = wx.month - 1;
+        now_tm.tm_mday = wx.day;
+        now_tm.tm_hour = wx.hour;
+        now_tm.tm_min = wx.minute + 7 > 59 ? 59 : wx.minute + 7;
+        now_tm.tm_wday = wx.wday;
     }
-    printf("\n");
+    now_valid = true;
+    free(j);
+    printf("%s: clock %04d-%02d-%02d %02d:%02d, %d hours, %d days\n", name, now_tm.tm_year + 1900,
+           now_tm.tm_mon + 1, now_tm.tm_mday, now_tm.tm_hour, now_tm.tm_min, wx.nhours, wx.ndays);
 }
 
-static void show(const char *place, const char *status)
+static void show(void)
 {
-    ui_show_page(0);
     ui_show_weather(&wx);
-    ui_set_footer(place, status, false);
     ui_refresh_clock();
+    pump(10);
 }
 
 int main(int argc, char **argv)
@@ -123,6 +154,9 @@ int main(int argc, char **argv)
 
     ui_init("Cleo & Lila");
     ui_set_time_cb(time_cb);
+    ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
+                      .updated = "Weather updated 7:30 AM", .version = "2.0.0"};
+    ui_set_info(&info);
 
     ui_show_boot(NULL);
     save(out, "01_boot");
@@ -130,65 +164,86 @@ int main(int argc, char **argv)
     ui_show_setup("WeatherBesties-3F2A", "192.168.4.1");
     save(out, "02_setup");
 
-    load(sc, "oct_morning");
-    show("Upper Montclair, NJ", "Updated 9:45 AM");
-    save(out, "03_today_oct_morning");
+    /* The brief's two mockups: cold morning warming up; rainy tomorrow laid out
+     * the evening before. */
+    load(sc, "brief_morning");
+    show();
+    save(out, "20_morning");
 
-    ui_show_page(1);
-    save(out, "04_next_days");
-    ui_show_page(0);
+    load(sc, "brief_evening");
+    show();
+    save(out, "21_evening");
 
-    load(sc, "rainy_afternoon");
-    show("Upper Montclair, NJ", "Updated 2:15 PM");
-    save(out, "05_rainy_afternoon");
+    ui_test_set_checks(0x3); /* first two garments laid out */
+    pump(10);
+    save(out, "22_evening_2_checked");
 
-    load(sc, "snow_morning");
-    show("Upper Montclair, NJ", "Updated 7:30 AM");
-    save(out, "06_snow_morning");
+    ui_test_set_checks(0xF); /* everything laid out */
+    pump(10);
+    save(out, "23_evening_all_done");
+    ui_test_set_checks(0);
 
-    load(sc, "summer_hot");
-    show("Upper Montclair, NJ", "Updated 1:00 PM");
-    save(out, "07_summer_hot");
+    load(sc, "brief_morning");
+    show();
+    ui_test_set_page(2);
+    pump(10);
+    save(out, "24_next_days");
+    ui_test_set_page(0);
 
-    load(sc, "thu_evening");
-    show("Upper Montclair, NJ", "Updated 8:30 PM");
-    save(out, "08_evening_plans_tomorrow");
+    load(sc, "stale_2h");
+    show();
+    save(out, "25_stale");
 
-    load(sc, "oct_morning");
-    show("Upper Montclair, NJ", "Updated 9:45 AM");
-    ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .updated = "Weather updated 9:45 AM", .version = "1.4.0"};
-    ui_set_info(&info);
+    load(sc, "too_old");
+    show();
+    save(out, "26_unavailable");
+
+    load(sc, "rollover");
+    show();
+    save(out, "27_rollover");
+
+    load(sc, "snow_day");
+    show();
+    save(out, "28_snow");
+
+    load(sc, "hot_summer");
+    show();
+    save(out, "29_hot");
+
+    load(sc, "storm_afternoon");
+    show();
+    save(out, "30_storm");
+
+    load(sc, "halloween_cold");
+    show();
+    save(out, "31_halloween");
+
+    load(sc, "brief_morning");
+    ui_set_cat_choice(1); /* pink cat */
+    show();
+    save(out, "32_pink_cat");
+    ui_set_cat_choice(0);
+
     ui_open_settings();
-    save(out, "09_settings");
+    save(out, "33_settings");
     ui_close_settings();
+
+    ui_set_names("Cleo & Lila & Friends");
+    load(sc, "long_text");
+    show();
+    save(out, "34_long_text");
+    ui_set_names("Cleo & Lila");
+
+    load(sc, "hanukkah_night3");
+    show();
+    save(out, "35_hanukkah");
+
+    load(sc, "bike_bus_cold_friday");
+    show();
+    save(out, "36_bike_bus");
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");
-
-    /* The yellow-eyed cat through the year (see components/wb_ui/cat.h). */
-    load(sc, "hanukkah_evening");
-    show("Upper Montclair, NJ", "Updated 5:30 PM");
-    save(out, "11_cat_hanukkah_night3");
-
-    load(sc, "christmas_snow");
-    show("Upper Montclair, NJ", "Updated 9:00 AM");
-    pump(60);   /* let the falling snow get going */
-    save(out, "12_cat_christmas_snow");
-
-    load(sc, "mild_may");
-    show("Upper Montclair, NJ", "Updated 10:15 AM");
-    save(out, "13_cat_plain");
-
-    load(sc, "chrismukkah");
-    show("Upper Montclair, NJ", "Updated 6:00 PM");
-    save(out, "14_cat_christmas_and_hanukkah");
-
-    /* Thunderstorm: time the capture to land on the first lightning flicker. */
-    load(sc, "storm_evening");
-    show("Upper Montclair, NJ", "Updated 6:15 PM");
-    pump(16);
-    save(out, "15_storm");
 
     lv_mem_monitor_t mon;
     lv_mem_monitor(&mon);

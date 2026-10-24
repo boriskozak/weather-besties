@@ -23,6 +23,7 @@ void settings_defaults(wb_settings_t *s)
     s->off_from = 21;
     s->off_to = 6;
     s->bike_bus = 5; /* Friday */
+    s->cat = 0;      /* black cat */
 }
 
 static void get_str(nvs_handle_t h, const char *key, char *dst, size_t cap)
@@ -77,6 +78,7 @@ void settings_load(wb_settings_t *s)
     get_u8(h, "nfrom", &s->off_from);
     get_u8(h, "nto", &s->off_to);
     get_u8(h, "bbus", &s->bike_bus);
+    get_u8(h, "cat", &s->cat);
     nvs_close(h);
     ESP_LOGI(TAG, "loaded: wifi='%s' place='%s' (%.4f, %.4f)", s->ssid, s->place_name, s->lat, s->lon);
 }
@@ -101,6 +103,7 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "nfrom", s->off_from);
     nvs_set_u8(h, "nto", s->off_to);
     nvs_set_u8(h, "bbus", s->bike_bus);
+    nvs_set_u8(h, "cat", s->cat);
     nvs_commit(h);
     nvs_close(h);
 }

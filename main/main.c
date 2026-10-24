@@ -43,6 +43,16 @@ static void power_timer(lv_timer_t *t)
     }
 }
 
+/* Cat choice from Settings: remember it and show it right away. */
+static void cat_cb(int choice)
+{
+    S.cat = (uint8_t)choice;
+    settings_save(&S);
+    board_lvgl_lock(-1);
+    ui_set_cat_choice(choice);
+    board_lvgl_unlock();
+}
+
 /* Speed test readout and old/new switch (the UI calls this; see ui_set_speed_cb). */
 static void speed_cb(bool old_mode, char *info, size_t n)
 {
@@ -64,6 +74,8 @@ void app_main(void)
 
     board_lvgl_lock(-1);
     ui_init(S.names);
+    ui_set_cat_cb(cat_cb);
+    ui_set_cat_choice(S.cat);
     ui_set_bike_bus_day(S.bike_bus <= 6 ? S.bike_bus : -1);
     ui_set_action_cb(net_ui_action, NULL);
     ui_set_time_cb(net_local_time);

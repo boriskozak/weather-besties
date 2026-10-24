@@ -15,6 +15,7 @@ typedef struct {
     bool night_off;        /* screen off at night (tap to wake) */
     uint8_t off_from, off_to;  /* hours, local time */
     uint8_t bike_bus;          /* 0 = Sunday ... 6 = Saturday, 7 = no bike bus */
+    uint8_t cat;               /* 0 = black cat, 1 = pink cat, 2 = take turns */
 } wb_settings_t;
 
 void settings_defaults(wb_settings_t *s);

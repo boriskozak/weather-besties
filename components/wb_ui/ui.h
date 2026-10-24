@@ -57,8 +57,19 @@ void ui_set_footer(const char *place, const char *status, bool warn);  /* place:
 void ui_set_info(const ui_info_t *info);
 void ui_open_settings(void);
 void ui_close_settings(void);
-void ui_show_page(int page);   /* 0 = today, 1 = next days */
+void ui_show_page(int page);   /* 0 = today, 1 = tomorrow, 2 = next days */
 void ui_refresh_clock(void);
+
+/* Cat choice from Settings: 0 = black cat, 1 = pink cat, 2 = take turns. */
+typedef void (*ui_cat_cb_t)(int choice);
+void ui_set_cat_choice(int choice);
+void ui_set_cat_cb(ui_cat_cb_t cb);
+
+#ifdef WB_SIM
+/* Desktop-renderer test hooks. */
+void ui_test_set_checks(uint8_t mask);
+void ui_test_set_page(int page);
+#endif
 
 #ifdef __cplusplus
 }

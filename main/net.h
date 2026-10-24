@@ -7,7 +7,7 @@
 #include "settings.h"
 #include "ui.h"
 
-#define WB_VERSION "1.4.0"
+#define WB_VERSION "2.0.0"
 
 void net_start(wb_settings_t *s);
 void net_ui_action(ui_action_t a, void *user);  /* UI button callback */
