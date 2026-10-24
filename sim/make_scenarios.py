@@ -124,6 +124,56 @@ S["summer_hot"] = build(
     sunrise=6, sunset=20, feels_delta=3,
 )
 
+# Third night of Hanukkah 2026 (first candle Dec 4), cold and clear after sunset.
+S["hanukkah_evening"] = build(
+    "2026-12-06", "17:30", {"t": 33.6, "f": 26.0, "day": 0, "code": 0},
+    (0, 41, 29, 0, 1.8, 7.5), [(0, 39, 27, 0, 1.7, 8.0), (2, 42, 30, 10, 1.8, 6.0), (3, 44, 33, 20, 1.5, 3.0),
+                               (61, 46, 38, 70, 1.0, 1.0)],
+    lambda i: 0 if i < 24 else (2 if i < 48 else (3 if i < 72 else 61)),
+    lambda i: 0 if i < 48 else (20 if i < 72 else 70),
+    sunrise=7, sunset=16, feels_delta=-7,
+)
+
+# Snowy Saturday morning a week before Christmas.
+S["christmas_snow"] = build(
+    "2026-12-19", "09:10", {"t": 29.0, "f": 21.5, "day": 1, "code": 73, "p": 0.03},
+    (3, 36, 28, 20, 1.2, 2.0), [(73, 32, 24, 90, 1.0, 0.0), (3, 33, 22, 20, 1.4, 3.0), (0, 35, 21, 0, 1.6, 7.5),
+                                (2, 38, 26, 10, 1.6, 6.0)],
+    lambda i: (73 if 6 <= i <= 16 else 3) if i < 24 else (3 if i < 48 else 0),
+    lambda i: (90 if 6 <= i <= 16 else 30) if i < 24 else 10,
+    sunrise=7, sunset=16, feels_delta=-7,
+)
+
+# A plain nice day in May: no holiday, nothing special to wear.
+S["mild_may"] = build(
+    "2027-05-14", "10:20", {"t": 66.2, "f": 66.0, "day": 1, "code": 2},
+    (2, 68, 52, 10, 4.5, 8.0), [(2, 71, 54, 10, 5.0, 9.0), (1, 73, 55, 5, 5.2, 10.0), (3, 66, 53, 30, 3.0, 4.0),
+                                (2, 70, 54, 10, 4.8, 9.0)],
+    lambda i: 2 if i < 48 else 3,
+    lambda i: 10,
+    sunrise=6, sunset=20, feels_delta=0,
+)
+
+# Christmas evening 2027 is also the second night of Hanukkah (first candle Dec 24).
+S["chrismukkah"] = build(
+    "2027-12-25", "18:05", {"t": 36.0, "f": 30.0, "day": 0, "code": 3},
+    (2, 42, 31, 10, 1.4, 4.0), [(3, 40, 30, 10, 1.2, 2.0), (2, 43, 31, 10, 1.4, 5.0), (0, 45, 33, 0, 1.6, 7.5),
+                                (3, 41, 34, 30, 1.1, 2.0)],
+    lambda i: 3 if i < 48 else 2,
+    lambda i: 10,
+    sunrise=7, sunset=16, feels_delta=-6,
+)
+
+# Stormy July evening: thunder now, clearing overnight.
+S["storm_evening"] = build(
+    "2027-07-16", "18:20", {"t": 78.4, "f": 81.0, "day": 1, "code": 95, "p": 0.3, "gust": 32},
+    (1, 91, 73, 10, 8.0, 11.0), [(95, 86, 70, 80, 6.0, 6.0), (1, 84, 68, 10, 8.2, 12.0), (2, 85, 69, 10, 8.0, 11.0),
+                                 (3, 82, 67, 30, 6.0, 7.0)],
+    lambda i: (95 if 16 <= i <= 20 else 2) if i < 24 else 1,
+    lambda i: (80 if 16 <= i <= 20 else 10) if i < 24 else 10,
+    sunrise=6, sunset=20, feels_delta=2,
+)
+
 for name, data in S.items():
     with open(os.path.join(OUT, name + ".json"), "w") as f:
         json.dump(data, f, separators=(",", ":"))

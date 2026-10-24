@@ -6,12 +6,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #include "lvgl.h"
 #include "scenarios_data.h"
 #include "ui.h"
+#include "wb_request.h"
 #include "wx.h"
 
 #define EXPORT(name) __attribute__((export_name(#name)))
@@ -27,6 +29,8 @@ static time_t s_base;
 static uint32_t s_loaded_ms;
 static bool s_bike_bus = true;
 static char s_status[48];
+static char *s_live;     /* last live forecast JSON (owned) */
+static bool s_is_live;
 
 static uint32_t tick_cb(void) { return s_ms; }
 
@@ -73,6 +77,7 @@ EXPORT(emu_load) void emu_load(int i)
         ui_show_boot("Couldn't read that sample forecast.");
         return;
     }
+    s_is_live = false;
     struct tm b;
     memset(&b, 0, sizeof(b));
     b.tm_year = s_wx.year - 1900;
@@ -86,11 +91,51 @@ EXPORT(emu_load) void emu_load(int i)
     int h12 = s_wx.hour % 12 ? s_wx.hour % 12 : 12;
     snprintf(s_status, sizeof(s_status), "Updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .version = "1.1.0"};
+                      .version = "1.4.0"};
     snprintf(info.updated, sizeof(info.updated), "Weather updated %d:%02d %s", h12, s_wx.minute, s_wx.hour < 12 ? "AM" : "PM");
     ui_set_info(&info);
     ui_show_page(0);
     show_current();
+}
+
+/* ---- live weather: JavaScript fetches the same address the board uses ---- */
+
+/* The forecast address for these coordinates (Fahrenheit), built by the firmware's own code. */
+EXPORT(emu_forecast_url) const char *emu_forecast_url(double lat, double lon)
+{
+    static char url[WB_URL_MAX];
+    wb_forecast_url(url, sizeof(url), lat, lon, false);
+    return url;
+}
+
+EXPORT(emu_alloc) char *emu_alloc(int n) { return malloc((size_t)n + 1); }
+
+/* Takes a forecast JSON written into a buffer from emu_alloc (we keep it).
+ * now_utc: seconds since 1970 right now. Returns 1 if it parsed. */
+EXPORT(emu_load_json) int emu_load_json(char *json, int len, double now_utc)
+{
+    json[len] = 0;
+    wx_t w;
+    if (!wx_parse_openmeteo(json, (size_t)len, true, &w)) {
+        free(json);
+        return 0;
+    }
+    free(s_live);
+    s_live = json;
+    s_wx = w;
+    s_is_live = true;
+    s_base = (time_t)now_utc + s_wx.utc_offset_s;   /* real local time at the weather spot */
+    s_loaded_ms = s_ms;
+    struct tm t;
+    gmtime_r(&s_base, &t);
+    int h12 = t.tm_hour % 12 ? t.tm_hour % 12 : 12;
+    snprintf(s_status, sizeof(s_status), "Updated %d:%02d %s", h12, t.tm_min, t.tm_hour < 12 ? "AM" : "PM");
+    ui_info_t info = {.wifi = "(simulator)", .place = "Upper Montclair, New Jersey", .ip = "-", .version = "1.4.0"};
+    snprintf(info.updated, sizeof(info.updated), "Weather updated %d:%02d %s", h12, t.tm_min, t.tm_hour < 12 ? "AM" : "PM");
+    ui_set_info(&info);
+    ui_show_page(0);
+    show_current();
+    return 1;
 }
 
 static void on_action(ui_action_t a, void *user)
@@ -98,8 +143,10 @@ static void on_action(ui_action_t a, void *user)
     (void)user;
     if (a == UI_ACT_SETUP) {
         ui_show_setup("WeatherBesties-3F2A", "192.168.4.1");
-    } else {
+    } else if (!s_is_live) {
         emu_load(s_cur);
+    } else {
+        show_current();
     }
 }
 

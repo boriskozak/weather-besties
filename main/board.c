@@ -48,7 +48,9 @@ static const int RGB_DATA[16] = {
 #define EXIO_SD_CS (1 << 4)
 #define EXIO_USB_SEL (1 << 5) /* low = USB, high = CAN */
 
-#define LVGL_BUF_LINES 20
+#define DRAW_LINES_START 40     /* one 40-line area = the same 64 KB as v1.3.0's two 20-line ones */
+#define DRAW_LINES_OLD 20       /* speed test "old" mode */
+#define INTERNAL_MARGIN (64 * 1024)   /* keep this much internal RAM free after growing */
 
 static i2c_master_bus_handle_t s_bus;
 static i2c_master_dev_handle_t s_exp_mode, s_exp_out;
@@ -228,14 +230,114 @@ static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
     data->state = LV_INDEV_STATE_PRESSED;
 }
 
-static void *alloc_draw_buf(size_t sz)
+/* ------------------------------------------------------------------ drawing area */
+/* Waveshare's tuning guide for this screen: the drawing area is "by far the most
+ * significant setting", under 10% of the screen hurts badly, and it should live in
+ * internal RAM. Internal RAM is also what WiFi needs, so it only grows once a
+ * weather download has worked, and only if a healthy margin stays free. */
+
+static lv_display_t *s_disp;
+static uint8_t *s_buf;
+static int s_buf_lines;     /* lines the allocated buffer holds */
+static bool s_buf_internal;
+static bool s_old_mode;
+
+static size_t lines_bytes(int lines)
 {
-    void *p = heap_caps_aligned_alloc(64, sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (!p) {
-        ESP_LOGW(TAG, "draw buffer in PSRAM (internal RAM is tight)");
-        p = heap_caps_aligned_alloc(64, sz, MALLOC_CAP_SPIRAM);
-    }
+    return (size_t)LCD_W * lines * sizeof(uint16_t);
+}
+
+size_t board_free_internal(void)
+{
+    return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+}
+
+int board_draw_lines(void)
+{
+    return s_old_mode ? DRAW_LINES_OLD : s_buf_lines;
+}
+
+static void apply_lines(void)
+{
+    int lines = board_draw_lines();
+    lv_display_set_buffers(s_disp, s_buf, NULL, lines_bytes(lines), LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_obj_invalidate(lv_screen_active());
+}
+
+static uint8_t *alloc_lines(int lines, bool *internal)
+{
+    uint8_t *p = heap_caps_aligned_alloc(64, lines_bytes(lines), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    *internal = p != NULL;
     return p;
+}
+
+/* Swaps in a buffer of `lines` lines. Caller holds the LVGL lock. */
+static bool resize_locked(int lines)
+{
+    uint8_t *old = s_buf;
+    int old_lines = s_buf_lines;
+    heap_caps_free(old);   /* free first so the new one can reuse the space */
+    bool internal;
+    uint8_t *p = alloc_lines(lines, &internal);
+    if (!p) {
+        p = alloc_lines(old_lines, &internal);   /* we just freed this much, so it fits */
+        lines = old_lines;
+        if (!p) {
+            p = heap_caps_aligned_alloc(64, lines_bytes(old_lines), MALLOC_CAP_SPIRAM);
+            internal = false;
+        }
+    }
+    s_buf = p;
+    s_buf_lines = lines;
+    s_buf_internal = internal;
+    apply_lines();
+    return lines != old_lines;
+}
+
+void board_grow_draw_buffer(void)
+{
+    if (!board_lvgl_lock(-1)) {
+        return;
+    }
+    static const int steps[] = {100, 80, 60};
+    for (size_t i = 0; i < sizeof(steps) / sizeof(steps[0]); i++) {
+        int want = steps[i];
+        if (want <= s_buf_lines) {
+            break;
+        }
+        size_t free_now = board_free_internal();
+        size_t after = free_now + lines_bytes(s_buf_lines) - lines_bytes(want);
+        if (free_now + lines_bytes(s_buf_lines) < lines_bytes(want) + INTERNAL_MARGIN) {
+            continue;
+        }
+        if (resize_locked(want)) {
+            ESP_LOGI(TAG, "drawing area now %d lines; internal free %u KB (planned %u KB)", s_buf_lines,
+                     (unsigned)(board_free_internal() / 1024), (unsigned)(after / 1024));
+            break;
+        }
+    }
+    board_lvgl_unlock();
+}
+
+void board_shrink_draw_buffer(void)
+{
+    if (s_buf_lines <= DRAW_LINES_START || !board_lvgl_lock(-1)) {
+        return;
+    }
+    resize_locked(DRAW_LINES_START);
+    ESP_LOGW(TAG, "memory tight: drawing area back to %d lines, internal free %u KB", s_buf_lines,
+             (unsigned)(board_free_internal() / 1024));
+    board_lvgl_unlock();
+}
+
+void board_speed_old_mode(bool old)
+{
+    if (old == s_old_mode || !board_lvgl_lock(-1)) {
+        return;
+    }
+    s_old_mode = old;
+    apply_lines();
+    board_lvgl_unlock();
 }
 
 esp_err_t board_init(void)
@@ -254,14 +356,22 @@ esp_err_t board_init(void)
     lv_init();
     lv_tick_set_cb(tick_cb);
     lv_display_t *disp = lv_display_create(LCD_W, LCD_H);
-    size_t sz = LCD_W * LVGL_BUF_LINES * sizeof(uint16_t);
-    void *b1 = alloc_draw_buf(sz);
-    void *b2 = alloc_draw_buf(sz);
-    if (!b1 || !b2) {
+    s_disp = disp;
+    /* One buffer is as fast as two here: flush_cb copies synchronously, so a second
+     * buffer never overlaps drawing with sending. */
+    s_buf = alloc_lines(DRAW_LINES_START, &s_buf_internal);
+    if (!s_buf) {
+        ESP_LOGW(TAG, "drawing area in PSRAM (internal RAM is tight)");
+        s_buf = heap_caps_aligned_alloc(64, lines_bytes(DRAW_LINES_START), MALLOC_CAP_SPIRAM);
+    }
+    if (!s_buf) {
         return ESP_ERR_NO_MEM;
     }
-    lv_display_set_buffers(disp, b1, b2, sz, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    s_buf_lines = DRAW_LINES_START;
+    lv_display_set_buffers(disp, s_buf, NULL, lines_bytes(s_buf_lines), LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(disp, flush_cb);
+    ESP_LOGI(TAG, "drawing area %d lines (%s), internal free %u KB", s_buf_lines,
+             s_buf_internal ? "internal" : "PSRAM", (unsigned)(board_free_internal() / 1024));
 
     lv_indev_t *ind = lv_indev_create();
     lv_indev_set_type(ind, LV_INDEV_TYPE_POINTER);

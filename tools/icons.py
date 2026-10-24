@@ -348,3 +348,279 @@ CATS = {
 
 def tiny_drop():
     return svg(drop(50, 56, 30, "#4DA6FF", sw=6))
+
+
+# ---------------------------------------------------------------- the yellow-eyed cat (today screen)
+# Drawn in one shared "stage" (CAT_W x CAT_H px, 1 unit = 1 px) so every layer
+# lines up: the cat peeks over the top edge of the first forecast card, which
+# sits at y = CAT_EDGE. make_assets.py crops each layer to its pixels and
+# records where it goes, so the firmware just stacks them.
+CAT_W, CAT_H = 184, 100
+CAT_EDGE = 94          # card top edge, in stage coordinates
+CSW = 2.2              # outline at this scale (matches the 72 px period icons)
+CAT_BODY = "#2E2E3A"
+CAT_EYE = "#FFD23F"
+CAT_LINE = "#C9C9DA"   # mouth / closed eyes, light enough to read on black
+
+
+def cstick(shapes, fill, sw=CSW, rim=None, extra=""):
+    """stick() at cat scale; rim adds a white die-cut edge outside the navy."""
+    s = "".join(shapes)
+    out = ""
+    if rim:
+        out += (f'<g fill="{rim}" stroke="{rim}" stroke-width="{2*(sw+1.8)}" stroke-linejoin="round" '
+                f'opacity="0.9" {extra}>{s}</g>')
+    out += (f'<g fill="{O}" stroke="{O}" stroke-width="{2*sw}" stroke-linejoin="round" {extra}>{s}</g>'
+            f'<g fill="{fill}" {extra}>{s}</g>')
+    return out
+
+
+def stage(body):
+    return svg(body, f"0 0 {CAT_W} {CAT_H}")
+
+
+EYES = ((48, 63), (72, 63))
+
+
+def cat_base():
+    head = ['<ellipse cx="60" cy="66" rx="32" ry="26"/>',
+            '<path d="M30,57 L34,24 L55,43 Z"/>', '<path d="M90,57 L86,24 L65,43 Z"/>']
+    paws = ['<ellipse cx="45" cy="94" rx="10.5" ry="6.5"/>', '<ellipse cx="75" cy="94" rx="10.5" ry="6.5"/>']
+    out = cstick(head + paws, CAT_BODY, rim="#FFFFFF")       # rim around the whole silhouette
+    out += cstick(head, CAT_BODY)                               # head on top of the rim
+    out += '<path d="M35.5,47 L37,31 L49,41.5 Z" fill="#FF9EC4"/><path d="M84.5,47 L83,31 L71,41.5 Z" fill="#FF9EC4"/>'
+    for x, y in EYES:
+        out += f'<ellipse cx="{x}" cy="{y}" rx="6.6" ry="7.6" fill="{CAT_EYE}" stroke="{O}" stroke-width="1.6"/>'
+        out += f'<ellipse cx="{x}" cy="{y+1}" rx="3" ry="5.3" fill="{O}"/>'
+        out += f'<circle cx="{x-2.2}" cy="{y-3}" r="1.7" fill="#fff"/>'
+    out += f'<path d="M56.5,71 L63.5,71 L60,75 Z" fill="#FF7EB3" stroke="{O}" stroke-width="1.2" stroke-linejoin="round"/>'
+    out += (f'<path d="M60,75 Q57,80 53.5,78 M60,75 Q63,80 66.5,78" fill="none" stroke="{CAT_LINE}" '
+            f'stroke-width="1.6" stroke-linecap="round"/>')
+    for sgn in (-1, 1):
+        for dy in (0, 5):
+            out += (f'<path d="M{60+sgn*17},{73+dy} L{60+sgn*36},{71+dy*1.6}" stroke="#FFFFFF" '
+                    f'stroke-width="1.3" stroke-linecap="round" opacity="0.8"/>')
+    for x in (38, 82):
+        out += f'<ellipse cx="{x}" cy="74" rx="4.6" ry="2.6" fill="{PINK}" opacity="0.75"/>'
+    out += cstick(paws, CAT_BODY)
+    for x in (45, 75):
+        for dx in (-3.5, 3.5):
+            out += (f'<path d="M{x+dx},{91.5} L{x+dx},{95}" stroke="{CAT_LINE}" stroke-width="1.2" '
+                    f'stroke-linecap="round" opacity="0.7"/>')
+    return stage(out)
+
+
+def cat_blink():
+    """Drawn over the open eyes for a moment."""
+    out = ""
+    for x, y in EYES:
+        out += f'<ellipse cx="{x}" cy="{y}" rx="8.6" ry="9.4" fill="{CAT_BODY}"/>'
+        out += (f'<path d="M{x-6},{y+1} Q{x},{y+6} {x+6},{y+1}" fill="none" stroke="{CAT_LINE}" '
+                f'stroke-width="2" stroke-linecap="round"/>')
+    return stage(out)
+
+
+# --- hats ---------------------------------------------------------------
+def hat_witch():
+    g = 'transform="rotate(-9 60 41)"'
+    cone = ['<path d="M43,41 Q50,24 55,12 Q58,4 67,3 Q61,9 63,16 Q68,28 77,41 Z"/>']
+    brim = ['<ellipse cx="60" cy="42" rx="29" ry="5.5"/>']
+    out = cstick(cone + brim, "#3B2F5C", extra=g)
+    out += f'<g {g}><path d="M46.5,34 L73.5,34 L76,40 L44,40 Z" fill="#9B6BFF"/>'
+    out += f'<rect x="56" y="33.5" width="8" height="7" rx="1.2" fill="none" stroke="{CAT_EYE}" stroke-width="2"/></g>'
+    out += f'<g {g}><circle cx="66" cy="4" r="1.6" fill="{CAT_EYE}"/></g>'
+    return stage(out)
+
+
+def hat_santa():
+    body = ['<path d="M37,44 Q40,22 60,15 Q80,10 92,22 Q96,27 94,34 Q88,24 78,24 Q84,32 83,44 Z"/>']
+    out = cstick(body, "#E8434F")
+    out += cstick(['<rect x="34" y="37" width="52" height="11" rx="5.5"/>'], "#FFFFFF")
+    out += cstick(['<circle cx="94" cy="36" r="6"/>'], "#FFFFFF")
+    return stage(out)
+
+
+def hat_beanie():
+    dome = ['<path d="M39,45 Q39,24 60,22 Q81,24 81,45 Z"/>']
+    out = cstick(dome, "#FF7EB3")
+    for x in (49, 60, 71):
+        out += f'<path d="M{x},26 Q{x+0.5},35 {x},42" stroke="#E0457B" stroke-width="1.6" fill="none" opacity="0.7"/>'
+    out += cstick(['<rect x="37" y="39" width="46" height="10" rx="4.5"/>'], "#FFB3CF")
+    out += cstick(['<circle cx="60" cy="19" r="6.5"/>'], "#FFFFFF")
+    return stage(out)
+
+
+def hat_rain():
+    crown = ['<path d="M44,44 Q44,24 60,23 Q76,24 76,44 Z"/>']
+    brim = ['<path d="M27,46 Q60,34 93,46 Q94,52 88,51 Q60,44 32,51 Q26,52 27,46 Z"/>']
+    out = cstick(crown + brim, "#FFD23F")
+    out += f'<path d="M45,38 Q60,34 75,38" stroke="#E8B500" stroke-width="1.6" fill="none"/>'
+    return stage(out)
+
+
+# --- around the neck ------------------------------------------------------
+def _scarf(c1, c2):
+    band = ['<path d="M33,82 Q60,95 87,82 L88,88 Q60,102 32,88 Z"/>']
+    tail = ['<path d="M70,88 L82,88 L86,100 L73,100 Z"/>']
+    out = cstick(tail + band, c1)
+    for x in (42, 54, 66, 78):
+        out += f'<path d="M{x},{84.5 + (3 if 48 < x < 72 else 1.5)} l0,6" stroke="{c2}" stroke-width="3.4"/>'
+    out += f'<path d="M74.5,94 L84.5,94" stroke="{c2}" stroke-width="2.6"/>'
+    return stage(out)
+
+
+def neck_scarf():
+    return _scarf("#2EC4B6", "#FFFFFF")
+
+
+def neck_scarf_blue():
+    return _scarf("#3D7FE0", "#FFFFFF")
+
+
+def neck_cape():
+    collar = ['<path d="M30,80 L46,90 L60,86 L74,90 L90,80 L84,96 L60,92 L36,96 Z"/>']
+    out = cstick(collar, "#8E5CF7")
+    bow = ['<path d="M60,89 L50,84 L50,95 Z"/>', '<path d="M60,89 L70,84 L70,95 Z"/>',
+           '<circle cx="60" cy="89.5" r="3"/>']
+    out += cstick(bow, "#FF9A3C")
+    return stage(out)
+
+
+# --- on the face -----------------------------------------------------------
+def heart(cx, cy, s):
+    return (f'<path d="M{cx},{cy+s*0.9} C{cx-s*1.3},{cy+s*0.1} {cx-s*1.1},{cy-s*1.0} {cx},{cy-s*0.35} '
+            f'C{cx+s*1.1},{cy-s*1.0} {cx+s*1.3},{cy+s*0.1} {cx},{cy+s*0.9} Z"/>')
+
+
+def face_sunglasses():
+    lenses = [heart(x, y + 1, 8.5) for x, y in EYES]
+    out = cstick(lenses, "#FF5FA2", sw=1.8)
+    out += f'<path d="M55.5,61 Q60,58.5 64.5,61" stroke="{O}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+    for x, y in EYES:
+        out += f'<ellipse cx="{x-3}" cy="{y-2}" rx="2.2" ry="1.4" fill="#fff" opacity="0.85"/>'
+    return stage(out)
+
+
+# --- props, sitting on the card edge to the cat's right ----------------------
+def prop_pumpkin():
+    cx, cy = 146, 81
+    ribs = [f'<ellipse cx="{cx-11}" cy="{cy}" rx="12" ry="14"/>', f'<ellipse cx="{cx+11}" cy="{cy}" rx="12" ry="14"/>',
+            f'<ellipse cx="{cx}" cy="{cy}" rx="13" ry="15"/>']
+    out = cstick([f'<path d="M{cx-2},{cy-14} Q{cx-1},{cy-22} {cx+5},{cy-24} L{cx+4},{cy-14} Z"/>'], "#5CB85C")
+    out += cstick(ribs, "#FF9A3C")
+    out += f'<ellipse cx="{cx}" cy="{cy}" rx="13" ry="15" fill="#FFAE5C"/>'
+    out += (f'<path d="M{cx-9},{cy-3} l4,-6 l4,6 Z M{cx+1},{cy-3} l4,-6 l4,6 Z" fill="{O}"/>')
+    out += (f'<path d="M{cx-11},{cy+3} Q{cx},{cy+13} {cx+11},{cy+3} L{cx+6},{cy+5} L{cx+3},{cy+3} L{cx},{cy+6} '
+            f'L{cx-3},{cy+3} L{cx-6},{cy+5} Z" fill="{O}"/>')
+    return stage(out)
+
+
+def prop_present():
+    out = cstick(['<rect x="126" y="66" width="40" height="29" rx="3"/>'], "#3DBE6E")
+    out += cstick(['<rect x="123" y="60" width="46" height="9" rx="2.5"/>'], "#52D485")
+    out += '<rect x="142" y="60" width="8" height="35" fill="#E8434F"/>'
+    out += cstick(['<path d="M146,60 Q134,46 131,53 Q130,59 146,60 Z"/>',
+                   '<path d="M146,60 Q158,46 161,53 Q162,59 146,60 Z"/>'], "#E8434F")
+    return stage(out)
+
+
+MENORAH_X0, MENORAH_DX = 104, 9      # candle i (0..8) sits at x0 + i*dx; i = 4 is the shamash
+MENORAH_TOP = 60                        # candle top (shamash 6 px higher)
+
+
+def menorah_candle_x(i):
+    return MENORAH_X0 + i * MENORAH_DX
+
+
+def prop_menorah():
+    gold, gold2 = "#F5C542", "#D9A520"
+    x0, x8 = menorah_candle_x(0), menorah_candle_x(8)
+    mid = menorah_candle_x(4)
+    parts = [f'<rect x="{x0-3}" y="69" width="{x8-x0+6}" height="5" rx="2.5"/>',
+             f'<rect x="{mid-2.5}" y="69" width="5" height="22" rx="1.5"/>',
+             f'<path d="M{mid-14},95 Q{mid},84 {mid+14},95 Z"/>']
+    for i in range(9):
+        x = menorah_candle_x(i)
+        top = 63 if i != 4 else 57
+        parts.append(f'<rect x="{x-3}" y="{top+5}" width="6" height="4" rx="1.5"/>')
+    out = cstick(parts, gold, sw=1.8)
+    out += f'<rect x="{x0-1}" y="70" width="{x8-x0+2}" height="1.5" fill="#FFF0B3" opacity="0.8"/>'
+    for i in range(9):
+        x = menorah_candle_x(i)
+        top = MENORAH_TOP if i != 4 else MENORAH_TOP - 6
+        col = "#FFFFFF" if i == 4 else ("#7FB8FF" if i % 2 else "#FFFFFF")
+        out += (f'<rect x="{x-2}" y="{top}" width="4" height="{68-top}" rx="1" fill="{col}" '
+                f'stroke="{O}" stroke-width="1.2"/>')
+    return stage(out)
+
+
+def flame():
+    """One candle flame, 10 x 14 box; tip at the top, base at the bottom."""
+    return svg(f'<path d="M5,1 Q9.5,7 8,10.5 Q6.5,13.5 5,13.5 Q3.5,13.5 2,10.5 Q0.5,7 5,1 Z" fill="#FF9A3C"/>'
+               f'<path d="M5,5.5 Q7.3,9 6.4,11 Q5.8,12.3 5,12.3 Q4.2,12.3 3.6,11 Q2.7,9 5,5.5 Z" fill="#FFE38A"/>',
+               "0 0 10 14")
+
+
+def snowflake():
+    """A falling flake, 16 x 16 box."""
+    d = ""
+    for a in range(0, 180, 60):
+        r = math.radians(a)
+        dx, dy = 5.5 * math.cos(r), 5.5 * math.sin(r)
+        d += f"M{8-dx:.2f},{8-dy:.2f} L{8+dx:.2f},{8+dy:.2f} "
+    return svg(f'<path d="{d}" stroke="{O}" stroke-width="4.2" stroke-linecap="round"/>'
+               f'<path d="{d}" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>', "0 0 16 16")
+
+
+# Stacking order in the firmware is base, neck, face, hat (props behind the cat).
+CAT_LAYERS = {
+    "base": cat_base, "blink": cat_blink,
+    "hat_witch": hat_witch, "hat_santa": hat_santa, "hat_beanie": hat_beanie, "hat_rain": hat_rain,
+    "neck_scarf": neck_scarf, "neck_scarf_blue": neck_scarf_blue, "neck_cape": neck_cape,
+    "face_sunglasses": face_sunglasses,
+    "prop_pumpkin": prop_pumpkin, "prop_present": prop_present, "prop_menorah": prop_menorah,
+}
+
+
+# ---------------------------------------------------------------- weather effects (falling things)
+# Small sprites the today page animates behind everything else. Each entry is
+# (svg, width, height) at the exact pixel size it's drawn on screen.
+def fx_raindrop(w=8, h=20):
+    """A short slanted streak: falling rain."""
+    return svg(f'<path d="M{w*0.7:.1f},{1.5} L{w*0.3:.1f},{h-2.5}" stroke="{O}" stroke-width="4.4" stroke-linecap="round" opacity="0.55"/>'
+               f'<path d="M{w*0.7:.1f},{1.5} L{w*0.3:.1f},{h-2.5}" stroke="#8ED0FF" stroke-width="2.4" stroke-linecap="round"/>',
+               f"0 0 {w} {h}")
+
+
+def fx_leaf(color, angle):
+    """An autumn leaf, drawn at four angles so swapping them looks like tumbling."""
+    body = ('<path d="M12,2.5 C18,6 20,12 12,21.5 C4,12 6,6 12,2.5 Z"/>')
+    vein = '<path d="M12,4.5 L12,19.5 M12,10 L15.5,7.5 M12,13.5 L8.5,11 M12,16.5 L15,14.5" stroke="#00000033" stroke-width="1.2" fill="none" stroke-linecap="round"/>'
+    stem = f'<path d="M12,21 L12,23.2" stroke="{O}" stroke-width="1.8" stroke-linecap="round"/>'
+    g = f'transform="rotate({angle} 12 12)"'
+    return svg(f'<g {g}>' + stick([body], color, sw=1.5) + vein + stem + '</g>', "0 0 24 24")
+
+
+def fx_star():
+    return svg(sparkle(8, 8, 6.2, "#FFE38A"), "0 0 16 16")
+
+
+def fx_bolt():
+    pts = "22,2 9,28 19,28 12,50 34,20 23,20 30,2"
+    return svg(stick([f'<polygon points="{pts}"/>'], "#FFD43B", sw=2.2), "0 0 40 52")
+
+
+LEAF_COLORS = {"orange": "#FF9A3C", "red": "#E8553C", "yellow": "#F5C542"}
+LEAF_ANGLES = (0, 50, 100, 150)
+
+FX = {
+    "drop": (fx_raindrop(), 8, 20),
+    "drop_s": (fx_raindrop(6, 13), 6, 13),
+    "flake": (snowflake(), 16, 16),
+    "flake_s": (snowflake(), 11, 11),
+    "star": (fx_star(), 16, 16),
+    "bolt": (fx_bolt(), 40, 52),
+}
+for _name, _col in LEAF_COLORS.items():
+    for _i, _a in enumerate(LEAF_ANGLES):
+        FX[f"leaf_{_name}_{_i}"] = (fx_leaf(_col, _a), 22, 22)

@@ -440,3 +440,72 @@ void wx_derive_periods(wx_t *wx)
         h = we;
     }
 }
+
+/* ------------------------------------------------------------------ kid moments */
+
+/* No school: weekends, July-August, and Christmas Eve through New Year's Day.
+ * (A guess at the school calendar; other days off still say "Walk to school".) */
+static bool school_day(const wx_day_t *d)
+{
+    if (d->wday == 0 || d->wday == 6 || d->month == 7 || d->month == 8) {
+        return false;
+    }
+    if ((d->month == 12 && d->day >= 24) || (d->month == 1 && d->day == 1)) {
+        return false;
+    }
+    return true;
+}
+
+int wx_kid_moments(const wx_t *wx, int now_hour, int now_min, wx_moment_t out[WX_MOMENTS])
+{
+    if (!wx || !wx->valid || wx->ndays < 1 || wx->nhours < 24) {
+        return 0;
+    }
+    int now = now_hour * 60 + now_min;
+    int day = now >= 15 * 60 + 30 ? 1 : 0;
+    if (day >= wx->ndays || (day + 1) * 24 > wx->nhours) {
+        day = 0;
+    }
+    const wx_day_t *d = &wx->days[day];
+    bool school = school_day(d);
+
+    static const char *school_title[] = {"Walk to school", "Recess", "Going home"};
+    static const char *school_sub[] = {"Morning", "Noon", "Afternoon"};
+    static const char *free_title[] = {"Morning", "Lunchtime", "Afternoon"};
+    const int school_hour[] = {8, 12, 15};
+    const int free_hour[] = {9, 12, 15};
+
+    for (int i = 0; i < WX_MOMENTS; i++) {
+        wx_moment_t *m = &out[i];
+        int h = school ? school_hour[i] : free_hour[i];
+        snprintf(m->title, sizeof(m->title), "%s", school ? school_title[i] : free_title[i]);
+        if (school) {
+            if (day == 1) {
+                snprintf(m->sub, sizeof(m->sub), "Tomorrow %s", i == 1 ? "at noon" : i == 0 ? "morning" : "afternoon");
+            } else {
+                snprintf(m->sub, sizeof(m->sub), "%s", school_sub[i]);
+            }
+        } else {
+            snprintf(m->sub, sizeof(m->sub), "%s", day == 1 ? "Tomorrow" : wx_wday_name(d->wday, false));
+        }
+
+        int idx = day * 24 + h;
+        m->temp = wx->h_temp[idx];
+        m->is_day = wx->h_day[idx];
+        m->code = wx->h_code[idx];
+        m->pop = 0;
+        for (int j = idx - 1; j <= idx + 1; j++) {
+            if (j < 0 || j >= wx->nhours) {
+                continue;
+            }
+            if (wx->h_pop[j] > m->pop) {
+                m->pop = wx->h_pop[j];
+            }
+            if (wx_severity(wx->h_code[j]) > wx_severity(m->code)) {
+                m->code = wx->h_code[j];
+            }
+        }
+        m->past = day == 0 && now >= h * 60 + 60;
+    }
+    return WX_MOMENTS;
+}

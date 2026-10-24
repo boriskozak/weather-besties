@@ -2,19 +2,26 @@
 build/
 sdkconfig
 sdkconfig.old
-managed_components/
 dependencies.lock
+managed_components/
 
-# PC renderer and emulator build output
+# PC renderer / simulator build output
 sim/build/
 sim/build-web/
 sim/render
-sim/out/
+sim/test_request
+sim/web/site/
+sim/scenarios/
+sim/out/*.rgb565
 
-# Asset tool scratch
+# artwork tools
 tools/node_modules/
 tools/build/
 tools/package-lock.json
+
 __pycache__/
 *.pyc
 .DS_Store
+
+# case CAD: intermediate assembly meshes (render.py inputs)
+cad/out/_asm_*.stl

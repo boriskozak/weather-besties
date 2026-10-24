@@ -184,6 +184,7 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
     memset(a, 0, sizeof(*a));
     if (!wx->valid || wx->nhours == 0) {
         snprintf(a->headline, sizeof(a->headline), "Hi there!");
+        snprintf(a->kid_head, sizeof(a->kid_head), "Hi there!");
         snprintf(a->tip, sizeof(a->tip), "Checking the sky...");
         return;
     }
@@ -287,7 +288,9 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
         add_wear(a, b->wear[i]);
     }
 
+    const char *kid_word = b->word;   /* for the short kid headline */
     if (thunder) {
+        kid_word = "Stormy";
         if (day == 0) {
             snprintf(a->headline, sizeof(a->headline), "Stormy %s, %d" DEG, when, T);
         } else {
@@ -298,6 +301,7 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
         add_wear(a, WEAR_UMBRELLA);
         add_wear(a, b->wear[0]);
     } else if (ice) {
+        kid_word = "Icy";
         if (day == 0) {
             snprintf(a->headline, sizeof(a->headline), "Icy %s, %d" DEG, when, T);
         } else {
@@ -309,6 +313,7 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
         add_wear(a, WEAR_COAT);
         add_wear(a, WEAR_MITTENS);
     } else if (snow_hours > 0 || snowing_now) {
+        kid_word = "Snowy";
         if (day == 0) {
             snprintf(a->headline, sizeof(a->headline), "Snowy %s, %d" DEG, when, T);
         } else {
@@ -320,6 +325,7 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
         add_wear(a, WEAR_BOOTS);
         add_wear(a, WEAR_MITTENS);
     } else if (raining_now || rain_hours >= 2 || (rain_hours >= 1 && pop_max >= 60)) {
+        kid_word = "Rainy";
         if (day == 0) {
             snprintf(a->headline, sizeof(a->headline), "Rainy %s, %d" DEG, when, T);
         } else {
@@ -377,6 +383,13 @@ void advice_make(const wx_t *wx, const advice_opts_t *opts, advice_t *a)
         have_cmp = advice_compare(wx, &wx->days[0], &wx->days[1], "today", a->compare, sizeof(a->compare), &dtemp);
     }
     bool big_drop = have_cmp && dtemp <= -BIG_CHANGE_F;
+
+    /* Short headline without the number (the big temperature already says it). */
+    if (day == 1) {
+        snprintf(a->kid_head, sizeof(a->kid_head), "%s tomorrow!", kid_word);
+    } else {
+        snprintf(a->kid_head, sizeof(a->kid_head), "%s %s!", kid_word, when);
+    }
 
     /* ---- bike bus (a morning ride, so only until 10 AM, or the evening before) ---- */
     int target_wday = wx->ndays > day ? wx->days[day].wday : (wx->wday + day) % 7;

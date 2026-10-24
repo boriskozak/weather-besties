@@ -43,6 +43,13 @@ static void power_timer(lv_timer_t *t)
     }
 }
 
+/* Speed test readout and old/new switch (the UI calls this; see ui_set_speed_cb). */
+static void speed_cb(bool old_mode, char *info, size_t n)
+{
+    board_speed_old_mode(old_mode);
+    snprintf(info, n, "%d lines, %u KB free", board_draw_lines(), (unsigned)(board_free_internal() / 1024));
+}
+
 void app_main(void)
 {
     esp_err_t err = nvs_flash_init();
@@ -60,6 +67,7 @@ void app_main(void)
     ui_set_bike_bus_day(S.bike_bus <= 6 ? S.bike_bus : -1);
     ui_set_action_cb(net_ui_action, NULL);
     ui_set_time_cb(net_local_time);
+    ui_set_speed_cb(speed_cb);
     lv_timer_create(power_timer, 1000, NULL);
     lv_refr_now(NULL);
     board_lvgl_unlock();

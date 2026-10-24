@@ -6,6 +6,7 @@
 
 #include "advice.h"
 #include "assets/assets.h"
+#include "cat.h"
 #include "lvgl.h"
 
 #define DEG "\xC2\xB0"
@@ -48,7 +49,6 @@ static const theme_t *theme_for(const wx_t *wx)
 
 /* ------------------------------------------------------------------ state */
 
-static const lv_image_dsc_t *ICON_L[] = WB_WX_ICONS_L;
 static const lv_image_dsc_t *ICON_M[] = WB_WX_ICONS_M;
 static const lv_image_dsc_t *ICON_S[] = WB_WX_ICONS_S;
 static const lv_image_dsc_t *WEAR_ICONS[] = WB_WEAR_ICONS;
@@ -60,6 +60,16 @@ static ui_time_cb_t s_time_cb;
 static const theme_t *s_theme = &TH_PARTLY;
 static int s_last_min = -1;
 static bool s_have_wx;
+
+/* Speed test: tap "Updated ..." to cycle off -> new settings -> old settings. */
+static ui_speed_cb_t s_speed_cb;
+static int s_speed;            /* 0 off, 1 new settings, 2 old (v1.3.0) settings */
+static lv_timer_t *s_speed_timer;
+static char s_footer[48];
+static bool s_footer_warn;
+static bool s_past[WX_MOMENTS];
+static void on_footer_tap(lv_event_t *e);
+static void card_fill(lv_obj_t *o, int screen_y0, int screen_y1, lv_opa_t opa);
 static advice_opts_t s_opts = {.bike_bus_wday = 5}; /* Friday */
 
 static lv_obj_t *scr_boot, *scr_setup, *scr_main;
@@ -71,18 +81,18 @@ static lv_obj_t *boot_title, *boot_msg, *boot_detail, *boot_spinner, *boot_btn;
 static lv_obj_t *setup_qr, *setup_steps;
 
 /* main: top bar */
-static lv_obj_t *lbl_greet, *lbl_time, *lbl_date;
+static lv_obj_t *lbl_greet, *lbl_time;
 /* main: pages */
 static lv_obj_t *tv, *tile0, *tile1;
-static lv_obj_t *img_hero, *lbl_temp, *lbl_cond, *lbl_hilo, *lbl_feels;
-static lv_obj_t *bubble, *bubble_tail, *lbl_head, *lbl_cmp, *lbl_tip, *wear_row;
-static lv_obj_t *wear_chip[ADVICE_MAX_WEAR], *wear_img[ADVICE_MAX_WEAR], *wear_lbl[ADVICE_MAX_WEAR];
-static lv_obj_t *pcard[WX_MAX_PERIODS], *p_lbl[WX_MAX_PERIODS], *p_img[WX_MAX_PERIODS], *p_temp[WX_MAX_PERIODS],
-                *p_pop[WX_MAX_PERIODS], *p_drop[WX_MAX_PERIODS];
+static lv_obj_t *img_hero, *lbl_temp, *lbl_cond;
+static lv_obj_t *bubble, *bubble_drop, *bubble_tail, *lbl_head, *lbl_tip, *wear_row;
+static lv_obj_t *wear_chip[ADVICE_MAX_WEAR], *wear_img[ADVICE_MAX_WEAR];
+static lv_obj_t *pcard[WX_MOMENTS], *p_lbl[WX_MOMENTS], *p_img[WX_MOMENTS], *p_temp[WX_MOMENTS],
+                *p_pop[WX_MOMENTS], *p_drop[WX_MOMENTS];
 static lv_obj_t *lbl_days_title;
 static lv_obj_t *dcard[3], *d_name[3], *d_img[3], *d_temp[3], *d_pop[3], *d_drop[3], *d_line[3], *d_trend[3];
 /* main: footer */
-static lv_obj_t *dot[2], *lbl_place, *lbl_status;
+static lv_obj_t *dot[2], *lbl_status;
 
 /* settings overlay */
 static lv_obj_t *settings, *set_info;
@@ -420,48 +430,514 @@ static void update_dots(void)
     }
 }
 
-static void on_tile_changed(lv_event_t *e)
+static void fx_page(int page);
+
+/* Swipes. LVGL's own gesture detection forgets a swipe whenever one touch reading
+ * shows no movement, which slow fingers (and the touch chip's own scan rate) hit
+ * often. So this just compares where the finger went down with where it came up:
+ * 80+ px sideways, mostly horizontal, flips the page. A finger that moved that far
+ * also doesn't count as a tap or a long press. */
+#define SWIPE_MIN_PX 80
+#define TAP_SLOP_PX 30
+
+static lv_point_t s_press_at;
+static bool s_swiped;
+
+static int32_t moved_px(lv_indev_t *in, int32_t *dx, int32_t *dy)
+{
+    lv_point_t p;
+    lv_indev_get_point(in, &p);
+    *dx = p.x - s_press_at.x;
+    *dy = p.y - s_press_at.y;
+    return LV_ABS(*dx) > LV_ABS(*dy) ? LV_ABS(*dx) : LV_ABS(*dy);
+}
+
+static void on_indev(lv_event_t *e)
+{
+    lv_indev_t *in = lv_event_get_target(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    int32_t dx, dy;
+    switch (code) {
+    case LV_EVENT_PRESSED:
+        lv_indev_get_point(in, &s_press_at);
+        s_swiped = false;
+        break;
+    case LV_EVENT_RELEASED:
+        moved_px(in, &dx, &dy);
+        if (lv_screen_active() == scr_main && lv_obj_has_flag(settings, LV_OBJ_FLAG_HIDDEN) &&
+            LV_ABS(dx) >= SWIPE_MIN_PX && LV_ABS(dx) > LV_ABS(dy) * 3 / 2) {
+            s_swiped = true;
+            ui_show_page(dx < 0 ? 1 : 0);   /* finger moved left = next days */
+        }
+        break;
+    case LV_EVENT_CLICKED:
+    case LV_EVENT_SHORT_CLICKED:
+    case LV_EVENT_LONG_PRESSED:
+        if (s_swiped || moved_px(in, &dx, &dy) > TAP_SLOP_PX) {
+            lv_indev_stop_processing(in);   /* a swipe, not a tap or a long press */
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+/* ------------------------------------------------------------------ weather effects */
+/* Rain, snow, leaves and stars live in one layer at the very back of the today
+ * page, so they pass behind the text, the cat, the bubble and the cards. One timer
+ * moves them all 30 times a second: smooth enough to read as falling, and on this
+ * chip far cheaper than an LVGL animation per sprite at the 100 Hz refresh rate. */
+
+#define FX_MAX 22
+#define FX_TICK_MS 33
+/* The open sky: left of the speech bubble (x 412) and above the cards (page y 268).
+ * Pieces only fall here; anything behind the bubble or the cards would be hidden
+ * but still cost time to redraw. */
+#define FX_W 412
+#define FX_H 272
+
+typedef struct {
+    lv_obj_t *img;
+    int32_t x, y;        /* 1/16 pixel */
+    int32_t vx, vy;      /* 1/16 pixel per second */
+    int16_t x0;          /* sway centre, pixels */
+    uint16_t amp;        /* sway amplitude, pixels */
+    uint16_t period;     /* sway / twinkle period, ms */
+    uint16_t phase;      /* ms offset */
+    uint8_t kind;        /* 0 drop, 1 flake, 2 leaf, 3 star */
+    uint8_t color, frame;
+    uint16_t frame_ms;
+} fx_p_t;
+
+static const lv_image_dsc_t *const LEAF_IMG[WB_FX_LEAF_COLORS][WB_FX_LEAF_FRAMES] = WB_FX_LEAVES;
+static lv_obj_t *fx_box, *fx_bolt;
+static lv_timer_t *fx_timer;
+static fx_p_t s_fx[FX_MAX];
+static int s_fx_n;
+static cat_fx_t s_fx_mode = (cat_fx_t)-1;
+static uint32_t s_fx_t;          /* ms since this effect started */
+static uint32_t s_bolt_at;       /* next lightning, in s_fx_t ms */
+
+/* Stars sit in the open sky: around the weather picture, left of the cat. */
+static const lv_point_t FX_STAR_POS[] = {{352, 18}, {392, 104}, {214, 150}, {150, 170}, {28, 172},
+                                         {96, 214}, {176, 220}, {380, 20}};
+#define FX_STARS_N ((int)(sizeof(FX_STAR_POS) / sizeof(FX_STAR_POS[0])))
+
+static void fx_spawn(fx_p_t *p, bool first)
+{
+    int x = (int)lv_rand(0, FX_W - 8);
+    int y = first ? (int)lv_rand(0, FX_H) - 20 : -(int)lv_rand(16, 80);
+    p->x = x * 16;
+    p->x0 = (int16_t)x;
+    p->y = y * 16;
+    switch (p->kind) {
+    case 0:   /* rain: fast, a little wind from the left */
+        p->vy = (int32_t)lv_rand(380, 520) * 16;
+        p->vx = (int32_t)lv_rand(50, 80) * 16;
+        break;
+    case 1:   /* snow: slow and swaying */
+        p->vy = (int32_t)lv_rand(26, 48) * 16;
+        p->vx = 0;
+        p->amp = (uint16_t)lv_rand(6, 14);
+        p->period = (uint16_t)lv_rand(2400, 4200);
+        break;
+    case 2:   /* leaves: a bit faster than snow, big sways, tumbling */
+        p->vy = (int32_t)lv_rand(34, 62) * 16;
+        p->vx = 0;
+        p->amp = (uint16_t)lv_rand(26, 46);
+        p->period = (uint16_t)lv_rand(3000, 5200);
+        p->color = (uint8_t)lv_rand(0, WB_FX_LEAF_COLORS - 1);
+        p->frame = (uint8_t)lv_rand(0, WB_FX_LEAF_FRAMES - 1);
+        p->frame_ms = (uint16_t)lv_rand(180, 320);
+        lv_image_set_src(p->img, LEAF_IMG[p->color][p->frame]);
+        break;
+    default:
+        break;
+    }
+    p->phase = (uint16_t)lv_rand(0, 6000);
+}
+
+static void fx_add(int kind, const lv_image_dsc_t *src)
+{
+    if (s_fx_n >= FX_MAX) {
+        return;
+    }
+    fx_p_t *p = &s_fx[s_fx_n++];
+    p->kind = (uint8_t)kind;
+    lv_image_set_src(p->img, src);
+    lv_obj_remove_flag(p->img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_image_opa(p->img, LV_OPA_COVER, 0);
+    fx_spawn(p, true);
+}
+
+static int32_t fx_sin(uint32_t t_ms, uint16_t period, int32_t amp)
+{
+    int16_t ang = (int16_t)((t_ms % period) * 360 / period);
+    return lv_trigo_sin(ang) * amp / LV_TRIGO_SIN_MAX;
+}
+
+static void fx_tick(lv_timer_t *timer)
+{
+    (void)timer;
+    uint32_t dt = FX_TICK_MS;
+    s_fx_t += dt;
+    for (int i = 0; i < s_fx_n; i++) {
+        fx_p_t *p = &s_fx[i];
+        uint32_t t = s_fx_t + p->phase;
+        if (p->kind == 3) {   /* star: twinkle in place */
+            int32_t s = fx_sin(t, p->period, 100);
+            lv_obj_set_style_image_opa(p->img, (lv_opa_t)(150 + (s < 0 ? -s : s)), 0);
+            continue;
+        }
+        p->y += p->vy * (int32_t)dt / 1000;
+        int px;
+        if (p->kind == 0) {
+            p->x += p->vx * (int32_t)dt / 1000;
+            px = p->x / 16;
+            if (px > FX_W) {
+                p->x -= (FX_W + 24) * 16;
+                px = p->x / 16;
+            }
+        } else {
+            px = p->x0 + fx_sin(t, p->period, p->amp);
+        }
+        if (p->kind == 2 && (s_fx_t % p->frame_ms) < dt) {   /* tumble */
+            p->frame = (uint8_t)((p->frame + 1) % WB_FX_LEAF_FRAMES);
+            lv_image_set_src(p->img, LEAF_IMG[p->color][p->frame]);
+        }
+        if (p->y / 16 > FX_H) {
+            fx_spawn(p, false);
+            px = p->x / 16;
+        }
+        lv_obj_set_pos(p->img, px, p->y / 16);
+    }
+
+    /* Thunderstorm: a double flicker of lightning every 5-10 seconds. */
+    if (s_fx_mode == FX_STORM) {
+        uint32_t k = s_fx_t - s_bolt_at;
+        if ((int32_t)k >= 0) {
+            bool on = k < 90 || (k >= 170 && k < 260);
+            if (on == lv_obj_has_flag(fx_bolt, LV_OBJ_FLAG_HIDDEN)) {
+                if (on) {
+                    lv_obj_remove_flag(fx_bolt, LV_OBJ_FLAG_HIDDEN);
+                } else {
+                    lv_obj_add_flag(fx_bolt, LV_OBJ_FLAG_HIDDEN);
+                }
+            }
+            if (k >= 260) {
+                s_bolt_at = s_fx_t + lv_rand(5000, 10000);
+            }
+        }
+    }
+}
+
+static void fx_page(int page);
+
+static void fx_set(cat_fx_t mode)
+{
+    if (mode == s_fx_mode) {
+        return;
+    }
+    s_fx_mode = mode;
+    s_fx_n = 0;
+    s_fx_t = 0;
+    for (int i = 0; i < FX_MAX; i++) {
+        lv_obj_add_flag(s_fx[i].img, LV_OBJ_FLAG_HIDDEN);
+    }
+    lv_obj_add_flag(fx_bolt, LV_OBJ_FLAG_HIDDEN);
+
+    int drops = 0, small_drops = 0, flakes = 0, small_flakes = 0, leaves = 0;
+    switch (mode) {
+    case FX_RAIN: drops = 14; break;
+    case FX_HEAVY_RAIN: drops = 20; break;
+    case FX_STORM: drops = 18; s_bolt_at = 1500; break;
+    case FX_DRIZZLE: small_drops = 12; break;
+    case FX_SLEET: drops = 8; flakes = 5; small_flakes = 4; break;
+    case FX_SNOW: flakes = 9; small_flakes = 7; break;
+    case FX_LEAVES: leaves = 7; break;
+    case FX_STARS:
+        for (int i = 0; i < FX_STARS_N && s_fx_n < FX_MAX; i++) {
+            fx_p_t *p = &s_fx[s_fx_n++];
+            p->kind = 3;
+            lv_image_set_src(p->img, &img_fx_star);
+            lv_obj_set_pos(p->img, FX_STAR_POS[i].x, FX_STAR_POS[i].y);
+            p->period = (uint16_t)lv_rand(1600, 3200);
+            p->phase = (uint16_t)lv_rand(0, 3000);
+            lv_obj_remove_flag(p->img, LV_OBJ_FLAG_HIDDEN);
+        }
+        break;
+    default: break;
+    }
+    for (int i = 0; i < drops; i++) fx_add(0, &img_fx_drop);
+    for (int i = 0; i < small_drops; i++) fx_add(0, &img_fx_drop_s);
+    for (int i = 0; i < flakes; i++) fx_add(1, &img_fx_flake);
+    for (int i = 0; i < small_flakes; i++) fx_add(1, &img_fx_flake_s);
+    for (int i = 0; i < leaves; i++) fx_add(2, LEAF_IMG[0][0]);
+    if (mode == FX_DRIZZLE) {   /* drizzle falls slower */
+        for (int i = 0; i < s_fx_n; i++) s_fx[i].vy = s_fx[i].vy * 3 / 5;
+    }
+    fx_tick(NULL);   /* place everything before the first frame */
+
+    if (s_fx_n) {
+        lv_obj_remove_flag(fx_box, LV_OBJ_FLAG_HIDDEN);
+        fx_page(lv_tileview_get_tile_active(tv) == tile1 ? 1 : 0);
+    } else {
+        lv_obj_add_flag(fx_box, LV_OBJ_FLAG_HIDDEN);
+        lv_timer_pause(fx_timer);
+    }
+}
+
+/* Only animate while the today page is the one showing. */
+static void fx_page(int page)
+{
+    if (page == 0 && s_fx_n) {
+        lv_timer_resume(fx_timer);
+    } else {
+        lv_timer_pause(fx_timer);
+    }
+}
+
+static void build_fx(lv_obj_t *t)
+{
+    fx_box = box(t);   /* first child of the page = drawn behind everything */
+    lv_obj_set_size(fx_box, FX_W + 30, FX_H);   /* leaves sway a little past the edge */
+    lv_obj_add_flag(fx_box, LV_OBJ_FLAG_HIDDEN);
+    for (int i = 0; i < FX_MAX; i++) {
+        s_fx[i].img = lv_image_create(fx_box);
+        lv_obj_add_flag(s_fx[i].img, LV_OBJ_FLAG_HIDDEN);
+    }
+    fx_bolt = lv_image_create(fx_box);
+    lv_image_set_src(fx_bolt, &img_fx_bolt);
+    lv_obj_set_pos(fx_bolt, 352, 4);   /* in the sky right of the weather picture */
+    lv_obj_add_flag(fx_bolt, LV_OBJ_FLAG_HIDDEN);
+    fx_timer = lv_timer_create(fx_tick, FX_TICK_MS, NULL);
+    lv_timer_pause(fx_timer);
+}
+
+/* ------------------------------------------------------------------ the yellow-eyed cat */
+/* Sits on the top edge of a forecast card. Every outfit piece is its own small
+ * image stacked on the cat (see cat.h for who wears what when), so one set of
+ * art covers every combination. */
+
+static const wb_kitty_set_t *K = &wb_kitty;
+static bool s_prop_left;   /* props on the cat's left instead of its right */
+static int s_stage_x, s_stage_y;   /* stage position on the page */
+static lv_obj_t *kitty_stage, *kitty_grp, *kitty_base, *kitty_blink, *kitty_neck, *kitty_face, *kitty_hat, *kitty_prop;
+static lv_obj_t *kitty_flame[9];
+static uint32_t s_blink_at, s_blink_until;
+
+static lv_obj_t *kitty_layer(lv_obj_t *parent)
+{
+    lv_obj_t *o = lv_image_create(parent);
+    lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+    return o;
+}
+
+static void kitty_set(lv_obj_t *o, const wb_layer_t *l)
+{
+    if (!l) {
+        lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+    lv_image_set_src(o, l->img);
+    lv_obj_set_pos(o, l->x, l->y);
+    lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void blink_now(uint32_t ms)
+{
+    s_blink_until = lv_tick_get() + ms;
+    lv_obj_remove_flag(kitty_blink, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void kitty_tick(lv_timer_t *t)
+{
+    (void)t;
+    uint32_t now = lv_tick_get();
+    if (s_blink_until && (int32_t)(now - s_blink_until) >= 0) {
+        lv_obj_add_flag(kitty_blink, LV_OBJ_FLAG_HIDDEN);
+        s_blink_until = 0;
+        /* Next blink in 2.5-6 s; now and then a quick double blink. */
+        s_blink_at = now + (lv_rand(0, 4) == 0 ? 260 : lv_rand(2500, 6000));
+    } else if (!s_blink_until && (int32_t)(now - s_blink_at) >= 0) {
+        blink_now(150);
+    }
+}
+
+static void hop_exec(void *obj, int32_t v)
+{
+    lv_obj_set_style_translate_y(obj, v, 0);
+}
+
+static void on_kitty_tap(lv_event_t *e)
 {
     (void)e;
-    update_dots();
+    if (lv_anim_get(kitty_grp, hop_exec)) {
+        return;
+    }
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, kitty_grp);
+    lv_anim_set_exec_cb(&a, hop_exec);
+    lv_anim_set_values(&a, 0, -K->h / 8);
+    lv_anim_set_duration(&a, 170);
+    lv_anim_set_reverse_duration(&a, 230);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+    blink_now(220);
 }
+
+/* stage_x / card_top in page coordinates. */
+static void build_kitty(lv_obj_t *t, const wb_kitty_set_t *set, int stage_x, int card_top, bool prop_left)
+{
+    K = set;
+    s_prop_left = prop_left;
+    s_stage_x = stage_x;
+    s_stage_y = card_top - K->edge;
+
+    /* Props (and the menorah's flames) go on the page itself, behind the cat. */
+    kitty_prop = kitty_layer(t);
+    for (int i = 0; i < 9; i++) {
+        kitty_flame[i] = kitty_layer(t);
+        lv_image_set_src(kitty_flame[i], K->flame);
+    }
+
+    kitty_stage = box(t);
+    lv_obj_set_pos(kitty_stage, s_stage_x, s_stage_y);
+    lv_obj_set_size(kitty_stage, K->w, K->h);
+
+    kitty_grp = box(kitty_stage);
+    lv_obj_set_size(kitty_grp, K->w, K->h);
+    kitty_base = kitty_layer(kitty_grp);
+    kitty_blink = kitty_layer(kitty_grp);
+    kitty_neck = kitty_layer(kitty_grp);
+    kitty_face = kitty_layer(kitty_grp);
+    kitty_hat = kitty_layer(kitty_grp);
+    kitty_set(kitty_base, &K->base);
+    kitty_set(kitty_blink, &K->blink);
+    lv_obj_add_flag(kitty_blink, LV_OBJ_FLAG_HIDDEN);
+
+    /* Tap the cat and it hops. Long press still bubbles up to open Settings. */
+    lv_obj_add_flag(kitty_base, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_add_event_cb(kitty_base, on_kitty_tap, LV_EVENT_CLICKED, NULL);
+
+    s_blink_at = lv_tick_get() + 3000;
+    lv_timer_create(kitty_tick, 50, NULL);
+}
+
+static void kitty_show(const wx_t *wx, const advice_t *adv)
+{
+    int y = wx->year, m = wx->month, d = wx->day, h = wx->hour;
+    struct tm t;
+    if (s_time_cb && s_time_cb(&t)) {
+        y = t.tm_year + 1900;
+        m = t.tm_mon + 1;
+        d = t.tm_mday;
+        h = t.tm_hour;
+    }
+    cat_look_t look;
+    cat_pick_look(y, m, d, h, wx, adv, &look);
+
+    const wb_layer_t *hat = look.hat == CAT_HAT_WITCH ? &K->hat_witch : look.hat == CAT_HAT_SANTA ? &K->hat_santa
+                            : look.hat == CAT_HAT_BEANIE ? &K->hat_beanie : look.hat == CAT_HAT_RAIN ? &K->hat_rain
+                                                                                                     : NULL;
+    const wb_layer_t *neck = look.neck == CAT_NECK_CAPE ? &K->neck_cape : look.neck == CAT_NECK_SCARF ? &K->neck_scarf
+                             : look.neck == CAT_NECK_SCARF_BLUE ? &K->neck_scarf_blue : NULL;
+    const wb_layer_t *prop = look.prop == CAT_PROP_PUMPKIN ? &K->prop_pumpkin
+                             : look.prop == CAT_PROP_PRESENT ? &K->prop_present
+                             : look.prop == CAT_PROP_MENORAH ? &K->prop_menorah : NULL;
+    kitty_set(kitty_hat, hat);
+    kitty_set(kitty_neck, neck);
+    kitty_set(kitty_face, look.face == CAT_FACE_SUNGLASSES ? &K->face_sunglasses : NULL);
+
+    /* Props normally sit to the cat's right; some layouts want them on its left. */
+    wb_layer_t moved;
+    int dx = 0;
+    if (prop) {
+        moved = *prop;
+        if (s_prop_left) {
+            moved.x = (int16_t)(K->base.x - prop->img->header.w - 2);
+        }
+        dx = moved.x - prop->x;
+        moved.x += s_stage_x;   /* stage -> page coordinates */
+        moved.y += s_stage_y;
+        prop = &moved;
+    }
+    kitty_set(kitty_prop, prop);
+
+    /* Menorah: candles are added right to left, so night n lights the n rightmost
+     * (skipping the shamash in the middle), plus the shamash itself. */
+    static const int order[8] = {8, 7, 6, 5, 3, 2, 1, 0};
+    bool lit[9] = {false};
+    if (look.prop == CAT_PROP_MENORAH && look.candles > 0) {
+        lit[4] = true;
+        for (int i = 0; i < look.candles && i < 8; i++) {
+            lit[order[i]] = true;
+        }
+    }
+    for (int i = 0; i < 9; i++) {
+        lv_obj_set_pos(kitty_flame[i], s_stage_x + K->flames[i].x + dx, s_stage_y + K->flames[i].y);
+        if (lit[i]) {
+            lv_obj_remove_flag(kitty_flame[i], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(kitty_flame[i], LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    fx_set(look.fx);
+}
+
+/* ------------------------------------------------------------------ today page */
+/* The cat sits in the middle and the speech bubble is its advice; the weather
+ * is a compact block top-left; the bottom row is the girls' school day. */
+static lv_obj_t *p_sub[WX_MOMENTS];
+
+#define TY(y) ((y) - 58)   /* screen y -> today-page y (the pages start 58 px down) */
+#define KID_CARD_TOP 326    /* screen y of the moment cards */
+#define KID_CARD_H 130
+#define DAY_CARD_TOP 108    /* screen y of the next-days cards */
+#define DAY_CARD_H 346
 
 static void build_today(lv_obj_t *t)
 {
+    build_fx(t);
     img_hero = lv_image_create(t);
-    lv_obj_set_pos(img_hero, 14, 12);
-
     lbl_temp = label(t, &font_temp_xl, "--" DEG);
-    lv_obj_set_pos(lbl_temp, 196, 6);
+    lbl_cond = label(t, &font_small, "");
+    lv_obj_set_pos(lbl_temp, 20, TY(60));
+    lv_obj_set_pos(img_hero, 232, TY(66));
+    lv_obj_set_pos(lbl_cond, 26, TY(182));
 
-    lbl_cond = label(t, &font_title, "");
-    lv_obj_set_pos(lbl_cond, 204, 140);
-
-    lbl_hilo = label(t, &font_body, "");
-    lv_obj_set_pos(lbl_hilo, 204, 180);
-
-    lbl_feels = label(t, &font_small, "");
-    lv_obj_set_pos(lbl_feels, 204, 214);
-
-    /* speech bubble: tail first so the bubble covers its lower half */
+    /* speech bubble */
+    const int bx = 412, by = TY(66), bw = 364, bh = KID_CARD_TOP - 66 - 26;
     bubble_tail = box(t);
     lv_obj_set_size(bubble_tail, 30, 30);
-    lv_obj_set_pos(bubble_tail, 676, 6);
+    lv_obj_set_pos(bubble_tail, bx - 11, TY(256));   /* points left, at the cat */
     lv_obj_set_style_bg_opa(bubble_tail, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(bubble_tail, 4, 0);
     lv_obj_set_style_transform_pivot_x(bubble_tail, 15, 0);
     lv_obj_set_style_transform_pivot_y(bubble_tail, 15, 0);
     lv_obj_set_style_transform_rotation(bubble_tail, 450, 0);
 
+    /* A flat offset "drop" under the bubble. It looks like a sticker shadow and is
+     * cheap to draw; the blurred shadow it replaces was slow on this chip. */
+    bubble_drop = box(t);
+    lv_obj_set_pos(bubble_drop, bx, by + 7);
+    lv_obj_set_size(bubble_drop, bw, bh);
+    lv_obj_set_style_radius(bubble_drop, 28, 0);
+    lv_obj_set_style_bg_color(bubble_drop, C(0x1B2542), 0);
+    lv_obj_set_style_bg_opa(bubble_drop, 38, 0);
+
     bubble = box(t);
-    lv_obj_set_pos(bubble, 444, 16);
-    lv_obj_set_size(bubble, 338, 238);
+    lv_obj_set_pos(bubble, bx, by);
+    lv_obj_set_size(bubble, bw, bh);
     lv_obj_set_style_radius(bubble, 28, 0);
     lv_obj_set_style_bg_opa(bubble, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(bubble, 18, 0);
-    lv_obj_set_style_pad_row(bubble, 4, 0);
-    lv_obj_set_style_shadow_width(bubble, 28, 0);
-    lv_obj_set_style_shadow_opa(bubble, 45, 0);
+    lv_obj_set_style_pad_hor(bubble, 24, 0);
+    lv_obj_set_style_pad_ver(bubble, 20, 0);
+    lv_obj_set_style_pad_row(bubble, 8, 0);
+    lv_obj_set_style_shadow_width(bubble, 0, 0);   /* blurred shadow only in speed-test "old" mode */
+    lv_obj_set_style_shadow_opa(bubble, 40, 0);
     lv_obj_set_style_shadow_offset_y(bubble, 8, 0);
     lv_obj_set_style_shadow_color(bubble, C(0x1B2542), 0);
     lv_obj_set_flex_flow(bubble, LV_FLEX_FLOW_COLUMN);
@@ -469,49 +945,48 @@ static void build_today(lv_obj_t *t)
     lbl_head = label(bubble, &font_title, "");
     lv_obj_set_width(lbl_head, lv_pct(100));
     lv_label_set_long_mode(lbl_head, LV_LABEL_LONG_MODE_WRAP);
-
-    lbl_cmp = label(bubble, &font_small, "");
-    lv_obj_set_width(lbl_cmp, lv_pct(100));
-    lv_label_set_long_mode(lbl_cmp, LV_LABEL_LONG_MODE_WRAP);
-
     lbl_tip = label(bubble, &font_body, "");
     lv_obj_set_width(lbl_tip, lv_pct(100));
     lv_label_set_long_mode(lbl_tip, LV_LABEL_LONG_MODE_WRAP);
-
     lv_obj_t *spacer = box(bubble);
     lv_obj_set_width(spacer, 1);
     lv_obj_set_flex_grow(spacer, 1);
-
     wear_row = box(bubble);
     lv_obj_set_size(wear_row, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(wear_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(wear_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
-    lv_obj_set_style_pad_column(wear_row, 10, 0);
+    lv_obj_set_style_pad_column(wear_row, 18, 0);
     for (int i = 0; i < ADVICE_MAX_WEAR; i++) {
         wear_chip[i] = box(wear_row);
-        lv_obj_set_size(wear_chip[i], 92, LV_SIZE_CONTENT);
-        lv_obj_set_flex_flow(wear_chip[i], LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(wear_chip[i], LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        wear_img[i] = lv_image_create(wear_chip[i]);
-        wear_lbl[i] = label(wear_chip[i], &font_tiny, "");
+        lv_obj_set_size(wear_chip[i], LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        wear_img[i] = lv_image_create(wear_chip[i]);   /* no captions: the pictures say it */
     }
 
-    /* period cards */
-    for (int i = 0; i < WX_MAX_PERIODS; i++) {
-        lv_obj_t *c = card(t, 20 + i * 193, 262, 181, 134);
+    /* walk to school / recess / going home */
+    for (int i = 0; i < WX_MOMENTS; i++) {
+        lv_obj_t *c = card(t, 24 + i * 256, TY(KID_CARD_TOP), 240, KID_CARD_H);
         pcard[i] = c;
         p_lbl[i] = label(c, &font_small, "");
-        lv_obj_align(p_lbl[i], LV_ALIGN_TOP_MID, 0, 8);
-        p_img[i] = lv_image_create(c);
-        lv_obj_set_pos(p_img[i], 8, 40);
-        p_temp[i] = label(c, &font_temp_l, "");
-        lv_obj_set_pos(p_temp[i], 90, 40);
-        p_drop[i] = lv_image_create(c);
+        lv_obj_align(p_lbl[i], LV_ALIGN_TOP_MID, 0, 10);
+        p_sub[i] = label(c, &font_tiny, "");
+        lv_obj_align(p_sub[i], LV_ALIGN_TOP_MID, 0, 36);
+        lv_obj_t *row = box(c);
+        lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(row, 6, 0);
+        lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 56);
+        p_img[i] = lv_image_create(row);
+        p_temp[i] = label(row, &font_temp_l, "");
+        p_drop[i] = lv_image_create(row);
         lv_image_set_src(p_drop[i], &img_drop);
-        lv_obj_set_pos(p_drop[i], 92, 94);
-        p_pop[i] = label(c, &font_small, "");
-        lv_obj_set_pos(p_pop[i], 118, 92);
+        lv_obj_set_style_margin_left(p_drop[i], 6, 0);
+        p_pop[i] = label(row, &font_small, "");
     }
+
+    /* After the cards, so the paws sit on top of them. The cat stands beside the
+     * bubble it's talking with; props go on its left. */
+    build_kitty(t, &wb_kitty, 226, TY(KID_CARD_TOP), true);
 }
 
 static void build_days(lv_obj_t *t)
@@ -519,7 +994,7 @@ static void build_days(lv_obj_t *t)
     lbl_days_title = label(t, &font_title, "Next few days");
     lv_obj_set_pos(lbl_days_title, 24, 2);
     for (int i = 0; i < 3; i++) {
-        lv_obj_t *c = card(t, 20 + i * 260, 50, 240, 346);
+        lv_obj_t *c = card(t, 20 + i * 260, TY(DAY_CARD_TOP), 240, DAY_CARD_H);
         dcard[i] = c;
         d_name[i] = label(c, &font_title, "");
         lv_obj_align(d_name[i], LV_ALIGN_TOP_MID, 0, 14);
@@ -565,11 +1040,12 @@ static void build_main(void)
 
     lbl_time = label(scr_main, &font_title, "");
     lv_obj_align(lbl_time, LV_ALIGN_TOP_RIGHT, -24, 14);
-    lbl_date = label(scr_main, &font_small, "");
     lv_obj_add_flag(lbl_time, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(lbl_time, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
 
-    /* swipeable pages */
+    /* Two pages. A swipe flips straight to the other one (on_swipe); there's no
+     * dragging, because moving the whole 800x480 picture under a finger is the
+     * slowest thing this chip can draw. */
     tv = lv_tileview_create(scr_main);
     lv_obj_set_pos(tv, 0, 58);
     lv_obj_set_size(tv, UI_W, 400);
@@ -579,17 +1055,20 @@ static void build_main(void)
     tile1 = lv_tileview_add_tile(tv, 1, 0, LV_DIR_LEFT);
     lv_obj_set_style_bg_opa(tile0, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_opa(tile1, LV_OPA_TRANSP, 0);
-    lv_obj_add_event_cb(tv, on_tile_changed, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_remove_flag(tv, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(tile0, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(tile1, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(tile0, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
     lv_obj_add_event_cb(tile1, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
     build_today(tile0);
     build_days(tile1);
 
-    /* footer */
-    lbl_place = label(scr_main, &font_tiny, "");
-    lv_obj_set_pos(lbl_place, 24, 456);
+    /* footer: just when the weather was last updated (the town is in Settings) */
     lbl_status = label(scr_main, &font_tiny, "");
-    lv_obj_align(lbl_status, LV_ALIGN_TOP_RIGHT, -24, 456);
+    lv_obj_align(lbl_status, LV_ALIGN_TOP_RIGHT, -24, 459);
+    lv_obj_add_flag(lbl_status, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_ext_click_area(lbl_status, 16);
+    lv_obj_add_event_cb(lbl_status, on_footer_tap, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *dots = box(scr_main);
     lv_obj_set_size(dots, 80, 10);
@@ -609,32 +1088,24 @@ static void apply_theme(const theme_t *th)
 {
     s_theme = th;
     set_grad(scr_main, th->top, th->bottom);
-    lv_obj_t *txt[] = {lbl_greet, lbl_time, lbl_temp, lbl_cond, lbl_days_title, lbl_place, lbl_status};
+    lv_obj_t *txt[] = {lbl_greet, lbl_time, lbl_temp, lbl_days_title, lbl_status};
     for (size_t i = 0; i < sizeof(txt) / sizeof(txt[0]); i++) {
         lv_obj_set_style_text_color(txt[i], C(th->text), 0);
     }
-    lv_obj_t *txt2[] = {lbl_date, lbl_hilo, lbl_feels};
-    for (size_t i = 0; i < sizeof(txt2) / sizeof(txt2[0]); i++) {
-        lv_obj_set_style_text_color(txt2[i], C(th->text2), 0);
-    }
+    lv_obj_set_style_text_color(lbl_cond, C(th->text2), 0);
     lv_obj_set_style_bg_color(bubble, C(th->bubble), 0);
     lv_obj_set_style_bg_color(bubble_tail, C(th->bubble), 0);
     lv_obj_set_style_text_color(lbl_head, C(th->accent), 0);
     lv_obj_set_style_text_color(lbl_tip, C(th->bubble_text), 0);
-    lv_obj_set_style_text_color(lbl_cmp, C(th->bubble_text), 0);
-    for (int i = 0; i < ADVICE_MAX_WEAR; i++) {
-        lv_obj_set_style_text_color(wear_lbl[i], C(th->bubble_text), 0);
-    }
-    for (int i = 0; i < WX_MAX_PERIODS; i++) {
-        lv_obj_set_style_bg_color(pcard[i], C(th->card), 0);
-        lv_obj_set_style_bg_opa(pcard[i], th->card_opa, 0);
-        lv_obj_set_style_text_color(p_lbl[i], C(th->text2), 0);
+    for (int i = 0; i < WX_MOMENTS; i++) {
+        card_fill(pcard[i], KID_CARD_TOP, KID_CARD_TOP + KID_CARD_H, th->card_opa);
+        lv_obj_set_style_text_color(p_lbl[i], C(th->text), 0);
+        lv_obj_set_style_text_color(p_sub[i], C(th->text2), 0);
         lv_obj_set_style_text_color(p_temp[i], C(th->text), 0);
         lv_obj_set_style_text_color(p_pop[i], C(th->text2), 0);
     }
     for (int i = 0; i < 3; i++) {
-        lv_obj_set_style_bg_color(dcard[i], C(th->card), 0);
-        lv_obj_set_style_bg_opa(dcard[i], th->card_opa, 0);
+        card_fill(dcard[i], DAY_CARD_TOP, DAY_CARD_TOP + DAY_CARD_H, th->card_opa);
         lv_obj_set_style_text_color(d_name[i], C(th->text), 0);
         lv_obj_set_style_text_color(d_temp[i], C(th->text), 0);
         lv_obj_set_style_text_color(d_pop[i], C(th->text2), 0);
@@ -667,11 +1138,7 @@ static void set_clock(const struct tm *t)
         h12 = 12;
     }
     lv_label_set_text_fmt(lbl_time, "%d:%02d %s", h12, t->tm_min, t->tm_hour < 12 ? "AM" : "PM");
-    lv_label_set_text_fmt(lbl_date, "%s, %s %d", wx_wday_name(t->tm_wday, true), wx_month_name(t->tm_mon + 1, true),
-                          t->tm_mday);
     lv_obj_align(lbl_time, LV_ALIGN_TOP_RIGHT, -24, 14);
-    lv_obj_update_layout(lbl_time);
-    lv_obj_align_to(lbl_date, lbl_time, LV_ALIGN_OUT_LEFT_BOTTOM, -14, -4);
 }
 
 void ui_refresh_clock(void)
@@ -696,36 +1163,126 @@ static void clock_timer(lv_timer_t *tm)
     }
 }
 
+/* ------------------------------------------------------------------ speed test */
+
+/* Moments that already happened are faded. Fading each piece is cheap; fading the
+ * whole card (the old way, kept for the speed test) makes LVGL draw it into a
+ * separate layer first. */
+/* The sky colour at a screen row (the main screen's vertical gradient). */
+static lv_color_t sky_at(int y)
+{
+    int mix = y <= 0 ? 0 : y >= UI_H ? 255 : y * 255 / UI_H;
+    return lv_color_mix(C(s_theme->bottom), C(s_theme->top), (uint8_t)mix);
+}
+
+/* Paints a card solid, in exactly the colours the see-through card had over the
+ * sky. A solid card is quicker to draw, and LVGL skips the sky behind it. In the
+ * speed test's "old" mode it goes back to see-through. */
+static void card_fill(lv_obj_t *o, int screen_y0, int screen_y1, lv_opa_t opa)
+{
+    if (s_speed == 2) {
+        lv_obj_set_style_bg_color(o, C(s_theme->card), 0);
+        lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_NONE, 0);
+        lv_obj_set_style_bg_opa(o, opa, 0);
+        return;
+    }
+    lv_color_t card = C(s_theme->card);
+    lv_obj_set_style_bg_color(o, lv_color_mix(card, sky_at(screen_y0), opa), 0);
+    lv_obj_set_style_bg_grad_color(o, lv_color_mix(card, sky_at(screen_y1), opa), 0);
+    lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+}
+
+static void style_card(int i)
+{
+    bool past = s_past[i];
+    bool old = s_speed == 2;
+    lv_obj_set_style_opa(pcard[i], past && old ? LV_OPA_50 : LV_OPA_COVER, 0);
+    lv_opa_t dim = past && !old ? 120 : LV_OPA_COVER;
+    card_fill(pcard[i], KID_CARD_TOP, KID_CARD_TOP + KID_CARD_H,
+              past && !old ? s_theme->card_opa / 2 : s_theme->card_opa);
+    lv_obj_t *txt[] = {p_lbl[i], p_sub[i], p_temp[i], p_pop[i]};
+    for (size_t k = 0; k < sizeof(txt) / sizeof(txt[0]); k++) {
+        lv_obj_set_style_text_opa(txt[k], dim, 0);
+    }
+    lv_obj_set_style_image_opa(p_img[i], dim, 0);
+    lv_obj_set_style_image_opa(p_drop[i], dim, 0);
+}
+
+static void show_footer(void)
+{
+    if (s_speed) {
+        char info[48] = "simulator";
+        if (s_speed_cb) {
+            s_speed_cb(s_speed == 2, info, sizeof(info));
+        }
+        lv_label_set_text_fmt(lbl_status, "Speed test: %s settings \xC2\xB7 %s", s_speed == 2 ? "old" : "new", info);
+        lv_obj_set_style_text_color(lbl_status, C(s_theme->text), 0);
+    } else {
+        lv_label_set_text(lbl_status, s_footer);
+        lv_obj_set_style_text_color(lbl_status, s_footer_warn ? C(0xE0457B) : C(s_theme->text), 0);
+    }
+    lv_obj_align(lbl_status, LV_ALIGN_TOP_RIGHT, -24, 459);
+}
+
+static void speed_timer_cb(lv_timer_t *t)
+{
+    (void)t;
+    show_footer();   /* free memory changes, so keep the readout current */
+}
+
+static void on_footer_tap(lv_event_t *e)
+{
+    (void)e;
+    s_speed = (s_speed + 1) % 3;
+    lv_display_t *d = lv_display_get_default();
+    if (s_speed) {
+        lv_sysmon_show_performance(d);
+        lv_timer_resume(s_speed_timer);
+    } else {
+        lv_sysmon_hide_performance(d);
+        lv_timer_pause(s_speed_timer);
+        if (s_speed_cb) {
+            char tmp[8];
+            s_speed_cb(false, tmp, sizeof(tmp));   /* back to the new settings */
+        }
+    }
+    bool old = s_speed == 2;
+    lv_obj_set_style_shadow_width(bubble, old ? 28 : 0, 0);
+    if (old) {
+        lv_obj_add_flag(bubble_drop, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(bubble_drop, LV_OBJ_FLAG_HIDDEN);
+    }
+    for (int i = 0; i < WX_MOMENTS; i++) {
+        style_card(i);
+    }
+    for (int i = 0; i < 3; i++) {
+        card_fill(dcard[i], DAY_CARD_TOP, DAY_CARD_TOP + DAY_CARD_H, s_theme->card_opa);
+    }
+    show_footer();
+}
+
+void ui_set_speed_cb(ui_speed_cb_t cb)
+{
+    s_speed_cb = cb;
+}
+
 /* ------------------------------------------------------------------ weather */
 
-/* Long advice: first drop the little captions under the clothes, then shrink the headline. */
+/* Height the bubble's contents need right now. */
 static int bubble_need(void)
 {
     lv_obj_update_layout(bubble);
-    int gaps = lv_obj_has_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN) ? 3 : 4;
-    int h = lv_obj_get_height(lbl_head) + lv_obj_get_height(lbl_tip) + lv_obj_get_height(wear_row) + gaps * 4;
-    if (!lv_obj_has_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN)) {
-        h += lv_obj_get_height(lbl_cmp);
-    }
-    return h;
+    return lv_obj_get_height(lbl_head) + lv_obj_get_height(lbl_tip) + lv_obj_get_height(wear_row) + 2 * 8;
 }
 
-/* Long advice: drop the captions under the clothes, then step the fonts down one at a time. */
+/* Long advice: step the tip, then the headline, down a font size until it fits. */
 static void fit_bubble(void)
 {
     lv_obj_set_style_text_font(lbl_head, &font_title, 0);
-    lv_obj_set_style_text_font(lbl_cmp, &font_small, 0);
     lv_obj_set_style_text_font(lbl_tip, &font_body, 0);
-    for (int i = 0; i < ADVICE_MAX_WEAR; i++) {
-        lv_obj_remove_flag(wear_lbl[i], LV_OBJ_FLAG_HIDDEN);
-    }
     int avail = lv_obj_get_content_height(bubble);
-    if (bubble_need() <= avail) {
-        return;
-    }
-    for (int i = 0; i < ADVICE_MAX_WEAR; i++) {
-        lv_obj_add_flag(wear_lbl[i], LV_OBJ_FLAG_HIDDEN);
-    }
     if (bubble_need() <= avail) {
         return;
     }
@@ -734,10 +1291,6 @@ static void fit_bubble(void)
         return;
     }
     lv_obj_set_style_text_font(lbl_head, &font_body, 0);
-    if (bubble_need() <= avail) {
-        return;
-    }
-    lv_obj_set_style_text_font(lbl_cmp, &font_tiny, 0);
 }
 
 static void set_pop(lv_obj_t *drop, lv_obj_t *lbl, int pop)
@@ -759,51 +1312,62 @@ void ui_show_weather(const wx_t *wx)
     s_have_wx = true;
     apply_theme(theme_for(wx));
 
-    /* hero */
-    lv_image_set_src(img_hero, ICON_L[wx_icon_for(wx->code, wx->is_day)]);
+    /* weather block */
+    lv_image_set_src(img_hero, ICON_M[wx_icon_for(wx->code, wx->is_day)]);
     lv_label_set_text_fmt(lbl_temp, "%d" DEG, iround(wx->temp));
-    lv_label_set_text(lbl_cond, wx_describe(wx->code, wx->is_day));
     if (wx->ndays > 0) {
-        lv_label_set_text_fmt(lbl_hilo, "High %d" DEG "   Low %d" DEG, iround(wx->days[0].tmax),
-                              iround(wx->days[0].tmin));
+        lv_label_set_text_fmt(lbl_cond, "%s  \xC2\xB7  High %d" DEG, wx_describe(wx->code, wx->is_day),
+                              iround(wx->days[0].tmax));
+    } else {
+        lv_label_set_text(lbl_cond, wx_describe(wx->code, wx->is_day));
     }
-    lv_label_set_text_fmt(lbl_feels, "Feels like %d" DEG, iround(wx->feels));
 
-    /* bubble */
+    /* what the cat says */
     advice_t a;
     advice_make(wx, &s_opts, &a);
-    lv_label_set_text(lbl_head, a.headline);
-    lv_label_set_text(lbl_cmp, a.compare);
-    if (a.compare[0]) {
-        lv_obj_remove_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(lbl_cmp, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_label_set_text(lbl_head, a.kid_head);
     lv_label_set_text(lbl_tip, a.tip);
     for (int i = 0; i < ADVICE_MAX_WEAR; i++) {
         if (i < a.nwear) {
             lv_image_set_src(wear_img[i], WEAR_ICONS[a.wear[i]]);
-            lv_label_set_text(wear_lbl[i], wear_label(a.wear[i]));
             lv_obj_remove_flag(wear_chip[i], LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(wear_chip[i], LV_OBJ_FLAG_HIDDEN);
         }
     }
-
     fit_bubble();
+    kitty_show(wx, &a);
 
-    /* parts of the day */
-    for (int i = 0; i < WX_MAX_PERIODS; i++) {
-        if (i < wx->nperiods) {
-            const wx_period_t *p = &wx->periods[i];
-            lv_obj_remove_flag(pcard[i], LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(p_lbl[i], p->label);
-            lv_image_set_src(p_img[i], ICON_S[wx_icon_for(p->code, p->is_day)]);
-            lv_label_set_text_fmt(p_temp[i], "%d" DEG, iround(p->temp));
-            set_pop(p_drop[i], p_pop[i], p->pop);
-        } else {
+    /* walk to school / recess / going home */
+    struct tm now;
+    int hh = wx->hour, mm = wx->minute;
+    if (s_time_cb && s_time_cb(&now)) {
+        hh = now.tm_hour;
+        mm = now.tm_min;
+    }
+    wx_moment_t mo[WX_MOMENTS];
+    int n = wx_kid_moments(wx, hh, mm, mo);
+    for (int i = 0; i < WX_MOMENTS; i++) {
+        if (i >= n) {
             lv_obj_add_flag(pcard[i], LV_OBJ_FLAG_HIDDEN);
+            continue;
         }
+        lv_obj_remove_flag(pcard[i], LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(p_lbl[i], mo[i].title);
+        lv_label_set_text(p_sub[i], mo[i].sub);
+        lv_image_set_src(p_img[i], ICON_S[wx_icon_for(mo[i].code, mo[i].is_day)]);
+        lv_label_set_text_fmt(p_temp[i], "%d" DEG, iround(mo[i].temp));
+        /* Rain chance only when it matters; otherwise the picture says it. */
+        if (mo[i].pop >= 30) {
+            lv_obj_remove_flag(p_drop[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(p_pop[i], LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text_fmt(p_pop[i], "%d%%", mo[i].pop);
+        } else {
+            lv_obj_add_flag(p_drop[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(p_pop[i], LV_OBJ_FLAG_HIDDEN);
+        }
+        s_past[i] = mo[i].past;
+        style_card(i);
     }
 
     /* next days */
@@ -847,16 +1411,17 @@ void ui_show_weather(const wx_t *wx)
 
 void ui_set_footer(const char *place, const char *status, bool warn)
 {
-    lv_label_set_text(lbl_place, place ? place : "");
-    lv_label_set_text(lbl_status, status ? status : "");
-    lv_obj_set_style_text_color(lbl_status, warn ? C(0xE0457B) : C(s_theme->text), 0);
-    lv_obj_align(lbl_status, LV_ALIGN_TOP_RIGHT, -24, 456);
+    (void)place;   /* the town is shown in Settings */
+    snprintf(s_footer, sizeof(s_footer), "%s", status ? status : "");
+    s_footer_warn = warn;
+    show_footer();
 }
 
 void ui_show_page(int page)
 {
     lv_tileview_set_tile_by_index(tv, page ? 1 : 0, 0, LV_ANIM_OFF);
     update_dots();
+    fx_page(page ? 1 : 0);
 }
 
 /* ------------------------------------------------------------------ init */
@@ -895,5 +1460,13 @@ void ui_init(const char *names)
     build_settings();
     apply_theme(&TH_PARTLY);
     lv_timer_create(clock_timer, 1000, NULL);
+    s_speed_timer = lv_timer_create(speed_timer_cb, 1000, NULL);
+    for (lv_indev_t *in = lv_indev_get_next(NULL); in; in = lv_indev_get_next(in)) {
+        lv_indev_add_event_cb(in, on_indev, LV_EVENT_ALL, NULL);   /* swipes */
+    }
+    lv_timer_pause(s_speed_timer);
+#if LV_USE_PERF_MONITOR
+    lv_sysmon_hide_performance(lv_display_get_default());   /* LVGL shows it by default */
+#endif
     ui_show_boot(NULL);
 }

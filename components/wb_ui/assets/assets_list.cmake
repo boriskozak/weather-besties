@@ -1,38 +1,26 @@
 set(WB_ASSET_SRCS
-    assets/img_wx_clear_day_l.c
     assets/img_wx_clear_day_m.c
     assets/img_wx_clear_day_s.c
-    assets/img_wx_clear_night_l.c
     assets/img_wx_clear_night_m.c
     assets/img_wx_clear_night_s.c
-    assets/img_wx_partly_day_l.c
     assets/img_wx_partly_day_m.c
     assets/img_wx_partly_day_s.c
-    assets/img_wx_partly_night_l.c
     assets/img_wx_partly_night_m.c
     assets/img_wx_partly_night_s.c
-    assets/img_wx_cloudy_l.c
     assets/img_wx_cloudy_m.c
     assets/img_wx_cloudy_s.c
-    assets/img_wx_fog_l.c
     assets/img_wx_fog_m.c
     assets/img_wx_fog_s.c
-    assets/img_wx_drizzle_l.c
     assets/img_wx_drizzle_m.c
     assets/img_wx_drizzle_s.c
-    assets/img_wx_rain_l.c
     assets/img_wx_rain_m.c
     assets/img_wx_rain_s.c
-    assets/img_wx_heavy_rain_l.c
     assets/img_wx_heavy_rain_m.c
     assets/img_wx_heavy_rain_s.c
-    assets/img_wx_snow_l.c
     assets/img_wx_snow_m.c
     assets/img_wx_snow_s.c
-    assets/img_wx_sleet_l.c
     assets/img_wx_sleet_m.c
     assets/img_wx_sleet_s.c
-    assets/img_wx_thunder_l.c
     assets/img_wx_thunder_m.c
     assets/img_wx_thunder_s.c
     assets/img_wear_tshirt.c
@@ -47,6 +35,39 @@ set(WB_ASSET_SRCS
     assets/img_wear_water.c
     assets/img_cat_black.c
     assets/img_cat_pink.c
+    assets/img_kitty_base.c
+    assets/img_kitty_blink.c
+    assets/img_kitty_hat_witch.c
+    assets/img_kitty_hat_santa.c
+    assets/img_kitty_hat_beanie.c
+    assets/img_kitty_hat_rain.c
+    assets/img_kitty_neck_scarf.c
+    assets/img_kitty_neck_scarf_blue.c
+    assets/img_kitty_neck_cape.c
+    assets/img_kitty_face_sunglasses.c
+    assets/img_kitty_prop_pumpkin.c
+    assets/img_kitty_prop_present.c
+    assets/img_kitty_prop_menorah.c
+    assets/img_kitty_flame.c
+    assets/img_kitty_flake.c
+    assets/img_fx_drop.c
+    assets/img_fx_drop_s.c
+    assets/img_fx_flake.c
+    assets/img_fx_flake_s.c
+    assets/img_fx_star.c
+    assets/img_fx_bolt.c
+    assets/img_fx_leaf_orange_0.c
+    assets/img_fx_leaf_orange_1.c
+    assets/img_fx_leaf_orange_2.c
+    assets/img_fx_leaf_orange_3.c
+    assets/img_fx_leaf_red_0.c
+    assets/img_fx_leaf_red_1.c
+    assets/img_fx_leaf_red_2.c
+    assets/img_fx_leaf_red_3.c
+    assets/img_fx_leaf_yellow_0.c
+    assets/img_fx_leaf_yellow_1.c
+    assets/img_fx_leaf_yellow_2.c
+    assets/img_fx_leaf_yellow_3.c
     assets/img_drop.c
     assets/font_temp_xl.c
     assets/font_temp_l.c
@@ -54,4 +75,5 @@ set(WB_ASSET_SRCS
     assets/font_body.c
     assets/font_small.c
     assets/font_tiny.c
+    assets/kitty_sets.c
 )

@@ -18,6 +18,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
+#include "wb_request.h"
 #include "wx.h"
 
 static const char *TAG = "net";
@@ -27,6 +28,7 @@ static const char *TAG = "net";
 #define EV_PORTAL BIT2
 
 #define REFRESH_MS (15 * 60 * 1000)
+#define RETRY_QUICK_MS (10 * 1000)
 #define RETRY_FAST_MS (60 * 1000)
 #define RETRY_SLOW_MS (5 * 60 * 1000)
 #define CONNECT_WAIT_MS (30 * 1000)
@@ -138,7 +140,10 @@ static void wifi_start_sta(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
     ESP_ERROR_CHECK(esp_wifi_start());
-    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    /* Wall powered, so no modem sleep. Sleeping between DTIM beacons adds
+     * delay to every round trip, and on a weak signal that pushed TLS +
+     * forecast downloads past the HTTP timeout. */
+    esp_wifi_set_ps(WIFI_PS_NONE);
 }
 
 /* ------------------------------------------------------------------ http */
@@ -150,8 +155,11 @@ bool net_http_get(const char *url, char **body, size_t *len)
     esp_http_client_config_t cfg = {
         .url = url,
         .crt_bundle_attach = esp_crt_bundle_attach,
-        .timeout_ms = 15000,
-        .buffer_size = 2048,
+        .timeout_ms = 30000,
+        .buffer_size = WB_HTTP_RX_BUF,
+        /* Holds the request line plus all headers. The default (512) is too
+         * small for the forecast request; sim/test_request.c checks the fit. */
+        .buffer_size_tx = WB_HTTP_TX_BUF,
         .user_agent = "WeatherBesties/" WB_VERSION,
     };
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
@@ -202,36 +210,15 @@ out:
     return ok;
 }
 
-static void url_encode(const char *in, char *out, size_t cap)
-{
-    static const char hex[] = "0123456789ABCDEF";
-    size_t o = 0;
-    for (; *in && o + 4 < cap; in++) {
-        unsigned char ch = (unsigned char)*in;
-        if (isalnum(ch) || ch == '-' || ch == '_' || ch == '.' || ch == '~') {
-            out[o++] = ch;
-        } else {
-            out[o++] = '%';
-            out[o++] = hex[ch >> 4];
-            out[o++] = hex[ch & 15];
-        }
-    }
-    out[o] = 0;
-}
-
 /* ------------------------------------------------------------------ geocode + weather */
 
 static bool geocode(void)
 {
-    char q[200], url[320];
-    url_encode(S->place_query, q, sizeof(q));
-    bool zip = strlen(S->place_query) == 5;
-    for (int i = 0; zip && i < 5; i++) {
-        zip = isdigit((unsigned char)S->place_query[i]);
+    char url[WB_URL_MAX];
+    if (wb_geocode_url(url, sizeof(url), S->place_query) >= (int)sizeof(url)) {
+        ESP_LOGE(TAG, "geocode url too long");
+        return false;
     }
-    snprintf(url, sizeof(url),
-             "https://geocoding-api.open-meteo.com/v1/search?name=%s&count=1&language=en&format=json%s", q,
-             zip ? "&countryCode=US" : "");
     char *body;
     size_t len;
     if (!net_http_get(url, &body, &len)) {
@@ -256,16 +243,11 @@ static bool geocode(void)
 
 static bool fetch_weather(void)
 {
-    char url[700];
-    snprintf(url, sizeof(url),
-             "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
-             "&current=temperature_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_gusts_10m,precipitation"
-             "&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,is_day"
-             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,"
-             "sunshine_duration"
-             "&temperature_unit=%s&wind_speed_unit=%s&precipitation_unit=%s&timezone=auto&forecast_days=4&past_days=1",
-             S->lat, S->lon, S->celsius ? "celsius" : "fahrenheit", S->celsius ? "kmh" : "mph",
-             S->celsius ? "mm" : "inch");
+    char url[WB_URL_MAX];
+    if (wb_forecast_url(url, sizeof(url), S->lat, S->lon, S->celsius) >= (int)sizeof(url)) {
+        ESP_LOGE(TAG, "forecast url too long");
+        return false;
+    }
     char *body;
     size_t len;
     if (!net_http_get(url, &body, &len)) {
@@ -371,6 +353,11 @@ static void net_task(void *arg)
         bool ok = (xEventGroupGetBits(s_ev) & EV_CONNECTED) && fetch_weather();
         if (ok) {
             fails = 0;
+            if (!have) {
+                /* WiFi and the secure download both work, so now we know how much
+                 * internal RAM they leave; give the spare to the drawing area. */
+                board_grow_draw_buffer();
+            }
             have = true;
             struct tm t;
             if (net_local_time(&t)) {
@@ -385,11 +372,24 @@ static void net_task(void *arg)
                 show_weather(false, last);
             } else if (!(xEventGroupGetBits(s_ev) & EV_CONNECTED)) {
                 UI_LOCKED(ui_show_wifi_error(S->ssid, NULL));
-            } else {
+            } else if (fails >= 2) {
+                /* One blip on a weak link is normal; only show the error once a quick retry also fails. */
                 UI_LOCKED(ui_show_boot("Can't reach the weather service. Trying again soon."));
             }
         }
-        uint32_t wait = ok ? REFRESH_MS : (fails < 3 ? RETRY_FAST_MS : RETRY_SLOW_MS);
+        uint32_t wait = ok ? REFRESH_MS
+                      : fails < 3 ? RETRY_QUICK_MS
+                      : fails < 6 ? RETRY_FAST_MS
+                                  : RETRY_SLOW_MS;
+        size_t free_int = board_free_internal();
+        ESP_LOGI(TAG, "internal RAM free %u KB, drawing area %d lines", (unsigned)(free_int / 1024),
+                 board_draw_lines());
+        if (!ok) {
+            ESP_LOGW(TAG, "weather fetch failed (%d in a row), retrying in %u s", fails, (unsigned)(wait / 1000));
+            if (free_int < 24 * 1024) {
+                board_shrink_draw_buffer();   /* maybe memory: hand it back to WiFi */
+            }
+        }
         EventBits_t b = xEventGroupWaitBits(s_ev, EV_REFRESH | EV_PORTAL, pdTRUE, pdFALSE, pdMS_TO_TICKS(wait));
         if (b & EV_PORTAL) {
             go_portal();

@@ -29,6 +29,7 @@ typedef struct {
 
 typedef struct {
     char headline[64];   /* "Chilly 48° morning" (absolute) */
+    char kid_head[40];   /* "Chilly morning!" / "Rainy tomorrow!" (no number) */
     char compare[80];    /* "A lot colder and cloudier than yesterday" (relative, may be empty) */
     char tip[128];       /* "Bring a jacket! Remember your gloves for bike bus!" */
     int nwear;

@@ -1,0 +1,429 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Weather Besties Internals</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an engineering walkthrough in one column; each section is a claim, a diagram, and a few lines of prose. */
+:root {
+  --bg: #F2F7FC;
+  --surface: #FFFFFF;
+  --ink: #1B2542;
+  --muted: #55627F;
+  --accent: #D63D73;
+  --accent-soft: #FCE4ED;
+  --line: #DCE5F0;
+  --code-bg: #EAF1F9;
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1530; --surface: #172148; --ink: #EEF2FF; --muted: #A9B5D5; --accent: #FF8DB8;
+    --accent-soft: #3A2347; --line: #2A3866; --code-bg: #111A3B; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1530; --surface: #172148; --ink: #EEF2FF; --muted: #A9B5D5; --accent: #FF8DB8;
+  --accent-soft: #3A2347; --line: #2A3866; --code-bg: #111A3B; color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 1rem; line-height: 1.6; }
+.wrap {
+  max-width: 940px;
+  margin: 0 auto;
+  padding-block: 32px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 64px;
+}
+h1, h2 { font-family: var(--display); font-weight: 600; line-height: 1.15; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.1rem); }
+h2 { font-size: 1.65rem; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); font-size: 1.12rem; }
+header, section { display: grid; gap: 18px; }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); border-radius: 6px; padding: 1px 6px; }
+a { color: var(--accent); text-underline-offset: 3px; }
+
+.specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 0; }
+.specs div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 2px; }
+.specs dt { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.specs dd { margin: 0; font-weight: 600; }
+.specs dd span { display: block; font-weight: 400; color: var(--muted); font-size: 0.92rem; }
+
+figure { margin: 0; display: grid; gap: 10px; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; overflow-x: auto; color: var(--ink); }
+.diagram svg { display: block; width: 100%; min-width: 700px; height: auto; }
+figcaption { color: var(--muted); font-size: 0.92rem; max-width: 72ch; }
+
+/* diagram vocabulary, shared by every figure */
+svg text { font-family: var(--body); font-size: 13px; fill: currentColor; }
+svg .t { font-weight: 700; font-size: 14px; }
+svg .s { font-size: 12px; fill: var(--muted); }
+svg .m { font-family: var(--mono); font-size: 12px; }
+svg .acc-t { fill: var(--accent); font-weight: 700; }
+svg .halo { paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+svg .box { fill: var(--surface); stroke: currentColor; stroke-width: 1.5; }
+svg .box-acc { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+svg .box-soft { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+svg .ln { stroke: currentColor; stroke-width: 1.6; fill: none; }
+svg .ln-acc { stroke: var(--accent); stroke-width: 2.2; fill: none; }
+svg .dash { stroke-dasharray: 6 5; }
+svg .life { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 3 5; }
+svg .fill-ink { fill: currentColor; }
+svg .fill-acc { fill: var(--accent); }
+svg .fill-soft { fill: var(--accent-soft); }
+svg .fill-line { fill: var(--line); }
+
+.notes { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; color: var(--muted); max-width: 72ch; }
+.notes b { color: var(--ink); }
+footer { color: var(--muted); font-size: 0.9rem; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">How it's built</span>
+  <h1>Weather Besties Internals</h1>
+  <p class="lede">A 4.3-inch touchscreen weather station that tells two kids what to wear. One C program on a small microcontroller board: no Linux, no app store, just firmware that fetches a forecast every 15 minutes and draws it.</p>
+</header>
+
+<section id="board">
+  <h2>The board</h2>
+  <p>It's a Waveshare ESP32-S3-Touch-LCD-4.3: an Espressif ESP32-S3 module soldered behind a 4.3-inch touchscreen, with the support chips a smart display needs. Think of it as a tiny all-in-one: WiFi, a CPU, memory and a screen on one card, powered over USB-C.</p>
+  <dl class="specs">
+    <div><dt>Chip</dt><dd>ESP32-S3<span>2 cores at 240 MHz, WiFi 2.4 GHz and Bluetooth LE</span></dd></div>
+    <div><dt>Memory</dt><dd>512 KB fast RAM<span>plus 8 MB slower RAM (PSRAM) and 16 MB flash</span></dd></div>
+    <div><dt>Screen</dt><dd>800 &times; 480 IPS<span>16-bit color over a parallel RGB bus</span></dd></div>
+    <div><dt>Touch</dt><dd>GT911 controller<span>5-point capacitive, talks over I2C</span></dd></div>
+  </dl>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 900 470" role="img" aria-label="Board block diagram: the ESP32-S3 module drives the panel over a 16-bit parallel bus, reads touch and controls an IO expander over I2C, reaches the internet through home WiFi, and talks to a computer through two USB-C ports.">
+        <defs>
+          <marker id="h1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fill-ink"/></marker>
+        </defs>
+        <!-- module -->
+        <rect x="380" y="110" width="220" height="280" rx="16" class="box-acc"/>
+        <text x="490" y="142" text-anchor="middle" class="t">ESP32-S3 module</text>
+        <text x="490" y="174" text-anchor="middle">2 cores &#183; 240 MHz</text>
+        <text x="490" y="198" text-anchor="middle">512 KB fast RAM</text>
+        <text x="490" y="222" text-anchor="middle">8 MB PSRAM</text>
+        <text x="490" y="246" text-anchor="middle">16 MB flash</text>
+        <text x="490" y="270" text-anchor="middle">WiFi + BLE radio</text>
+        <text x="490" y="330" text-anchor="middle" class="s">runs everything: screens,</text>
+        <text x="490" y="348" text-anchor="middle" class="s">WiFi, forecast, setup hotspot</text>
+
+        <!-- left column -->
+        <rect x="20" y="95" width="200" height="80" rx="12" class="box"/>
+        <text x="120" y="128" text-anchor="middle" class="t">4.3" IPS panel</text>
+        <text x="120" y="152" text-anchor="middle" class="s">800 &#215; 480, RGB565</text>
+        <line x1="380" y1="135" x2="222" y2="135" class="ln" marker-end="url(#h1)"/>
+        <text x="300" y="124" text-anchor="middle" class="s">16 data + 4 sync lines</text>
+        <text x="300" y="154" text-anchor="middle" class="s">16 MHz pixel clock</text>
+
+        <rect x="20" y="210" width="200" height="60" rx="12" class="box"/>
+        <text x="120" y="236" text-anchor="middle" class="t">GT911 touch</text>
+        <text x="120" y="256" text-anchor="middle" class="s">5-point capacitive</text>
+        <line x1="380" y1="222" x2="222" y2="222" class="ln" marker-end="url(#h1)" marker-start="url(#h1)"/>
+        <text x="300" y="215" text-anchor="middle" class="s halo">INT &#183; GPIO 4</text>
+
+        <rect x="20" y="300" width="200" height="80" rx="12" class="box"/>
+        <text x="120" y="328" text-anchor="middle" class="t">CH422G expander</text>
+        <text x="120" y="348" text-anchor="middle" class="s">backlight, resets,</text>
+        <text x="120" y="366" text-anchor="middle" class="s">USB / CAN switch</text>
+        <line x1="120" y1="300" x2="120" y2="272" class="ln dash" marker-end="url(#h1)"/>
+        <text x="130" y="291" class="s">reset</text>
+
+        <!-- I2C bus -->
+        <line x1="300" y1="250" x2="300" y2="340" class="ln"/>
+        <line x1="300" y1="250" x2="222" y2="250" class="ln" marker-end="url(#h1)"/>
+        <line x1="300" y1="340" x2="222" y2="340" class="ln" marker-end="url(#h1)"/>
+        <line x1="380" y1="296" x2="300" y2="296" class="ln"/>
+        <text x="340" y="287" text-anchor="middle" class="s">I2C</text>
+        <text x="340" y="314" text-anchor="middle" class="s">GPIO 8/9</text>
+
+        <!-- right column -->
+        <rect x="700" y="95" width="180" height="80" rx="12" class="box"/>
+        <text x="790" y="126" text-anchor="middle" class="t">Home WiFi</text>
+        <text x="790" y="150" text-anchor="middle" class="s">&#8594; Open-Meteo, NTP</text>
+        <line x1="600" y1="135" x2="698" y2="135" class="ln dash" marker-end="url(#h1)" marker-start="url(#h1)"/>
+        <text x="650" y="124" text-anchor="middle" class="s">2.4 GHz</text>
+
+        <rect x="700" y="210" width="180" height="60" rx="12" class="box"/>
+        <text x="790" y="236" text-anchor="middle" class="t">USB-C "UART"</text>
+        <text x="790" y="256" text-anchor="middle" class="s">CH343P serial chip</text>
+        <line x1="600" y1="240" x2="698" y2="240" class="ln" marker-end="url(#h1)" marker-start="url(#h1)"/>
+        <text x="650" y="230" text-anchor="middle" class="s">flash, logs</text>
+
+        <rect x="700" y="300" width="180" height="80" rx="12" class="box"/>
+        <text x="790" y="328" text-anchor="middle" class="t">USB-C "USB"</text>
+        <text x="790" y="348" text-anchor="middle" class="s">through a USB switch</text>
+        <line x1="600" y1="340" x2="698" y2="340" class="ln" marker-end="url(#h1)" marker-start="url(#h1)"/>
+        <text x="650" y="330" text-anchor="middle" class="s">native USB</text>
+
+        <rect x="20" y="410" width="860" height="44" rx="12" class="box-soft"/>
+        <text x="450" y="437" text-anchor="middle" class="s">On the board but unused so far: microSD slot &#183; RS485 &#183; CAN &#183; LiPo charger &#183; sensor header</text>
+      </svg>
+    </div>
+    <figcaption>Everything hangs off one ESP32-S3. The panel has no memory of its own, so the chip streams raw pixels at it nonstop. Touch and the IO expander share one I2C bus, and the expander is how the firmware turns on the backlight and resets the touch chip at boot.</figcaption>
+  </figure>
+</section>
+
+<section id="split">
+  <h2>Hardware and software split</h2>
+  <p>It's all one C program, built with Espressif's ESP-IDF framework. The screens and the clothing logic never touch hardware directly. They only talk to LVGL, a C graphics library, and to plain data structs. The board-specific code is a thin layer of about five files.</p>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 900 430" role="img" aria-label="Software layers from top to bottom: board glue, screens and logic plus artwork, libraries, ESP-IDF, the chip. The screens, artwork, LVGL and cJSON are outlined as portable.">
+        <rect x="20" y="20" width="860" height="64" rx="12" class="box"/>
+        <text x="40" y="48" class="t">Board glue</text>
+        <text x="40" y="68" class="s">firmware only</text>
+        <text x="250" y="57" class="m">main.c &#183; board.c &#183; net.c &#183; portal.c &#183; settings.c</text>
+
+        <path d="M10,100 H890 V186 H450 V276 H10 Z" class="ln-acc dash"/>
+        <text x="20" y="96" class="s acc-t halo">Portable: also builds for a PC and for the browser</text>
+
+        <rect x="20" y="112" width="420" height="64" rx="12" class="box-acc"/>
+        <text x="40" y="140" class="t">Screens + logic</text>
+        <text x="40" y="162" class="m">ui.c &#183; advice.c &#183; wx.c</text>
+        <rect x="460" y="112" width="420" height="64" rx="12" class="box-acc"/>
+        <text x="480" y="140" class="t">Artwork + fonts</text>
+        <text x="480" y="162" class="s">49 images, 6 sizes of Fredoka, as C arrays</text>
+
+        <rect x="20" y="200" width="420" height="64" rx="12" class="box-acc"/>
+        <text x="40" y="228" class="t">Libraries</text>
+        <text x="40" y="250" class="s">LVGL 9.5 (graphics) &#183; cJSON (parsing)</text>
+        <rect x="460" y="200" width="420" height="64" rx="12" class="box"/>
+        <text x="480" y="228" class="t">Board libraries</text>
+        <text x="480" y="250" class="s">GT911 touch driver &#183; DNS server for setup</text>
+
+        <rect x="20" y="290" width="860" height="70" rx="12" class="box"/>
+        <text x="40" y="320" class="t">ESP-IDF 5.5</text>
+        <text x="40" y="340" class="s">Espressif's SDK</text>
+        <text x="250" y="320">FreeRTOS &#183; WiFi + lwIP &#183; mbedTLS (HTTPS) &#183; SNTP clock</text>
+        <text x="250" y="342">HTTP client + server &#183; NVS settings &#183; LCD, I2C, GPIO drivers</text>
+
+        <rect x="20" y="378" width="860" height="40" rx="12" class="box-soft"/>
+        <text x="450" y="403" text-anchor="middle" class="t">ESP32-S3 chip</text>
+      </svg>
+    </div>
+    <figcaption>The pink, dashed region compiles anywhere a C compiler does. Swap the board glue for a different file and the same screens run on a laptop or in a web page, pixel for pixel.</figcaption>
+  </figure>
+</section>
+
+<section id="runtime">
+  <h2>What runs while it's on</h2>
+  <p>FreeRTOS gives the program tasks, timers and locks, and nothing else. Two tasks do the real work, one per CPU core, and a lock keeps them from touching the screen at the same time.</p>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 900 410" role="img" aria-label="Runtime: the network task fetches the forecast every 15 minutes, parses it, picks clothes and updates widgets under a lock. The graphics task renders changed areas into small buffers, copies them into a framebuffer in PSRAM, and DMA streams that to the panel about 39 times a second. Touch is read every 20 milliseconds.">
+        <defs>
+          <marker id="h3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fill-ink"/></marker>
+          <marker id="h3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fill-acc"/></marker>
+        </defs>
+        <text x="20" y="26" class="acc-t">Net task &#183; core 0</text>
+        <rect x="20" y="40" width="210" height="50" rx="10" class="box"/>
+        <text x="125" y="62" text-anchor="middle" class="t">Every 15 minutes</text>
+        <text x="125" y="80" text-anchor="middle" class="s">or a Refresh tap</text>
+        <line x1="125" y1="90" x2="125" y2="108" class="ln" marker-end="url(#h3)"/>
+        <rect x="20" y="110" width="210" height="50" rx="10" class="box"/>
+        <text x="125" y="132" text-anchor="middle" class="t">HTTPS GET</text>
+        <text x="125" y="150" text-anchor="middle" class="s m">api.open-meteo.com</text>
+        <line x1="125" y1="160" x2="125" y2="178" class="ln" marker-end="url(#h3)"/>
+        <rect x="20" y="180" width="210" height="50" rx="10" class="box"/>
+        <text x="125" y="202" text-anchor="middle" class="t">Parse ~6 KB of JSON</text>
+        <text x="125" y="220" text-anchor="middle" class="s">wx.c: today, yesterday, 3 days</text>
+        <line x1="125" y1="230" x2="125" y2="248" class="ln" marker-end="url(#h3)"/>
+        <rect x="20" y="250" width="210" height="50" rx="10" class="box"/>
+        <text x="125" y="272" text-anchor="middle" class="t">Pick clothes</text>
+        <text x="125" y="290" text-anchor="middle" class="s">advice.c</text>
+
+        <line x1="230" y1="275" x2="298" y2="275" class="ln-acc" marker-end="url(#h3a)"/>
+        <text x="264" y="266" text-anchor="middle" class="s">lock</text>
+
+        <text x="300" y="146" class="acc-t">Graphics task &#183; core 1</text>
+        <rect x="300" y="160" width="160" height="50" rx="10" class="box"/>
+        <text x="380" y="182" text-anchor="middle" class="t">GT911 touch</text>
+        <text x="380" y="200" text-anchor="middle" class="s">read every 20 ms</text>
+        <line x1="380" y1="210" x2="380" y2="248" class="ln" marker-end="url(#h3)"/>
+        <text x="390" y="234" class="s">swipe, hold</text>
+
+        <rect x="300" y="250" width="160" height="50" rx="10" class="box-acc"/>
+        <text x="380" y="272" text-anchor="middle" class="t">Widgets</text>
+        <text x="380" y="290" text-anchor="middle" class="s">ui.c on LVGL</text>
+        <line x1="460" y1="275" x2="488" y2="275" class="ln" marker-end="url(#h3)"/>
+
+        <rect x="490" y="250" width="160" height="50" rx="10" class="box"/>
+        <text x="570" y="272" text-anchor="middle" class="t">Draw what changed</text>
+        <text x="570" y="290" text-anchor="middle" class="s">2 strips &#215; 20 rows, fast RAM</text>
+        <line x1="650" y1="275" x2="688" y2="275" class="ln" marker-end="url(#h3)"/>
+        <text x="669" y="266" text-anchor="middle" class="s">copy</text>
+
+        <rect x="690" y="250" width="190" height="50" rx="10" class="box"/>
+        <text x="785" y="272" text-anchor="middle" class="t">Framebuffer</text>
+        <text x="785" y="290" text-anchor="middle" class="s">768 KB in PSRAM</text>
+        <line x1="785" y1="300" x2="785" y2="338" class="ln" marker-end="url(#h3)"/>
+        <text x="775" y="324" text-anchor="end" class="s">DMA, nonstop</text>
+
+        <rect x="690" y="340" width="190" height="50" rx="10" class="box"/>
+        <text x="785" y="362" text-anchor="middle" class="t">Panel, ~39 fps</text>
+        <text x="785" y="380" text-anchor="middle" class="s">via 2 small bounce buffers</text>
+      </svg>
+    </div>
+    <figcaption>The screen hardware reads the 768 KB framebuffer over and over (16 MHz &divide; 820 &times; 500 clocks per frame &asymp; 39 frames a second), so the CPU only redraws the parts that change. The clock comes from internet time (SNTP) plus the time-zone offset the forecast reports, which handles daylight saving for free.</figcaption>
+  </figure>
+</section>
+
+<section id="hotspot">
+  <h2>The setup hotspot</h2>
+  <p>The board has no keyboard, so setup happens on your phone. On first boot (or from Settings) the board stops being a WiFi client and becomes a tiny open WiFi network called <code>WeatherBesties-XXXX</code>, the last 4 characters from its radio's hardware address. Three small servers on the board then trick the phone into opening the setup page automatically, the same way hotel and airport WiFi do.</p>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 900 640" role="img" aria-label="Sequence: the phone joins the board's open hotspot and gets an address from its DHCP server. The phone checks whether it's online by looking up a known Apple or Google address; the board's DNS server answers every lookup with its own address 192.168.4.1. The web server redirects the check to the setup page, the phone shows a sign-in sheet, the user submits the form, and the board saves the settings and restarts as a normal WiFi client.">
+        <defs>
+          <marker id="h4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fill-ink"/></marker>
+          <marker id="h4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fill-acc"/></marker>
+        </defs>
+        <text x="565" y="16" text-anchor="middle" class="s">all three run on the board, at 192.168.4.1</text>
+        <line x1="285" y1="22" x2="845" y2="22" class="life"/>
+
+        <rect x="35" y="30" width="150" height="40" rx="10" class="box"/>
+        <text x="110" y="55" text-anchor="middle" class="t">Phone</text>
+        <rect x="285" y="30" width="150" height="40" rx="10" class="box-acc"/>
+        <text x="360" y="55" text-anchor="middle" class="t">Hotspot + DHCP</text>
+        <rect x="485" y="30" width="150" height="40" rx="10" class="box-acc"/>
+        <text x="560" y="55" text-anchor="middle" class="t">DNS server</text>
+        <rect x="695" y="30" width="150" height="40" rx="10" class="box-acc"/>
+        <text x="770" y="55" text-anchor="middle" class="t">Web server</text>
+
+        <line x1="110" y1="70" x2="110" y2="625" class="life"/>
+        <line x1="360" y1="70" x2="360" y2="625" class="life"/>
+        <line x1="560" y1="70" x2="560" y2="625" class="life"/>
+        <line x1="770" y1="70" x2="770" y2="625" class="life"/>
+
+        <rect x="35" y="86" width="560" height="34" rx="8" class="box-soft"/>
+        <text x="50" y="108" class="s">Screen shows a QR code:</text>
+        <text x="210" y="108" class="m">WIFI:T:nopass;S:WeatherBesties-3F2A;;</text>
+
+        <line x1="110" y1="160" x2="356" y2="160" class="ln" marker-end="url(#h4)"/>
+        <text x="235" y="150" text-anchor="middle" class="halo">join the open network</text>
+
+        <line x1="360" y1="205" x2="114" y2="205" class="ln" marker-end="url(#h4)"/>
+        <text x="235" y="195" text-anchor="middle" class="halo">you're 192.168.4.2, setup page at .4.1</text>
+
+        <line x1="110" y1="255" x2="556" y2="255" class="ln" marker-end="url(#h4)"/>
+        <text x="335" y="245" text-anchor="middle" class="halo">"Am I online?" Look up captive.apple.com</text>
+
+        <line x1="560" y1="300" x2="114" y2="300" class="ln-acc" marker-end="url(#h4a)"/>
+        <text x="335" y="290" text-anchor="middle" class="acc-t halo">192.168.4.1, for every name you ask</text>
+
+        <line x1="110" y1="350" x2="766" y2="350" class="ln" marker-end="url(#h4)"/>
+        <text x="440" y="340" text-anchor="middle" class="m halo">GET /hotspot-detect.html</text>
+
+        <line x1="770" y1="395" x2="114" y2="395" class="ln-acc" marker-end="url(#h4a)"/>
+        <text x="440" y="385" text-anchor="middle" class="acc-t halo">302 redirect to http://192.168.4.1/</text>
+
+        <rect x="30" y="414" width="160" height="34" rx="8" class="box-soft"/>
+        <text x="110" y="436" text-anchor="middle" class="s">pops a sign-in sheet</text>
+
+        <line x1="110" y1="480" x2="766" y2="480" class="ln" marker-end="url(#h4)"/>
+        <text x="440" y="470" text-anchor="middle" class="halo">GET /  &#8594; form with nearby networks</text>
+
+        <line x1="110" y1="525" x2="766" y2="525" class="ln" marker-end="url(#h4)"/>
+        <text x="440" y="515" text-anchor="middle" class="m halo">POST /save</text>
+
+        <rect x="610" y="545" width="270" height="34" rx="8" class="box-soft"/>
+        <text x="745" y="567" text-anchor="middle" class="s">save to flash, restart in 1.5 s</text>
+
+        <rect x="285" y="592" width="595" height="34" rx="8" class="box-soft"/>
+        <text x="582" y="614" text-anchor="middle" class="s">reboots as a normal WiFi client &#8594; home WiFi &#8594; finds the town &#8594; forecast</text>
+      </svg>
+    </div>
+    <figcaption>The pink answers are the whole trick. A DNS server that answers every lookup with the board's own address, plus a web server that redirects any unknown page to the form, makes the phone's "am I online?" check fail in exactly the way that pops a sign-in sheet. The DHCP reply also carries the setup address directly (the newer "captive portal" DHCP option), for phones that look for it.</figcaption>
+  </figure>
+  <ul class="notes">
+    <li><b>Scanning while hosting.</b> The radio runs as hotspot and client at once, so the client side can scan for nearby networks to list on the form.</li>
+    <li><b>The QR code</b> is the standard WiFi QR format phone cameras already understand, so there's no network name to type.</li>
+    <li><b>Security, plainly.</b> The hotspot is open, but it only exists during setup. The home WiFi password is stored on the board's flash without encryption, which is normal for hobby boards and worth knowing.</li>
+  </ul>
+</section>
+
+<section id="flash">
+  <h2>Where it lives in flash</h2>
+  <p>The whole program is a single 3.4 MB image. Two thirds of it is artwork, fonts and other constant data, not code.</p>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 900 200" role="img" aria-label="16 MB flash drawn to scale: a 64 KB boot area, a 7 MB app slot holding 1.0 MB of code and 2.2 MB of artwork and data with 3.6 MB spare, and 8.9 MB free.">
+        <text x="207" y="40" text-anchor="middle" class="t">App slot, 7 MB</text>
+        <polyline points="24,52 24,46 390,46 390,52" class="ln"/>
+        <text x="625" y="40" text-anchor="middle" class="t">Free, 8.9 MB</text>
+
+        <rect x="20" y="60" width="840" height="44" rx="4" class="box-soft"/>
+        <rect x="20" y="60" width="3.4" height="44" class="fill-ink"/>
+        <rect x="23.4" y="60" width="53.4" height="44" class="fill-acc"/>
+        <rect x="76.8" y="60" width="118" height="44" class="fill-soft"/>
+        <rect x="76.8" y="60" width="118" height="44" fill="none" class="ln-acc"/>
+        <rect x="194.8" y="60" width="196" height="44" class="fill-line"/>
+        <line x1="390.8" y1="60" x2="390.8" y2="104" class="ln"/>
+
+        <line x1="50" y1="104" x2="50" y2="122" class="ln"/>
+        <text x="50" y="138" text-anchor="middle" class="s">code 1.0 MB</text>
+        <line x1="136" y1="104" x2="136" y2="150" class="ln"/>
+        <text x="136" y="166" text-anchor="middle" class="s">artwork + data 2.2 MB</text>
+        <line x1="293" y1="104" x2="293" y2="122" class="ln"/>
+        <text x="293" y="138" text-anchor="middle" class="s">spare 3.6 MB</text>
+
+        <line x1="21.7" y1="60" x2="21.7" y2="24" class="ln"/>
+        <text x="28" y="22" class="s">first 64 KB: bootloader 21 KB, partition table, settings 24 KB, radio calibration</text>
+      </svg>
+    </div>
+    <figcaption>Drawn to scale across 16 MB. At boot the code and constants get copied into the 8 MB PSRAM and run from there, so saving settings to flash never makes the screen glitch.</figcaption>
+  </figure>
+</section>
+
+<section id="targets">
+  <h2>One screen codebase, three places it runs</h2>
+  <p>Because the screens never touch hardware, the same files compile three ways. Only the small glue file changes, and that's what made the screenshots and the browser emulator possible without the board on the desk.</p>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 900 290" role="img" aria-label="The screen code with LVGL and artwork compiles three ways: with the Xtensa compiler and board.c into the board firmware, with GCC and sim_main.c into a PNG screenshot renderer, and with clang for WebAssembly and emu_main.c into the browser emulator.">
+        <defs>
+          <marker id="h6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="fill-ink"/></marker>
+        </defs>
+        <rect x="20" y="95" width="260" height="100" rx="14" class="box-acc"/>
+        <text x="150" y="128" text-anchor="middle" class="t">Screen code</text>
+        <text x="150" y="152" text-anchor="middle" class="m">ui.c &#183; advice.c &#183; wx.c</text>
+        <text x="150" y="174" text-anchor="middle" class="s">+ LVGL + artwork + fonts</text>
+
+        <path d="M280,145 H330 V50 H598" class="ln" marker-end="url(#h6)"/>
+        <path d="M280,145 H598" class="ln" marker-end="url(#h6)"/>
+        <path d="M330,145 V240 H598" class="ln" marker-end="url(#h6)"/>
+        <text x="465" y="40" text-anchor="middle" class="m">Xtensa GCC + board.c</text>
+        <text x="465" y="135" text-anchor="middle" class="m">GCC + sim_main.c</text>
+        <text x="465" y="230" text-anchor="middle" class="m">clang wasm32 + emu_main.c</text>
+
+        <rect x="600" y="20" width="280" height="60" rx="12" class="box"/>
+        <text x="740" y="46" text-anchor="middle" class="t">Board firmware</text>
+        <text x="740" y="66" text-anchor="middle" class="s">3.4 MB image, flashed at 0x0</text>
+        <rect x="600" y="115" width="280" height="60" rx="12" class="box"/>
+        <text x="740" y="141" text-anchor="middle" class="t">Screenshot renderer</text>
+        <text x="740" y="161" text-anchor="middle" class="s">PC program, writes PNGs</text>
+        <rect x="600" y="210" width="280" height="60" rx="12" class="box"/>
+        <text x="740" y="236" text-anchor="middle" class="t">Browser emulator</text>
+        <text x="740" y="256" text-anchor="middle" class="s">2.7 MB WebAssembly + canvas</text>
+      </svg>
+    </div>
+    <figcaption>The icons start as SVG drawings in a Python script and get rendered and packed into RGB565 pixel arrays with an alpha channel. The Fredoka font gets rasterized into bitmap tables at six sizes. Both end up as C files, so the board never needs a filesystem or an image decoder.</figcaption>
+  </figure>
+</section>
+
+<footer>Built on ESP-IDF 5.5.6, LVGL 9.5.0, cJSON and Espressif's GT911 driver. Pins and panel timing from Waveshare's demo code for this board. Weather from Open-Meteo.</footer>
+</div>
+
+</body></html>

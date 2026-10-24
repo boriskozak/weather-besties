@@ -2,40 +2,28 @@
 #pragma once
 #include "lvgl.h"
 
-LV_IMAGE_DECLARE(img_wx_clear_day_l);
 LV_IMAGE_DECLARE(img_wx_clear_day_m);
 LV_IMAGE_DECLARE(img_wx_clear_day_s);
-LV_IMAGE_DECLARE(img_wx_clear_night_l);
 LV_IMAGE_DECLARE(img_wx_clear_night_m);
 LV_IMAGE_DECLARE(img_wx_clear_night_s);
-LV_IMAGE_DECLARE(img_wx_partly_day_l);
 LV_IMAGE_DECLARE(img_wx_partly_day_m);
 LV_IMAGE_DECLARE(img_wx_partly_day_s);
-LV_IMAGE_DECLARE(img_wx_partly_night_l);
 LV_IMAGE_DECLARE(img_wx_partly_night_m);
 LV_IMAGE_DECLARE(img_wx_partly_night_s);
-LV_IMAGE_DECLARE(img_wx_cloudy_l);
 LV_IMAGE_DECLARE(img_wx_cloudy_m);
 LV_IMAGE_DECLARE(img_wx_cloudy_s);
-LV_IMAGE_DECLARE(img_wx_fog_l);
 LV_IMAGE_DECLARE(img_wx_fog_m);
 LV_IMAGE_DECLARE(img_wx_fog_s);
-LV_IMAGE_DECLARE(img_wx_drizzle_l);
 LV_IMAGE_DECLARE(img_wx_drizzle_m);
 LV_IMAGE_DECLARE(img_wx_drizzle_s);
-LV_IMAGE_DECLARE(img_wx_rain_l);
 LV_IMAGE_DECLARE(img_wx_rain_m);
 LV_IMAGE_DECLARE(img_wx_rain_s);
-LV_IMAGE_DECLARE(img_wx_heavy_rain_l);
 LV_IMAGE_DECLARE(img_wx_heavy_rain_m);
 LV_IMAGE_DECLARE(img_wx_heavy_rain_s);
-LV_IMAGE_DECLARE(img_wx_snow_l);
 LV_IMAGE_DECLARE(img_wx_snow_m);
 LV_IMAGE_DECLARE(img_wx_snow_s);
-LV_IMAGE_DECLARE(img_wx_sleet_l);
 LV_IMAGE_DECLARE(img_wx_sleet_m);
 LV_IMAGE_DECLARE(img_wx_sleet_s);
-LV_IMAGE_DECLARE(img_wx_thunder_l);
 LV_IMAGE_DECLARE(img_wx_thunder_m);
 LV_IMAGE_DECLARE(img_wx_thunder_s);
 LV_IMAGE_DECLARE(img_wear_tshirt);
@@ -50,6 +38,39 @@ LV_IMAGE_DECLARE(img_wear_sunglasses);
 LV_IMAGE_DECLARE(img_wear_water);
 LV_IMAGE_DECLARE(img_cat_black);
 LV_IMAGE_DECLARE(img_cat_pink);
+LV_IMAGE_DECLARE(img_kitty_base);
+LV_IMAGE_DECLARE(img_kitty_blink);
+LV_IMAGE_DECLARE(img_kitty_hat_witch);
+LV_IMAGE_DECLARE(img_kitty_hat_santa);
+LV_IMAGE_DECLARE(img_kitty_hat_beanie);
+LV_IMAGE_DECLARE(img_kitty_hat_rain);
+LV_IMAGE_DECLARE(img_kitty_neck_scarf);
+LV_IMAGE_DECLARE(img_kitty_neck_scarf_blue);
+LV_IMAGE_DECLARE(img_kitty_neck_cape);
+LV_IMAGE_DECLARE(img_kitty_face_sunglasses);
+LV_IMAGE_DECLARE(img_kitty_prop_pumpkin);
+LV_IMAGE_DECLARE(img_kitty_prop_present);
+LV_IMAGE_DECLARE(img_kitty_prop_menorah);
+LV_IMAGE_DECLARE(img_kitty_flame);
+LV_IMAGE_DECLARE(img_kitty_flake);
+LV_IMAGE_DECLARE(img_fx_drop);
+LV_IMAGE_DECLARE(img_fx_drop_s);
+LV_IMAGE_DECLARE(img_fx_flake);
+LV_IMAGE_DECLARE(img_fx_flake_s);
+LV_IMAGE_DECLARE(img_fx_star);
+LV_IMAGE_DECLARE(img_fx_bolt);
+LV_IMAGE_DECLARE(img_fx_leaf_orange_0);
+LV_IMAGE_DECLARE(img_fx_leaf_orange_1);
+LV_IMAGE_DECLARE(img_fx_leaf_orange_2);
+LV_IMAGE_DECLARE(img_fx_leaf_orange_3);
+LV_IMAGE_DECLARE(img_fx_leaf_red_0);
+LV_IMAGE_DECLARE(img_fx_leaf_red_1);
+LV_IMAGE_DECLARE(img_fx_leaf_red_2);
+LV_IMAGE_DECLARE(img_fx_leaf_red_3);
+LV_IMAGE_DECLARE(img_fx_leaf_yellow_0);
+LV_IMAGE_DECLARE(img_fx_leaf_yellow_1);
+LV_IMAGE_DECLARE(img_fx_leaf_yellow_2);
+LV_IMAGE_DECLARE(img_fx_leaf_yellow_3);
 LV_IMAGE_DECLARE(img_drop);
 
 LV_FONT_DECLARE(font_temp_xl);
@@ -60,9 +81,30 @@ LV_FONT_DECLARE(font_small);
 LV_FONT_DECLARE(font_tiny);
 
 /* Weather icon tables, indexed by wx_icon_t (see wx.h). */
-#define WB_WX_ICONS_L { &img_wx_clear_day_l, &img_wx_clear_night_l, &img_wx_partly_day_l, &img_wx_partly_night_l, &img_wx_cloudy_l, &img_wx_fog_l, &img_wx_drizzle_l, &img_wx_rain_l, &img_wx_heavy_rain_l, &img_wx_snow_l, &img_wx_sleet_l, &img_wx_thunder_l }
 #define WB_WX_ICONS_M { &img_wx_clear_day_m, &img_wx_clear_night_m, &img_wx_partly_day_m, &img_wx_partly_night_m, &img_wx_cloudy_m, &img_wx_fog_m, &img_wx_drizzle_m, &img_wx_rain_m, &img_wx_heavy_rain_m, &img_wx_snow_m, &img_wx_sleet_m, &img_wx_thunder_m }
 #define WB_WX_ICONS_S { &img_wx_clear_day_s, &img_wx_clear_night_s, &img_wx_partly_day_s, &img_wx_partly_night_s, &img_wx_cloudy_s, &img_wx_fog_s, &img_wx_drizzle_s, &img_wx_rain_s, &img_wx_heavy_rain_s, &img_wx_snow_s, &img_wx_sleet_s, &img_wx_thunder_s }
 
 /* Clothing icon table, indexed by wear_t (see advice.h). */
 #define WB_WEAR_ICONS { &img_wear_tshirt, &img_wear_sweater, &img_wear_jacket, &img_wear_coat, &img_wear_beanie, &img_wear_mittens, &img_wear_umbrella, &img_wear_boots, &img_wear_sunglasses, &img_wear_water }
+
+/* The yellow-eyed cat, one table per size (kitty_sets.c). Every layer is cropped
+ * from one shared stage; x/y is where it goes on that stage. */
+typedef struct {
+    const lv_image_dsc_t *img;
+    int16_t x, y;
+} wb_layer_t;
+
+typedef struct {
+    int16_t w, h, edge;   /* stage size; edge = where the card top sits */
+    wb_layer_t base, blink, hat_witch, hat_santa, hat_beanie, hat_rain, neck_scarf, neck_scarf_blue, neck_cape,
+        face_sunglasses, prop_pumpkin, prop_present, prop_menorah;
+    const lv_image_dsc_t *flame;
+    lv_point_t flames[9]; /* flame top-left on each menorah candle, left to right; [4] is the shamash */
+} wb_kitty_set_t;
+
+extern const wb_kitty_set_t wb_kitty;
+
+/* Autumn leaves: [color][angle] (orange, red, yellow x 4 tumble frames). */
+#define WB_FX_LEAVES { { &img_fx_leaf_orange_0, &img_fx_leaf_orange_1, &img_fx_leaf_orange_2, &img_fx_leaf_orange_3 }, { &img_fx_leaf_red_0, &img_fx_leaf_red_1, &img_fx_leaf_red_2, &img_fx_leaf_red_3 }, { &img_fx_leaf_yellow_0, &img_fx_leaf_yellow_1, &img_fx_leaf_yellow_2, &img_fx_leaf_yellow_3 } }
+#define WB_FX_LEAF_COLORS 3
+#define WB_FX_LEAF_FRAMES 4

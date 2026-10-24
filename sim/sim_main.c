@@ -157,7 +157,7 @@ int main(int argc, char **argv)
     load(sc, "oct_morning");
     show("Upper Montclair, NJ", "Updated 9:45 AM");
     ui_info_t info = {.wifi = "HomeWiFi", .place = "Upper Montclair, New Jersey", .ip = "192.168.1.42",
-                      .updated = "Weather updated 9:45 AM", .version = "1.0.0"};
+                      .updated = "Weather updated 9:45 AM", .version = "1.4.0"};
     ui_set_info(&info);
     ui_open_settings();
     save(out, "09_settings");
@@ -165,5 +165,34 @@ int main(int argc, char **argv)
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");
+
+    /* The yellow-eyed cat through the year (see components/wb_ui/cat.h). */
+    load(sc, "hanukkah_evening");
+    show("Upper Montclair, NJ", "Updated 5:30 PM");
+    save(out, "11_cat_hanukkah_night3");
+
+    load(sc, "christmas_snow");
+    show("Upper Montclair, NJ", "Updated 9:00 AM");
+    pump(60);   /* let the falling snow get going */
+    save(out, "12_cat_christmas_snow");
+
+    load(sc, "mild_may");
+    show("Upper Montclair, NJ", "Updated 10:15 AM");
+    save(out, "13_cat_plain");
+
+    load(sc, "chrismukkah");
+    show("Upper Montclair, NJ", "Updated 6:00 PM");
+    save(out, "14_cat_christmas_and_hanukkah");
+
+    /* Thunderstorm: time the capture to land on the first lightning flicker. */
+    load(sc, "storm_evening");
+    show("Upper Montclair, NJ", "Updated 6:15 PM");
+    pump(16);
+    save(out, "15_storm");
+
+    lv_mem_monitor_t mon;
+    lv_mem_monitor(&mon);
+    printf("LVGL heap: %u of %u bytes used (%u%%), biggest free block %u\n", (unsigned)(mon.total_size - mon.free_size),
+           (unsigned)mon.total_size, (unsigned)mon.used_pct, (unsigned)mon.free_biggest_size);
     return 0;
 }

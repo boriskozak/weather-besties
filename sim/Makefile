@@ -5,15 +5,18 @@ UI_DIR   := $(ROOT)/components/wb_ui
 CJSON    := cjson
 
 SRC := $(shell find $(LVGL_DIR)/src -name '*.c') \
-       $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/advice.c $(wildcard $(UI_DIR)/assets/*.c) \
+       $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/advice.c $(UI_DIR)/cat.c $(wildcard $(UI_DIR)/assets/*.c) \
        $(CJSON)/cJSON.c sim_main.c
 OBJ := $(patsubst %.c,build/%.o,$(subst $(ROOT)/,root/,$(SRC)))
 
 CFLAGS := -O2 -g -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CJSON) \
-          -DLV_LVGL_H_INCLUDE_SIMPLE -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -Wno-unused-result
+          -DLV_LVGL_H_INCLUDE_SIMPLE -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -Wno-unused-result \
+          -MMD -MP   # rebuild a file when a header it uses changes
 
 render: $(OBJ)
 	$(CC) -o $@ $^ -lm
+
+-include $(OBJ:.o=.d)
 
 build/root/%.o: $(ROOT)/%.c
 	@mkdir -p $(dir $@)
@@ -29,8 +32,15 @@ shots: render
 	./render out scenarios
 	python3 to_png.py out
 
+# Checks every request the board makes fits the HTTP client's send buffer.
+test: test_request
+	./test_request
+
+test_request: test_request.c $(UI_DIR)/wb_request.c $(UI_DIR)/wb_request.h
+	$(CC) -O2 -Wall -Wextra -I$(UI_DIR) -o $@ test_request.c $(UI_DIR)/wb_request.c
+
 clean:
-	rm -rf build render out
+	rm -rf build render out test_request
 
 
 # ---- Browser emulator (WebAssembly) ----
@@ -38,10 +48,10 @@ clean:
 WASI_SDK ?= /home/claude/wasm/wasi-sdk-33.0-x86_64-linux
 WCC      := $(WASI_SDK)/bin/clang --target=wasm32-wasip1 --sysroot=$(WASI_SDK)/share/wasi-sysroot
 WEB_SRC  := $(shell find $(LVGL_DIR)/src -name '*.c') \
-            $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/advice.c $(wildcard $(UI_DIR)/assets/*.c) \
-            $(CJSON)/cJSON.c web/emu_main.c
+            $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/advice.c $(UI_DIR)/cat.c $(UI_DIR)/wb_request.c \
+            $(wildcard $(UI_DIR)/assets/*.c) $(CJSON)/cJSON.c web/emu_main.c
 WEB_OBJ  := $(patsubst %.c,build-web/%.o,$(subst $(ROOT)/,root/,$(WEB_SRC)))
-WEB_CFLAGS := -O2 -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CJSON) -Iweb \
+WEB_CFLAGS := -O2 -MMD -MP -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CJSON) -Iweb \
               -DLV_LVGL_H_INCLUDE_SIMPLE -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE \
               -D_WASI_EMULATED_SIGNAL -Wno-unused-command-line-argument
 
@@ -57,3 +67,6 @@ build-web/%.o: %.c
 	@$(WCC) $(WEB_CFLAGS) -c $< -o $@
 
 web: web/weather-besties.wasm
+	python3 web/build_page.py
+
+-include $(WEB_OBJ:.o=.d)

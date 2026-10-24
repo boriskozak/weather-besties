@@ -6,6 +6,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <time.h>
 
 #include "wx.h"
@@ -35,6 +36,11 @@ typedef struct {
     char version[24];
 } ui_info_t;
 
+/* Speed test (tap "Updated ..." on the screen): called with old_mode when the mode
+ * changes and once a second while it's on; fill info with a short readout. */
+typedef void (*ui_speed_cb_t)(bool old_mode, char *info, size_t n);
+void ui_set_speed_cb(ui_speed_cb_t cb);
+
 void ui_init(const char *names);
 void ui_set_names(const char *names);
 void ui_set_bike_bus_day(int wday);  /* 0 = Sunday ... 6 = Saturday, -1 = none. Default Friday. */
@@ -47,7 +53,7 @@ void ui_show_connecting(const char *ssid);
 void ui_show_wifi_error(const char *ssid, const char *detail);
 
 void ui_show_weather(const wx_t *wx);
-void ui_set_footer(const char *place, const char *status, bool warn);
+void ui_set_footer(const char *place, const char *status, bool warn);  /* place: kept for callers, shown in Settings */
 void ui_set_info(const ui_info_t *info);
 void ui_open_settings(void);
 void ui_close_settings(void);

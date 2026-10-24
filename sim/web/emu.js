@@ -51,6 +51,14 @@
       load: function (i) { ex.emu_load(i); },
       screen: function (i) { ex.emu_screen(i); },
       bikeBus: function (on) { ex.emu_set_bike_bus(on ? 1 : 0); },
+      /* Live weather: the forecast address the board would use, then hand back the reply. */
+      forecastUrl: function (lat, lon) { return cstr(ex.emu_forecast_url(lat, lon)); },
+      loadJson: function (text, nowUtcSeconds) {
+        var bytes = new TextEncoder().encode(text);
+        var ptr = ex.emu_alloc(bytes.length);
+        new Uint8Array(getMem().buffer, ptr, bytes.length + 1).set(bytes);
+        return ex.emu_load_json(ptr, bytes.length, nowUtcSeconds) !== 0;
+      },
       scenarios: function () {
         var out = [];
         for (var i = 0; i < ex.emu_count(); i++) out.push(cstr(ex.emu_name(i)));

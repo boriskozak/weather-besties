@@ -76,6 +76,23 @@ typedef struct {
     wx_day_t yday;
 } wx_t;
 
+/* The three moments the girls care about: walking to school (8 AM), recess
+ * (noon) and going home (3 PM). Weekends and summer use Morning (9 AM),
+ * Lunchtime and Afternoon instead. After 3:30 PM it shows tomorrow. */
+typedef struct {
+    char title[24];   /* "Walk to school" */
+    char sub[32];     /* "Morning", "Tomorrow morning", "Saturday" */
+    float temp;       /* display units */
+    int code;         /* worst weather in the hour either side */
+    bool is_day;
+    int pop;          /* highest chance of rain/snow in the hour either side, % */
+    bool past;        /* already happened today (shown faded) */
+} wx_moment_t;
+
+#define WX_MOMENTS 3
+/* now_hour/now_min: local clock. Returns how many moments were filled. */
+int wx_kid_moments(const wx_t *wx, int now_hour, int now_min, wx_moment_t out[WX_MOMENTS]);
+
 /* Parses an Open-Meteo /v1/forecast response (see net.c for the query) and derives periods. */
 bool wx_parse_openmeteo(const char *json, size_t len, bool fahrenheit, wx_t *out);
 
