@@ -12,18 +12,19 @@ This is not a general weather dashboard. It answers one kid-sized question in wo
 
 **What kind of clothes do I need?**
 
-- **The night before:** after 7 PM, the advice switches to tomorrow, so they can lay out clothes before bed.
+- **The night before:** from 5 PM, the screen switches to tomorrow, so they can lay out clothes before bed.
 - **In the morning:** they can see right away if it is going to be cold, rainy, snowy, or warm, and whether yesterday's plan still works.
 
-## What it shows
+## What it shows (new in 2.0)
 
-- **Top left:** the weather right now in big friendly type, a weather picture, and one line like "Partly cloudy · High 61°".
-- **Middle:** a black cat with yellow eyes, dressed for the day, and a speech bubble that is the cat talking: "Chilly morning! Bring a jacket!" with pictures of what to wear (jacket, beanie, mittens, umbrella, boots...), picked from feels-like temperature, rain, snow, storms, and sun.
-- **Bottom:** the school day in their words: **Walk to school** (8 AM), **Recess** (noon), **Going home** (3 PM). Swipe left for the next three days.
-- Weather moves behind the today page: rain, snow, sleet, thunderstorms, autumn leaves on fall days, stars on clear nights.
-- The cat dresses up for October (witch hat and a jack-o'-lantern), Hanukkah (scarf and a menorah that gains a candle each night), and Christmas (Santa hat and a present). Otherwise it dresses for the weather.
-- After 7 PM the bubble switches to tomorrow, so they can lay out the right clothes before bed.
-- **Bike bus day** (Friday by default): if the 8 AM feels-like is 50°F or below, the bubble reminds everyone to wear gloves for bike bus. The evening before, it says to lay them out.
+- **Garment tiles:** big picture tiles for exactly what to wear (long sleeves, long pants, warm coat, sneakers...), picked by the outfit engine in `components/wb_ui/outfit.c` from the feels-like temperature over the school day (7 AM to 5 PM), rain, snow, storms, wind, and sun. Tap a tile as each item gets laid out: it turns green with a check. Check them all and the screen celebrates: "All dressed. Have a great day!"
+- **The cat, full body:** a cat wearing the same outfit the tiles recommend, so the picture and the list always agree. One plain sentence under the tiles explains the day: "Cold this morning, warm after lunch. Take your warm coat off later." An icon next to it flags the one important extra (umbrella, hat and gloves, water bottle, storm bolt...).
+- **Top right:** the weather in words a kid can use: "33° now", "High 64° · Low 32°". Tomorrow gets "High 55°" and "Low 46° · Rain 80%".
+- **Tabs at the bottom:** Today, Tomorrow, and Next days (three plain forecast cards with the one key garment for each day). Swipe works too. After 3 idle minutes the screen falls back to the page for the time of day.
+- **Honest about stale data:** if the weather is over 90 minutes old, a chip says when it is from ("Weather from 11:45 AM"). Over 12 hours (or no data), the cat looks puzzled and says "I can't check the weather right now." instead of prescribing from stale numbers.
+- The cat dresses up for October (witch hat and a jack-o'-lantern), Hanukkah (a menorah that gains a candle each night), and Christmas (Santa hat and a present), but a real prescription always wins: a cold Halloween gets the warm hat, not the witch hat.
+- **Bike bus day** (Friday by default): if the 8 AM feels-like is 50°F or below, the sentence reminds everyone to wear gloves for bike bus. The evening before, it says to lay them out.
+- **Your cat, your choice:** Settings (long press) now has a cat picker: black cat, pink cat, or take turns (they swap daily). The two boot-screen cats are the same pair.
 - An optional "screen off at night" mode. A tap wakes the screen for a minute.
 
 ![Evening screen](docs/evening.png)
@@ -46,6 +47,8 @@ Weather data comes from [Open-Meteo](https://open-meteo.com): free for non-comme
 
 ## Flash it
 
+Note: the 2.0.0 source is on `main`, but the prebuilt images in `firmware/` are still v1.4.0. Refreshing them takes an ESP-IDF build (`idf.py build`, then `esptool merge_bin` for the full image); flashing the source build works as described under "Build from source" below.
+
 Both files are in `firmware/`:
 
 - **First time (or to start fresh):** `weather-besties-v1.4.0.bin` at address `0x0`. It's the whole thing (bootloader, partition table, and app), and it wipes saved WiFi and town, so setup runs again.
@@ -66,7 +69,7 @@ python -m esptool --chip esp32s3 write_flash 0x10000 firmware/weather-besties-v1
 
 1. The screen shows a QR code and a hotspot name like `WeatherBesties-3F2A`.
 2. Scan the QR with a phone (or join that WiFi network by hand). A setup page pops up. If it doesn't, open `http://192.168.4.1`.
-3. Pick the home WiFi, type the password, then set: town or ZIP, names for the greeting, °F or °C, bike bus day, and optional night hours. Save.
+3. Pick the home WiFi, type the password, then set: town or ZIP, the kids' names (used in the "Nice job" message), °F or °C, bike bus day, and optional night hours. Save.
 4. The board restarts, joins WiFi, and shows the weather.
 
 ![Setup screen](docs/setup.png)
@@ -75,24 +78,20 @@ Defaults if you skip things: Upper Montclair, NJ, "Cleo & Lila", Fahrenheit, bik
 
 ## Using it
 
-- Swipe left for the next three days, right to come back. The page flips the moment the finger lifts (no dragging: moving the whole screen under a finger is the slowest thing this chip draws). A swipe is 80 px or more sideways from where the finger went down (`on_indev()` in `ui.c`); a finger that moved that far doesn't count as a tap or a long press.
-- Hold your finger on the greeting, the clock, or any empty spot for 1.5 seconds to open Settings (change WiFi or town, refresh now). Settings are stored on the board and survive reboots and app updates.
-- The school-day cards: moments that already happened fade out, and after 3:30 PM the cards switch to tomorrow. Weekends, July and August, and Dec 24 to Jan 1 show Morning (9 AM), Lunchtime and Afternoon instead (`wx_kid_moments()` in `components/wb_ui/wx.c`; other days off still say "Walk to school"). The rain chance only shows at 30% or more.
-- The next-days page compares each day with the one before: warmer or colder (by the daily high), sunnier or cloudier (by hours of sun). A drop of 12°F or more says "a lot colder" and adds gloves.
-- Weather animations: rain, drizzle, heavy rain, sleet, snow, thunderstorms (rain plus a lightning flicker every 5-10 s), autumn leaves (Sep 22 to Nov 30), and twinkling stars on clear nights. The rules are `cat_pick_fx()` in `cat.c`; the motion is one 30 fps timer in `ui.c` (`fx_tick()`), and pieces only fall in the open sky left of the bubble and above the cards.
+- Tap the garment tiles to check things off as they get laid out. The check marks belong to the outfit's day: a new day starts unchecked.
+- Use the Today / Tomorrow / Next days tabs, or swipe left and right. The page flips the moment the finger lifts (no dragging: moving the whole screen under a finger is the slowest thing this chip draws). A swipe is 80 px or more sideways from where the finger went down (`on_indev()` in `ui.c`); a finger that moved that far doesn't count as a tap or a long press. After 3 idle minutes the screen returns to the page for the time of day (Today before 5 PM, Tomorrow from 5 PM).
+- Hold your finger on any empty spot for 1.5 seconds to open Settings (cat choice, change WiFi or town, refresh now, speed test). Settings are stored on the board and survive reboots and app updates.
 - With "screen off at night" on, the screen sleeps during those hours. A tap wakes it for a minute (that first tap doesn't press anything). Weather keeps updating in the background, so the morning screen is fresh.
-- The cat sits on the school-day cards next to its speech bubble. It blinks, and hops when you tap it. What it wears (rules in `components/wb_ui/cat.c`):
-  - **October:** witch hat, purple cape with an orange bow, and a jack-o'-lantern.
-  - **Hanukkah:** blue-and-white scarf and a menorah. Candles light at 4 PM, one more each night, added from the right. Dates come from Hebcal for 2025-2035; add years to the `HANUKKAH` table after that.
+- The cat blinks, and hops when you tap it. What it wears is the outfit engine's prescription (`components/wb_ui/outfit.c`), plus seasonal touches from `components/wb_ui/cat.c`:
+  - **October:** witch hat and a jack-o'-lantern, unless a warm hat is prescribed (the prescription wins).
+  - **Hanukkah:** a menorah. Candles light at 4 PM, one more each night, added from the right. Dates come from Hebcal for 2025-2035; add years to the `HANUKKAH` table after that.
   - **Dec 15-26:** Santa hat and a present. If Hanukkah overlaps, Santa hat and the menorah.
-  - **Snowing right now:** snowflakes fall around the cat, whatever it's wearing.
-  - **Otherwise:** dressed like the speech bubble says. Rain hat with the umbrella, pink beanie and scarf when it's cold, scarf when it's chilly, heart sunglasses on strong-sun days.
 
 ## Try it without the board
 
 The UI, weather parsing, and advice logic are plain C with no ESP-IDF dependencies, so the exact same code runs on a PC and in a browser.
 
-**Browser simulator:** `make web` in `sim/` writes `sim/web/site/Weather-Besties-Simulator.html`. Double-click it; it works offline. It's the board's real screen code compiled to WebAssembly. The mouse is the finger: drag sideways to swipe, click the cat to make it hop, hold the greeting 1.5 seconds for Settings. **Live weather** fetches today's forecast for Upper Montclair with the same request the board sends; the other buttons are sample days, including the holidays.
+**Browser simulator:** `make web` in `sim/` writes `sim/web/site/Weather-Besties-Simulator.html`. Double-click it; it works offline. It's the board's real screen code compiled to WebAssembly. The mouse is the finger: drag sideways to swipe, click the cat to make it hop, hold any empty spot 1.5 seconds for Settings. **Live weather** fetches today's forecast for Upper Montclair with the same request the board sends; the other buttons are sample days, including the holidays.
 
 **Screenshots of every screen** (Linux, or WSL on Windows):
 
@@ -106,7 +105,7 @@ make shots      # PNGs in sim/out/, sample forecasts generated into sim/scenario
 
 ## Speed test on the board
 
-Tap "Updated 7:45 AM" at the bottom right. A meter appears bottom left with frames per second and CPU, and the footer shows how many screen lines are drawn per pass and how much internal RAM is free. Tap again for the old v1.3.0 settings (small drawing area, blurred bubble shadow, whole-card fading) to compare, and a third time to turn it off.
+Open Settings (long press) and tap "Speed test". A meter appears bottom left with frames per second and CPU, and the readout in Settings shows how many screen lines are drawn per pass and how much internal RAM is free. Tap again for the old v1.3.0 settings (small drawing area, blurred shadows) to compare, and a third time to turn it off.
 
 The drawing area starts at 40 lines (the same 64 KB of internal RAM v1.3.0 used). After the first successful weather download it grows to 100, 80 or 60 lines, whichever leaves at least 64 KB of internal RAM free (`board_grow_draw_buffer()` in `main/board.c`). If a download fails while free internal RAM is under 24 KB, it shrinks back. The serial log prints the free RAM after every refresh.
 
@@ -133,10 +132,10 @@ Everything else is already in `components/`: LVGL 9.5.0, Espressif's GT911 touch
 | `main/net.c` | WiFi, clock (SNTP), Open-Meteo calls, refresh and retry loop |
 | `main/portal.c` | Setup hotspot, captive portal, phone form |
 | `main/settings.c` | Saved settings (NVS) |
-| `components/wb_ui/ui.c` | All screens, the weather animations, swipes |
-| `components/wb_ui/cat.c` | Picks the cat's outfit and the weather animation (holidays, weather) |
-| `components/wb_ui/advice.c` | What-to-wear rules (temperature bands, rain, snow, storms, sun) |
-| `components/wb_ui/wx.c` | Forecast parsing, school-day moments |
+| `components/wb_ui/ui.c` | All screens: outfit pages, forecast page, settings, swipes |
+| `components/wb_ui/cat.c` | The cat's seasonal touches (holidays) |
+| `components/wb_ui/outfit.c` | The outfit engine: what-to-wear rules over the school-day window (feels-like bands, rain, snow, storms, wind, sun) and the advice sentences |
+| `components/wb_ui/wx.c` | Forecast parsing (hourly wind gusts feed the outfit engine's windy rule) |
 | `components/wb_ui/wb_request.c` | Builds the Open-Meteo request addresses; buffer sizes in `wb_request.h` |
 | `components/lv_conf.h` | LVGL settings, shared with the PC renderer |
 | `tools/icons.py` | The artwork (weather faces, clothes, cats, the cat's outfits, falling leaves), drawn as SVG |
@@ -148,11 +147,10 @@ Everything else is already in `components/`: LVGL 9.5.0, Espressif's GT911 touch
 
 ## Tweaking
 
-- Clothing rules: the `BANDS` table at the top of `components/wb_ui/advice.c` (temperatures are feels-like in °F).
-- School times and card names: `wx_kid_moments()` in `components/wb_ui/wx.c`.
-- Where things sit on the today screen: `build_today()` in `components/wb_ui/ui.c`. The cat's size is `KITTY_SETS` in `tools/make_assets.py` (currently 1.5x the original drawing).
-- Bike bus cutoff and "a lot colder" threshold: `BIKE_BUS_COLD_F` and `BIG_CHANGE_F` in `components/wb_ui/advice.h`.
-- Colors: the theme table at the top of `components/wb_ui/ui.c`.
+- Clothing rules: `components/wb_ui/outfit.c` (thresholds are feels-like in °F; the school-day window and departure hour are at the top of `outfit_make()`).
+- Where things sit on the outfit pages: `build_outfit_page()` and `render()` in `components/wb_ui/ui.c`. The cat's stage is 260x252 (`CAT2_W`, `CAT2_H` in `tools/icons.py`); each dressed-cat layer is drawn on that stage in `tools/icons.py` and cropped by `tools/make_assets.py`.
+- Bike bus cutoff: `BIKE_BUS_COLD_F` in `components/wb_ui/outfit.h`.
+- Colors: the palette at the top of `components/wb_ui/ui.c`.
 - Artwork: edit `tools/icons.py`, then run `python3 tools/make_assets.py` (needs `pip install resvg-py pillow pypng` and `npm install lv_font_conv` inside `tools/`).
 
 ## On the real board
