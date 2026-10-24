@@ -205,8 +205,8 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     uint32_t extras = 0;
     if (f_dep <= 38 || has_snow) extras |= EX_HAT;
     if (f_dep <= 35 || has_snow || ice || bike_bus_cold) extras |= EX_GLOVES;
-    if (is_rain && (out->layer == LAYER_WARM_COAT || out->layer == LAYER_WINTER_COAT || rain_h >= 3)) {
-        extras |= EX_UMBRELLA;
+    if (is_rain && !thunder && (out->layer == LAYER_WARM_COAT || out->layer == LAYER_WINTER_COAT || rain_h >= 3)) {
+        extras |= EX_UMBRELLA;   /* never on a thunder day: the advice says stay inside */
     }
     bool dry = rain_h == 0 && snow_h == 0 && !ice && !thunder;
     if (uv >= 7 && dry && f_max >= 65) extras |= EX_SUNGLASSES;
@@ -217,7 +217,7 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     uint32_t change = 0;
     if (f_max - f_dep >= 15 && out->layer != LAYER_NONE) change |= CH_WARMUP;
     if (has_pm && f_dep - f_pm_min >= 12) change |= CH_COOLDOWN;
-    if (is_rain && first_rain >= dep_hour + 3) change |= CH_RAIN_LATER;
+    if (is_rain && first_rain > dep_hour) change |= CH_RAIN_LATER;   /* any start after departure; the old +3 left 1-3 h gaps with no sentence at all */
     if (is_rain && first_rain >= 0 && first_rain <= dep_hour) change |= CH_RAIN_ALL_DAY;
     if (has_snow) change |= CH_SNOW;
     if (thunder) change |= CH_STORM;

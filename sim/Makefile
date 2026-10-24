@@ -31,6 +31,7 @@ shots: render
 	mkdir -p out
 	./render out scenarios
 	python3 to_png.py out
+	python3 check_renders.py out
 
 # Checks every request the board makes fits the HTTP client's send buffer.
 test: test_request

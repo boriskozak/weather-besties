@@ -21,8 +21,9 @@
 #define COL_INK 0x1E2340
 #define COL_INK2 0x545A72
 #define COL_TILE 0xFFFFFF
-#define COL_TILE_LINE_M 0xECE4D5
-#define COL_TILE_LINE_E 0xE2DCEF
+#define COL_TILE_LINE_M 0xE7D9BE   /* plan token deepened a step: at 0xECE4D5 the tiles vanished into the bg */
+#define COL_TILE_LINE_E 0xD8CDF0
+#define COL_LAYER_LINE 0xE8A33D   /* amber frame for the extra-layer tile, so a pre-reader can spot it */
 #define COL_CHIP_M_BG 0xFFE6A6
 #define COL_CHIP_M_TX 0x5A3B00
 #define COL_CHIP_E_BG 0xE2DCF7
@@ -102,7 +103,10 @@ static lv_obj_t *cat_stage, *cat_grp;
 static lv_obj_t *cat_layer[WB_C2_COUNT];
 static lv_obj_t *cat_flame[9];
 static lv_obj_t *sparkle[3];
-static lv_obj_t *tile[4], *tile_icon[4], *tile_label[4], *tile_check[4], *tile_check_mark[4];
+static lv_obj_t *tile[4], *tile_icon[4], *tile_label[4], *tile_check[4], *tile_check_mark[4], *tile_badge[4];
+static bool s_tile_layer[4];   /* tile i is the extra layer (amber frame + star badge) */
+static bool s_done_hold;       /* all tiles checked: hold the happy cat + sparkles */
+static lv_obj_t *prog_chip, *lbl_prog;
 static lv_obj_t *lbl_no_data, *lbl_no_data2;
 static lv_obj_t *adv_icon, *lbl_advice;
 
@@ -374,7 +378,7 @@ static lv_obj_t *pill_button(lv_obj_t *parent, const char *txt, bool primary, lv
     lv_obj_remove_style_all(b);
     lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(b, primary ? C(COL_ACCENT) : C(0xEEF1F7), 0);
+    lv_obj_set_style_bg_color(b, primary ? C(COL_INK) : C(0xEEF1F7), 0);   /* accent pink is for hearts / all-done only */
     lv_obj_set_style_bg_color(b, primary ? C(0xB8325F) : C(0xD5DBE6), LV_STATE_PRESSED);
     lv_obj_set_style_pad_hor(b, 26, 0);
     lv_obj_set_style_pad_ver(b, 14, 0);
@@ -764,6 +768,17 @@ static void blink_tick(lv_timer_t *t)
 {
     (void)t;
     uint32_t now = lv_tick_get();
+    if (s_done_hold) {
+        /* Every tile checked: the happy cat and her sparkles stay up for as
+         * long as the state lasts, so the payoff reads at any glance (and
+         * in a still frame), not just for 1.5 s after the last tap. */
+        expr_show(WB_C2_HAPPY);
+        for (int i = 0; i < 3; i++) {
+            lv_obj_set_style_opa(sparkle[i], LV_OPA_COVER, 0);
+            show_obj(sparkle[i]);
+        }
+        return;
+    }
     if (s_celebrating && (int32_t)(now - s_happy_until) < 0) {
         expr_show(WB_C2_HAPPY);
         return;
@@ -772,6 +787,9 @@ static void blink_tick(lv_timer_t *t)
         expr_show(WB_C2_PUZZLED);
         return;
     }
+#ifndef WB_SIM
+    /* No blinking in the desktop renderer: a 150 ms blink window landing
+     * on a captured frame reads as a celebration spent early. */
     if (s_blink_until && (int32_t)(now - s_blink_until) >= 0) {
         s_blink_until = 0;
         s_blink_at = now + (lv_rand(0, 4) == 0 ? 260 : lv_rand(2500, 6000));
@@ -780,6 +798,7 @@ static void blink_tick(lv_timer_t *t)
         s_blink_until = now + 150;
         expr_show(WB_C2_BLINK);
     }
+#endif
     if (s_celebrating && (int32_t)(now - s_happy_until) >= 0) {
         for (int i = 0; i < 3; i++) {
             hide(sparkle[i]);
@@ -792,9 +811,11 @@ static void build_cat(lv_obj_t *page)
     cat_stage = box(page);
     lv_obj_set_pos(cat_stage, 24, 100);
     lv_obj_set_size(cat_stage, 260, 252);
+    lv_obj_add_flag(cat_stage, LV_OBJ_FLAG_OVERFLOW_VISIBLE);   /* the unavailable state scales the cat up */
 
     cat_grp = box(cat_stage);
     lv_obj_set_size(cat_grp, 260, 252);
+    lv_obj_add_flag(cat_grp, LV_OBJ_FLAG_OVERFLOW_VISIBLE);   /* props sit at the stage corners */
     for (int i = 0; i < WB_C2_COUNT; i++) {
         cat_layer[i] = lv_image_create(cat_grp);
         hide(cat_layer[i]);
@@ -807,6 +828,8 @@ static void build_cat(lv_obj_t *page)
         sparkle[i] = lv_image_create(cat_grp);
         lv_image_set_src(sparkle[i], &img_x_sparkle);
         lv_image_set_scale(sparkle[i], 85);   /* 48 px art -> about 16 px */
+        static const int16_t spos[3][2] = {{30, 16}, {196, 8}, {128, 52}};
+        lv_obj_set_pos(sparkle[i], spos[i][0], spos[i][1]);
         hide(sparkle[i]);
     }
     /* Tap the cat and it hops. Long press still bubbles up to open Settings. */
@@ -829,14 +852,22 @@ static void set_tile_check_visual(int i, bool checked)
     if (checked) {
         lv_obj_set_style_bg_color(tile[i], C(COL_OK_BG), 0);
         lv_obj_set_style_border_color(tile[i], C(COL_OK_LINE), 0);
+        lv_obj_set_style_border_width(tile[i], 3, 0);
         lv_obj_set_style_bg_color(tile_check[i], C(COL_OK), 0);
         lv_obj_set_style_bg_opa(tile_check[i], LV_OPA_COVER, 0);
         lv_obj_set_style_border_color(tile_check[i], C(COL_OK), 0);
         show_obj(tile_check_mark[i]);
     } else {
         lv_obj_set_style_bg_color(tile[i], C(COL_TILE), 0);
-        lv_obj_set_style_border_color(tile[i], C(s_page == 1 ? COL_TILE_LINE_E : COL_TILE_LINE_M), 0);
-        lv_obj_set_style_bg_opa(tile_check[i], LV_OPA_TRANSP, 0);
+        /* The extra-layer tile keeps its amber frame so a pre-reader can
+         * tell "one more thing" apart from the base clothes at a glance. */
+        lv_obj_set_style_border_color(tile[i], s_tile_layer[i] ? C(COL_LAYER_LINE)
+                                          : C(s_page == 1 ? COL_TILE_LINE_E : COL_TILE_LINE_M), 0);
+        lv_obj_set_style_border_width(tile[i], 3, 0);
+        /* A white filled disc, not a bare ring: the ring alone read as a
+         * decoration clipped by the tile corner, not as a tap target. */
+        lv_obj_set_style_bg_color(tile_check[i], lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(tile_check[i], LV_OPA_COVER, 0);
         lv_obj_set_style_border_color(tile_check[i], C(COL_RING_OFF), 0);
         hide(tile_check_mark[i]);
     }
@@ -870,7 +901,7 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_set_style_radius(t, 22, 0);
         lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(t, C(COL_TILE), 0);
-        lv_obj_set_style_border_width(t, 2, 0);
+        lv_obj_set_style_border_width(t, 3, 0);
         lv_obj_set_style_border_color(t, C(COL_TILE_LINE_M), 0);
         lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(t, on_tile, LV_EVENT_CLICKED, (void *)(intptr_t)i);
@@ -880,7 +911,8 @@ static void build_tiles(lv_obj_t *page)
 
         tile_label[i] = label(t, &font_label, "");
         lv_obj_set_style_text_color(tile_label[i], C(COL_INK), 0);
-        lv_obj_set_pos(tile_label[i], 110, 0);
+        lv_obj_set_style_text_letter_space(tile_label[i], -2, 0);   /* "Sneakers" is 122 px wide; the box is 122 */
+        lv_obj_set_pos(tile_label[i], 116, 0);
         lv_label_set_long_mode(tile_label[i], LV_LABEL_LONG_MODE_WRAP);
 
         tile_check[i] = box(t);
@@ -888,6 +920,15 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_set_style_radius(tile_check[i], LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(tile_check[i], 3, 0);
         lv_obj_set_style_border_color(tile_check[i], C(COL_RING_OFF), 0);
+        lv_obj_set_style_bg_color(tile_check[i], lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(tile_check[i], LV_OPA_COVER, 0);
+
+        /* Star badge marking the extra-layer tile (set visible in render). */
+        tile_badge[i] = lv_image_create(t);
+        lv_image_set_src(tile_badge[i], &img_x_sparkle);
+        lv_image_set_scale(tile_badge[i], 128);   /* 48 px art -> 24 px badge */
+        lv_obj_set_pos(tile_badge[i], 8, 8);
+        hide(tile_badge[i]);
         lv_obj_set_style_transform_pivot_x(tile_check[i], 18, 0);
         lv_obj_set_style_transform_pivot_y(tile_check[i], 18, 0);
 
@@ -922,7 +963,7 @@ static void on_tab(lv_event_t *e)
 static void build_tabs(lv_obj_t *scr)
 {
     lv_obj_t *row = box(scr);
-    lv_obj_set_pos(row, 28, 420);
+    lv_obj_set_pos(row, 28, 424);
     lv_obj_set_size(row, LV_SIZE_CONTENT, 50);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(row, 10, 0);
@@ -950,8 +991,22 @@ static void build_tabs(lv_obj_t *scr)
     lbl_stale = label(stale_chip, &font_small, "");
     lv_obj_set_style_text_color(lbl_stale, C(COL_WARN_TX), 0);
     lv_obj_center(lbl_stale);
-    lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 425);
+    lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
     hide(stale_chip);
+
+    /* "2 of 4 ready" progress pill: same slot as the stale chip, shown when
+     * the data is fresh and some (not all) tiles are checked. */
+    prog_chip = box(scr);
+    lv_obj_set_style_radius(prog_chip, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(prog_chip, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(prog_chip, C(COL_OK_BG), 0);
+    lv_obj_set_style_pad_hor(prog_chip, 16, 0);
+    lv_obj_set_height(prog_chip, 40);
+    lbl_prog = label(prog_chip, &font_small, "");
+    lv_obj_set_style_text_color(lbl_prog, C(COL_INK), 0);
+    lv_obj_center(lbl_prog);
+    lv_obj_align(prog_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
+    hide(prog_chip);
 }
 
 /* ------------------------------------------------------------------ outfit page build */
@@ -998,21 +1053,21 @@ static void build_outfit_page(lv_obj_t *scr)
     lv_obj_set_style_text_color(lbl_no_data, C(COL_INK), 0);
     lv_obj_set_width(lbl_no_data, 488);
     lv_label_set_long_mode(lbl_no_data, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(lbl_no_data, 284, 150);
+    lv_obj_set_pos(lbl_no_data, 284, 196);
     lbl_no_data2 = label(page_outfit, &font_body, "Look outside, or ask a grown-up.");
     lv_obj_set_style_text_color(lbl_no_data2, C(COL_INK2), 0);
     lv_obj_set_width(lbl_no_data2, 488);
     lv_label_set_long_mode(lbl_no_data2, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(lbl_no_data2, 284, 230);
+    lv_obj_set_pos(lbl_no_data2, 300, 284);   /* indented past the scaled-up cat's tail */
     hide(lbl_no_data);
     hide(lbl_no_data2);
 
     adv_icon = lv_image_create(page_outfit);
-    lv_obj_set_pos(adv_icon, 28, 364);
+    lv_obj_set_pos(adv_icon, 28, 358);
     lbl_advice = label(page_outfit, &font_body, "");
     lv_obj_set_style_text_color(lbl_advice, C(COL_INK), 0);
     lv_label_set_long_mode(lbl_advice, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(lbl_advice, 90, 364);
+    lv_obj_set_pos(lbl_advice, 90, 358);
     lv_obj_set_width(lbl_advice, 682);
 }
 
@@ -1031,39 +1086,42 @@ static void build_forecast_page(lv_obj_t *scr)
     for (int i = 0; i < 3; i++) {
         lv_obj_t *c = box(page_forecast);
         fc_col[i] = c;
-        lv_obj_set_pos(c, 28 + i * 252, 92);
-        lv_obj_set_size(c, 236, 312);
+        lv_obj_set_pos(c, 28 + i * 252, 76);
+        lv_obj_set_size(c, 236, 344);
         lv_obj_set_style_radius(c, 22, 0);
         lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(c, C(COL_TILE), 0);
-        lv_obj_set_style_border_width(c, 2, 0);
+        lv_obj_set_style_border_width(c, 3, 0);
         lv_obj_set_style_border_color(c, C(COL_TILE_LINE_M), 0);
 
         fc_name[i] = label(c, &font_label, "");
         lv_obj_set_style_text_color(fc_name[i], C(COL_INK), 0);
-        lv_obj_align(fc_name[i], LV_ALIGN_TOP_MID, 0, 10);
+        lv_obj_align(fc_name[i], LV_ALIGN_TOP_MID, 0, 8);
         fc_date[i] = label(c, &font_small, "");
         lv_obj_set_style_text_color(fc_date[i], C(COL_INK2), 0);
-        lv_obj_align(fc_date[i], LV_ALIGN_TOP_MID, 0, 46);
+        lv_obj_align(fc_date[i], LV_ALIGN_TOP_MID, 0, 44);
         fc_img[i] = lv_image_create(c);
         lv_obj_align(fc_img[i], LV_ALIGN_TOP_MID, 0, 70);
         fc_hi[i] = label(c, &font_label, "");
         lv_obj_set_style_text_color(fc_hi[i], C(COL_INK), 0);
-        lv_obj_align(fc_hi[i], LV_ALIGN_TOP_MID, 0, 182);
+        lv_obj_align(fc_hi[i], LV_ALIGN_TOP_MID, 0, 186);
         fc_lo[i] = label(c, &font_body, "");
         lv_obj_set_style_text_color(fc_lo[i], C(COL_INK2), 0);
-        lv_obj_align(fc_lo[i], LV_ALIGN_TOP_MID, 0, 214);
+        lv_obj_align(fc_lo[i], LV_ALIGN_TOP_MID, 0, 224);
 
+        /* Fixed slots, identical in every column: the rain row keeps its
+         * slot whether or not it rains, and the garment row is one pinned
+         * component at the same y in all three columns. */
         fc_rain[i] = box(c);
         lv_obj_set_size(fc_rain[i], LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(fc_rain[i], LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(fc_rain[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_column(fc_rain[i], 6, 0);
-        lv_obj_align(fc_rain[i], LV_ALIGN_TOP_MID, 0, 240);
+        lv_obj_align(fc_rain[i], LV_ALIGN_TOP_MID, 0, 258);
         fc_drop[i] = lv_image_create(fc_rain[i]);
         lv_image_set_src(fc_drop[i], &img_drop);
         lv_image_set_scale(fc_drop[i], 256);   /* native 22 px drop */
-        fc_pop[i] = label(fc_rain[i], &font_body, "");
+        fc_pop[i] = label(fc_rain[i], &font_small, "");
         lv_obj_set_style_text_color(fc_pop[i], C(COL_INK), 0);
 
         fc_garment[i] = box(c);
@@ -1071,9 +1129,9 @@ static void build_forecast_page(lv_obj_t *scr)
         lv_obj_set_flex_flow(fc_garment[i], LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(fc_garment[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_column(fc_garment[i], 8, 0);
-        lv_obj_align(fc_garment[i], LV_ALIGN_BOTTOM_MID, 0, -4);
+        lv_obj_align(fc_garment[i], LV_ALIGN_BOTTOM_MID, 0, -6);
         fc_gimg[i] = lv_image_create(fc_garment[i]);
-        lv_image_set_scale(fc_gimg[i], 146);   /* 56 px art -> 32 px */
+        /* garment icon at its full 56 px (it used to be scaled to ~32) */
         fc_glabel[i] = label(fc_garment[i], &font_small, "");
         lv_obj_set_style_text_color(fc_glabel[i], C(COL_INK), 0);
     }
@@ -1199,7 +1257,25 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
     } else if (seas->prop == CAT_SEASON_PROP_MENORAH) {
         vis[WB_C2_PROP_MENORAH] = true;
     }
-    (void)unavailable;
+    /* Unavailable state: a bigger puzzled cat fills the stage instead of a
+     * small cat next to a void. The transform scales the whole layer group
+     * (positions included), so the menorah flames stay on their candles.
+     * The stage itself grows for this state: a transformed child layer is
+     * still clipped to its parent's box, flags or not, so the parent box
+     * has to contain the scaled cat. */
+    if (unavailable) {
+        lv_obj_set_pos(cat_stage, 0, 64);
+        lv_obj_set_size(cat_stage, 560, 400);
+        lv_obj_set_pos(cat_grp, 24, 36);
+        lv_obj_set_style_transform_pivot_x(cat_grp, 130, 0);
+        lv_obj_set_style_transform_pivot_y(cat_grp, 205, 0);
+        lv_obj_set_style_transform_scale(cat_grp, 300, 0);
+    } else {
+        lv_obj_set_pos(cat_stage, 24, 100);
+        lv_obj_set_size(cat_stage, 260, 252);
+        lv_obj_set_pos(cat_grp, 0, 0);
+        lv_obj_set_style_transform_scale(cat_grp, 256, 0);
+    }
     for (int i = 0; i < WB_C2_COUNT; i++) {
         if (i == WB_C2_BLINK || i == WB_C2_HAPPY || i == WB_C2_PUZZLED) {
             /* The blink timer owns their visibility, but they still need a
@@ -1272,43 +1348,13 @@ static void celebrate(void)
 
 static bool s_built;
 
-/* Tile labels are font_label, stepping down only when a single word would
- * not fit the label's width (LVGL breaks over-wide words mid-word, which is
- * unreadable: "Slee ves"). Only the longest garments ever step down. */
-static const lv_font_t *tile_font(const char *txt, int width)
-{
-    static const lv_font_t *fonts[3] = {&font_label, &font_body, &font_small};
-    for (int k = 0; k < 3; k++) {
-        int worst = 0;
-        const char *p = txt;
-        while (*p) {
-            const char *sp = strchr(p, ' ');
-            int len = sp ? (int)(sp - p) : (int)strlen(p);
-            char word[24];
-            if (len > 23) {
-                len = 23;
-            }
-            memcpy(word, p, (size_t)len);
-            word[len] = 0;
-            int ww = text_w(word, fonts[k]);
-            if (ww > worst) {
-                worst = ww;
-            }
-            if (!sp) {
-                break;
-            }
-            p = sp + 1;
-        }
-        if (worst <= width) {
-            return fonts[k];
-        }
-    }
-    return &font_small;
-}
+/* Tile labels are always font_label (plan section 2). At the label
+ * width (tile w - 116) every garment word fits on one line: the
+ * longest, "sleeves", measures ~105 px against 122 px. */
 
 static void render_forecast(const wx_t *wx, const struct tm *now)
 {
-    outfit_opts_t opts = {.bike_bus_wday = -1};
+    outfit_opts_t opts = s_opts;   /* same engine configuration as the outfit pages */
     for (int i = 0; i < 3; i++) {
         outfit_t o;
         bool ok = outfit_make(wx, now, i + 1, &opts, &o) && o.ok;
@@ -1409,7 +1455,7 @@ static void render(void)
         }
         lv_label_set_text(lbl_stale, buf);
         lv_obj_set_size(stale_chip, text_w(buf, &font_small) + 32, 40);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 425);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -1423,7 +1469,7 @@ static void render(void)
             lv_label_set_text(lbl_stale, "No weather yet");
         }
         lv_obj_set_size(stale_chip, text_w(lv_label_get_text(lbl_stale), &font_small) + 32, 40);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 425);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -1465,6 +1511,7 @@ static void render(void)
     } else if (!all_done) {
         s_celebrating = false;
     }
+    s_done_hold = all_done;
 
     /* Title */
     const char *title;
@@ -1510,7 +1557,7 @@ static void render(void)
             if (o.pop_day >= 30) {
                 snprintf(b2, sizeof(b2), "Low %d\xC2\xB0 \xC2\xB7 Rain %d%%", iround(o.lo), o.pop_day);
             } else {
-                snprintf(b2, sizeof(b2), "Low %d\xC2\xB0 \xC2\xB7 High %d\xC2\xB0", iround(o.lo), iround(o.hi));
+                snprintf(b2, sizeof(b2), "Low %d\xC2\xB0", iround(o.lo));   /* line 1 already says the high */
             }
         }
         lv_label_set_text(lbl_wx1, b1);
@@ -1543,6 +1590,14 @@ static void render(void)
     }
     cat2_apply(avail ? &o : NULL, &seas, !avail);
     s_expr = avail ? 0 : 1;
+    /* Own the base expression here. The face overlays are otherwise only
+     * touched by the blink timer, and on a page change a stale overlay
+     * (the puzzled face from the offline page) would stay up forever:
+     * the blink cycle that used to clear it does not run while the cat
+     * is mid-blink or, in the desktop renderer, at all. */
+    if (!s_done_hold && !s_celebrating) {
+        expr_show(s_expr == 1 ? WB_C2_PUZZLED : -1);
+    }
 
     /* Tiles or the no-data message. */
     if (avail) {
@@ -1562,7 +1617,13 @@ static void render(void)
             lv_image_set_src(tile_icon[i], GARMENT_96[o.tile_kind[i]]);
             lv_label_set_text(tile_label[i], garment_label(o.tile_kind[i]));
             lv_obj_set_width(tile_label[i], w - 116);
-            lv_obj_set_style_text_font(tile_label[i], tile_font(garment_label(o.tile_kind[i]), w - 116), 0);
+            lv_obj_set_style_text_font(tile_label[i], &font_label, 0);   /* always the label font */
+            s_tile_layer[i] = o.tile_kind[i] >= HOODIE && o.tile_kind[i] <= WINTER_COAT;
+            if (s_tile_layer[i]) {
+                show_obj(tile_badge[i]);
+            } else {
+                hide(tile_badge[i]);
+            }
             lv_obj_set_pos(tile_check[i], w - 48, 12);
             lv_obj_update_layout(tile[i]);
             int th = lv_obj_get_height(tile_label[i]);
@@ -1575,6 +1636,30 @@ static void render(void)
         }
         show_obj(lbl_no_data);
         show_obj(lbl_no_data2);
+    }
+
+    /* Progress pill (fresh data only; the stale chip owns the slot
+     * otherwise). "2 of 4 ready" while a check-off is in progress. */
+    if (avail && bucket == 0 && !all_done) {
+        int checked_n = 0;
+        for (int i = 0; i < o.ntiles; i++) {
+            if ((s_checks >> i) & 1) {
+                checked_n++;
+            }
+        }
+        if (checked_n > 0) {
+            char pbuf[32];
+            snprintf(pbuf, sizeof(pbuf), "%d of %d ready", checked_n, o.ntiles);
+            lv_label_set_text(lbl_prog, pbuf);
+            lv_obj_set_size(prog_chip, text_w(pbuf, &font_small) + 32, 40);
+            lv_obj_set_width(lbl_prog, LV_SIZE_CONTENT);
+            lv_obj_center(lbl_prog);
+            show_obj(prog_chip);
+        } else {
+            hide(prog_chip);
+        }
+    } else {
+        hide(prog_chip);
     }
 
     /* Advice row. */
@@ -1595,28 +1680,32 @@ static void render(void)
         }
         lv_label_set_text(lbl_advice, txt);
         lv_obj_set_style_text_color(lbl_advice, C(COL_ACCENT), 0);
-        lv_obj_set_pos(lbl_advice, 90, 364);
+        lv_obj_set_pos(lbl_advice, 90, 358);
         lv_obj_set_width(lbl_advice, 682);
         lv_image_set_src(adv_icon, &img_x_heart);
         show_obj(adv_icon);
     } else {
         show_obj(lbl_advice);
         lv_obj_set_style_text_color(lbl_advice, C(COL_INK), 0);
+        bool has_icon = o.extra_icon >= 0 && o.extra_icon < 8 && EXTRA_IMG[o.extra_icon];
+        /* Measure with the width the label will really get (682 with the
+         * icon, 744 without) before deciding sentence A has to go. */
+        int adv_w = has_icon ? 682 : 744;
         const char *txt = o.advice;
         lv_point_t tr;
-        lv_text_get_size(&tr, txt, &font_body, 0, 0, 682, LV_TEXT_FLAG_NONE);
+        lv_text_get_size(&tr, txt, &font_body, 0, 0, adv_w, LV_TEXT_FLAG_NONE);
         if (tr.y > 2 * lv_font_get_line_height(&font_body)) {
             txt = o.advice_short;   /* too long for two lines: keep the change sentence */
         }
         lv_label_set_text(lbl_advice, txt);
-        if (o.extra_icon >= 0 && o.extra_icon < 8 && EXTRA_IMG[o.extra_icon]) {
+        if (has_icon) {
             lv_image_set_src(adv_icon, EXTRA_IMG[o.extra_icon]);
             show_obj(adv_icon);
-            lv_obj_set_pos(lbl_advice, 90, 364);
+            lv_obj_set_pos(lbl_advice, 90, 358);
             lv_obj_set_width(lbl_advice, 682);
         } else {
             hide(adv_icon);
-            lv_obj_set_pos(lbl_advice, 28, 364);
+            lv_obj_set_pos(lbl_advice, 28, 358);
             lv_obj_set_width(lbl_advice, 744);
         }
     }

@@ -636,7 +636,13 @@ C2SW = 2.6
 DENIM = "#4A7BD9"
 
 
-def c2svg(body):
+def c2svg(body, scaled=True):
+    if scaled:
+        # The cat underfilled her stage: grow the whole character about her
+        # feet (150, 250) so she reads as the centerpiece, not a sidebar.
+        # Props pass scaled=False: they are ground furniture at stage scale.
+        body = ('<g transform="translate(150 250) scale(1.10 1.03) translate(-150 -250)">'
+                + body + '</g>')
     return svg(body, f"0 0 {CAT2_W} {CAT2_H}")
 
 
@@ -673,6 +679,8 @@ def _cat2_face(eye, whisker, line):
 
 def _cat2_base(body, eye, whisker, line):
     out = ""
+    # soft ground shadow so she stands on something instead of floating
+    out += '<ellipse cx="150" cy="247" rx="100" ry="9" fill="#1E2340" opacity="0.10"/>'
     # tail, behind everything: thick curve from the hip out to the right
     out += (f'<path d="M192,206 Q232,198 238,150" fill="none" stroke="{O}" stroke-width="{18+2*C2SW:.1f}" stroke-linecap="round"/>'
             f'<path d="M192,206 Q232,198 238,150" fill="none" stroke="{body}" stroke-width="18" stroke-linecap="round"/>')
@@ -720,12 +728,12 @@ def _cat2_happy(body, line):
 def _cat2_puzzled(body, line):
     out = (f'<path d="M117,60 L139,55" stroke="{line}" stroke-width="3" stroke-linecap="round"/>'
            f'<path d="M161,62 L183,62" stroke="{line}" stroke-width="2.6" stroke-linecap="round"/>')
-    out += '<circle cx="208" cy="46" r="4" fill="#FFFFFF" stroke="#2B3450" stroke-width="1.8"/>'
-    out += '<circle cx="218" cy="36" r="7" fill="#FFFFFF" stroke="#2B3450" stroke-width="1.8"/>'
-    out += '<ellipse cx="232" cy="20" rx="19" ry="15" fill="#FFFFFF" stroke="#2B3450" stroke-width="2.2"/>'
-    out += (f'<path d="M225,13 Q224,5 232,5 Q240,5 239,12 Q238,17 232,18 L232,21" fill="none" '
+    out += '<circle cx="190" cy="57" r="4" fill="#FFFFFF" stroke="#2B3450" stroke-width="1.8"/>'
+    out += '<circle cx="198" cy="47" r="7" fill="#FFFFFF" stroke="#2B3450" stroke-width="1.8"/>'
+    out += '<ellipse cx="208" cy="44" rx="26" ry="20" fill="#FFFFFF" stroke="#2B3450" stroke-width="2.2"/>'
+    out += (f'<path d="M201,37 Q200,29 208,29 Q216,29 215,36 Q214,41 208,42 L208,45" fill="none" '
             f'stroke="{O}" stroke-width="3" stroke-linecap="round"/>')
-    out += f'<circle cx="232" cy="26" r="2.1" fill="{O}"/>'
+    out += f'<circle cx="208" cy="50" r="2.1" fill="{O}"/>'
     return c2svg(out)
 
 
@@ -798,8 +806,16 @@ def cat2_feet_sneakers():
 
 
 def _boot(cx, sgn, fill, cuff=None):
-    out = c2stick([f'<path d="M{cx-13},196 L{cx+13},196 L{cx+13},228 L{cx+sgn*19},236 '
-                   f'Q{cx+sgn*19},244 {cx+sgn*10},244 L{cx-13},244 Z"/>'], fill)
+    # One simple (non-self-intersecting) outline per boot: shaft, a step out
+    # to the toe, a flat sole back to the heel. The old path crossed its own
+    # edge, so the fill rule left the toe hollow and the pants showed through.
+    if sgn > 0:
+        d = (f'M{cx-13},196 L{cx+13},196 L{cx+13},228 L{cx+21},234 '
+             f'Q{cx+21},244 {cx+10},244 L{cx-13},244 Z')
+    else:
+        d = (f'M{cx+13},196 L{cx-13},196 L{cx-13},228 L{cx-21},234 '
+             f'Q{cx-21},244 {cx-10},244 L{cx+13},244 Z')
+    out = c2stick([f'<path d="{d}"/>'], fill)
     if cuff:
         out += rrect(cx - 14, 192, 28, 12, 5, cuff)
     return out
@@ -842,11 +858,16 @@ def cat2_layer_light():
 
 
 def cat2_layer_rain():
-    out = _outer("#FFD23F", 90)
+    # Shorter than the old dress-length coat (hem 198, not 208) so shorts
+    # and legs show above the boots, plus a placket line and hem so it
+    # reads as a jacket, not a bathrobe.
+    out = _outer("#FFD23F", 80)
+    out += f'<path d="M150,124 L150,196" stroke="{O}" stroke-width="2.4"/>'
     out += '<g stroke="#2B3450" stroke-width="3" stroke-linecap="round">'
     for y in (142, 162, 182):
         out += f'<path d="M143,{y} L157,{y}"/>'
     out += '</g>'
+    out += f'<path d="M110,190 Q150,196 190,190" fill="none" stroke="{O}" stroke-width="2.2" opacity="0.8"/>'
     out += _hood_collar("#FFD23F")
     return c2svg(out)
 
@@ -877,23 +898,31 @@ def cat2_scarf():
 
 
 def cat2_gloves():
-    out = c2stick(['<circle cx="100" cy="190" r="16"/>', '<circle cx="200" cy="190" r="16"/>',
-                   '<ellipse cx="87" cy="181" rx="6" ry="9" transform="rotate(30 87 181)"/>',
-                   '<ellipse cx="213" cy="181" rx="6" ry="9" transform="rotate(-30 213 181)"/>'], "#9C8CFF")
-    for (x1, y1, x2, y2) in ((110, 174, 95, 189), (190, 174, 205, 189)):
-        out += (f'<path d="M{x1},{y1} L{x2},{y2}" stroke="{O}" stroke-width="10" stroke-linecap="round"/>'
-                f'<path d="M{x1},{y1} L{x2},{y2}" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>')
+    # Solid mittens a child can name: round body, a thumb on the inner side,
+    # a darker cuff band at the wrist, one soft highlight. (The old art drew
+    # white sticks across the paws; they read as drumsticks, not gloves.)
+    out = ""
+    for cx, sgn in ((100, -1), (200, 1)):
+        out += c2stick([f'<circle cx="{cx}" cy="190" r="17"/>',
+                        f'<ellipse cx="{cx - sgn*13}" cy="182" rx="6.5" ry="9.5" '
+                        f'transform="rotate({sgn*28} {cx - sgn*13} 182)"/>'], "#9C8CFF")
+        out += (f'<path d="M{cx-12},178 Q{cx},171 {cx+12},178" fill="none" stroke="#7E6BE0" '
+                f'stroke-width="5" stroke-linecap="round"/>')
+        out += (f'<ellipse cx="{cx-6}" cy="185" rx="4.5" ry="3" fill="#FFFFFF" opacity="0.35" '
+                f'transform="rotate(-24 {cx-6} 185)"/>')
     return c2svg(out)
 
 
 def cat2_held_umbrella():
-    out = (f'<path d="M209,26 L201,186" stroke="{O}" stroke-width="6" stroke-linecap="round"/>'
-           f'<path d="M209,26 L201,186" stroke="#8A93A6" stroke-width="3" stroke-linecap="round"/>'
-           f'<path d="M201,186 Q201,198 210,196" fill="none" stroke="{O}" stroke-width="4" stroke-linecap="round"/>')
-    canopy = ('<path d="M160,66 Q164,20 209,18 Q254,20 258,66 Q247,57 236,66 Q225,57 214,66 '
-              'Q203,57 192,66 Q181,57 170,66 Q164,60 160,66 Z"/>')
+    # Shifted left from the old art: the canopy's right edge used to sit 2 px
+    # from the tile grid. It now clears the tiles and the cat's face.
+    out = (f'<path d="M195,24 L187,184" stroke="{O}" stroke-width="6" stroke-linecap="round"/>'
+           f'<path d="M195,24 L187,184" stroke="#8A93A6" stroke-width="3" stroke-linecap="round"/>'
+           f'<path d="M187,184 Q187,196 196,194" fill="none" stroke="{O}" stroke-width="4" stroke-linecap="round"/>')
+    canopy = ('<path d="M146,64 Q150,18 195,16 Q240,18 244,64 Q233,55 222,64 Q211,55 200,64 '
+              'Q189,55 178,64 Q167,55 156,64 Q150,58 146,64 Z"/>')
     out += c2stick([canopy], "#FF5C8A")
-    out += (f'<path d="M209,21 L209,64 M209,21 L178,62 M209,21 L240,62" stroke="{O}" '
+    out += (f'<path d="M195,19 L195,62 M195,19 L164,60 M195,19 L226,60" stroke="{O}" '
             f'stroke-width="2" opacity="0.55" fill="none"/>')
     return c2svg(out)
 
@@ -907,23 +936,33 @@ def cat2_held_water():
 
 
 def cat2_face_sun():
-    out = c2stick([heart(128, 77, 13), heart(172, 77, 13)], "#FF5FA2", sw=1.8)
-    out += f'<path d="M141,72 Q150,68 159,72" stroke="{O}" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
-    for x in (128, 172):
-        out += f'<ellipse cx="{x-4}" cy="72" rx="2.4" ry="1.5" fill="#fff" opacity="0.85"/>'
+    # The plan's heart sunglasses, drawn as eyewear, not as eyes: dark
+    # heart lenses with a bridge and temple arms, a sweat drop on the
+    # temple, tongue out. Pink heart EYES read lovestruck; dark heart
+    # LENSES on a frame read as sunglasses on a hot day.
+    out = c2stick([heart(128, 78, 13), heart(172, 78, 13)], "#333A52", sw=2.0)
+    out += f'<path d="M144,70 Q150,66 156,70" fill="none" stroke="{O}" stroke-width="3" stroke-linecap="round"/>'
+    out += f'<path d="M112,70 L98,62 M188,70 L202,62" stroke="{O}" stroke-width="3.4" stroke-linecap="round"/>'
+    for x in (121, 165):
+        out += f'<path d="M{x},72 L{x+7},72" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.8"/>'
+    out += c2stick(['<path d="M214,52 Q222,66 222,73 Q222,81 214,81 Q206,81 206,73 Q206,66 214,52 Z"/>'],
+                   "#4DA6FF", sw=1.8)
+    out += c2stick(['<path d="M143,100 L157,100 L157,106 Q150,112 143,106 Z"/>'], "#FF8FB1", sw=1.6)
     return c2svg(out)
 
 
 def cat2_hat_warm():
-    out = c2stick(['<path d="M108,58 Q104,18 150,16 Q196,18 192,58 Q150,46 108,58 Z"/>'], "#FF7EB3")
-    out += rrect(106, 50, 88, 15, 7, "#FFB3CF")
-    out += c2stick(['<circle cx="150" cy="14" r="11"/>'], "#FFFFFF")
+    # Deep violet, not pink: the pink beanie dissolved into the pink cat's
+    # fur. Violet pops on both cats.
+    out = c2stick(['<path d="M108,58 Q104,18 150,16 Q196,18 192,58 Q150,46 108,58 Z"/>'], "#6C4BD8")
+    out += rrect(106, 50, 88, 15, 7, "#8F74E8")
+    out += c2stick(['<circle cx="150" cy="19" r="10"/>'], "#FFFFFF")
     return c2svg(out)
 
 
 def cat2_hat_witch():
     g = 'transform="rotate(-8 150 52)"'
-    cone = ['<path d="M114,52 Q132,26 142,10 Q146,2 156,2 Q150,10 152,18 Q158,32 186,52 Z"/>']
+    cone = ['<path d="M114,52 Q133,28 144,13 Q148,7 155,8 Q151,13 153,21 Q159,34 186,52 Z"/>']
     brim = ['<ellipse cx="150" cy="54" rx="58" ry="11"/>']
     out = c2stick(cone + brim, "#3B2F5C", extra=g)
     out += f'<g {g}><path d="M121,40 L181,44 L183,52 L119,48 Z" fill="#9B6BFF"/>'
@@ -941,7 +980,9 @@ def cat2_hat_santa():
 
 # --- cat2 seasonal props (stage x 0..70, y 180..252) ------------------------
 def cat2_prop_pumpkin():
-    cx, cy = 35, 218
+    # Ground corner at the cat's right (was bottom-left, where it stacked
+    # up with the advice-row icon and read as part of the instructions).
+    cx, cy = 222, 222
     ribs = [f'<ellipse cx="{cx-11}" cy="{cy}" rx="17" ry="22"/>', f'<ellipse cx="{cx+11}" cy="{cy}" rx="17" ry="22"/>',
             f'<ellipse cx="{cx}" cy="{cy}" rx="18" ry="23"/>']
     out = c2stick([f'<path d="M{cx-2},{cy-21} Q{cx-1},{cy-29} {cx+5},{cy-31} L{cx+4},{cy-21} Z"/>'], "#5CB85C")
@@ -950,7 +991,7 @@ def cat2_prop_pumpkin():
     out += f'<path d="M{cx-11},{cy-4} l5,-7 l5,7 Z M{cx+1},{cy-4} l5,-7 l5,7 Z" fill="{O}"/>'
     out += (f'<path d="M{cx-13},{cy+5} Q{cx},{cy+16} {cx+13},{cy+5} L{cx+7},{cy+7} L{cx+3},{cy+4} '
             f'L{cx},{cy+8} L{cx-3},{cy+4} L{cx-7},{cy+7} Z" fill="{O}"/>')
-    return c2svg(out)
+    return c2svg(out, scaled=False)
 
 
 MENORAH2_TOP = 196          # candle top; the shamash (i=4) sits 8 px higher
@@ -985,16 +1026,17 @@ def cat2_prop_menorah():
         col = "#FFFFFF" if i == 4 else ("#7FB8FF" if i % 2 else "#FFFFFF")
         out += (f'<rect x="{x-2}" y="{top}" width="4" height="{MENORAH2_CUP_Y-top}" rx="1" '
                 f'fill="{col}" stroke="{O}" stroke-width="1.2"/>')
-    return c2svg(out)
+    return c2svg(out, scaled=False)
 
 
 def cat2_prop_present():
-    out = rrect(8, 204, 54, 44, 4, "#3DBE6E")
-    out += rrect(5, 196, 60, 11, 3, "#52D485")
-    out += '<rect x="31" y="196" width="8" height="52" fill="#E8434F"/>'
-    out += c2stick(['<path d="M35,196 Q23,182 20,189 Q19,195 35,196 Z"/>',
-                    '<path d="M35,196 Q47,182 50,189 Q51,195 35,196 Z"/>'], "#E8434F")
-    return c2svg(out)
+    # Same ground corner as the pumpkin (right of the cat's feet).
+    out = rrect(197, 204, 54, 44, 4, "#3DBE6E")
+    out += rrect(194, 196, 60, 11, 3, "#52D485")
+    out += '<rect x="220" y="196" width="8" height="52" fill="#E8434F"/>'
+    out += c2stick(['<path d="M224,196 Q212,182 209,189 Q208,195 224,196 Z"/>',
+                    '<path d="M224,196 Q236,182 239,189 Q240,195 224,196 Z"/>'], "#E8434F")
+    return c2svg(out, scaled=False)
 
 
 CAT2_SHARED = {
@@ -1018,8 +1060,9 @@ CAT2_LAYER_ORDER = [
     "feet_sneakers", "feet_rain", "feet_snow",
     "top_short", "top_long",
     "layer_hoodie", "layer_light", "layer_rain", "layer_warm", "layer_winter",
-    "scarf", "gloves",
+    "scarf",
     "held_umbrella", "held_water",
+    "gloves",
     "face_sun",
     "hat_warm", "hat_witch", "hat_santa",
     "prop_pumpkin", "prop_menorah", "prop_present",
@@ -1074,23 +1117,47 @@ def g_winter_coat():
     return svg(out)
 
 
+def _sneaker(x, y):
+    """One profile sneaker facing right: rounded toe, thick navy sole,
+    pink side stripe, lace ticks. (The old icon drew two boot shafts and
+    read as socks.)"""
+    body = (f'M{x+2},{y+24} L{x+2},{y+14} Q{x+2},{y+6} {x+11},{y+6} L{x+21},{y+6} '
+            f'Q{x+34},{y+7} {x+40},{y+15} L{x+44},{y+20} Q{x+46},{y+22} {x+46},{y+24} Z')
+    out = stick([f'<path d="{body}"/>'], "#FFFFFF")
+    out += stick([f'<rect x="{x}" y="{y+23}" width="48" height="8" rx="3.5"/>'], "#2B3450", sw=1.2)
+    out += f'<path d="M{x+5},{y+18} L{x+41},{y+18}" stroke="#FF5FA2" stroke-width="3.4"/>'
+    out += (f'<g stroke="{O}" stroke-width="2.1" stroke-linecap="round">'
+            f'<path d="M{x+23},{y+9} L{x+27},{y+13} M{x+28},{y+9} L{x+32},{y+13}"/></g>')
+    return out
+
+
 def g_sneakers():
+    # A staggered pair, like shoes set out by the door.
+    return svg(_sneaker(4, 12) + _sneaker(48, 46))
+
+
+def _boot_pair(fill, cuff):
+    """Two front-view boots, toes pointing out, like the pair on the cat."""
     out = ""
-    for cx, sgn in ((32, -1), (68, 1)):
-        shoe = (f'<path d="M{cx-13},34 L{cx+9},34 L{cx+9},58 L{cx+sgn*17},66 '
-                f'Q{cx+sgn*18},74 {cx+sgn*9},74 L{cx-13},74 Z"/>')
-        out += stick([shoe], "#FFFFFF")
-        out += f'<path d="M{cx-11},52 L{cx+9},52" stroke="#FF5FA2" stroke-width="4"/>'
-        out += stick([f'<rect x="{cx-16}" y="72" width="36" height="8" rx="3.5"/>'], "#2B3450", sw=1.2)
-    return svg(out)
+    for cx, sgn in ((33, -1), (67, 1)):
+        if sgn > 0:
+            d = (f'M{cx-12},16 L{cx+12},16 L{cx+12},54 L{cx+19},60 '
+                 f'Q{cx+19},70 {cx+10},70 L{cx-12},70 Z')
+        else:
+            d = (f'M{cx+12},16 L{cx-12},16 L{cx-12},54 L{cx-19},60 '
+                 f'Q{cx-19},70 {cx-10},70 L{cx+12},70 Z')
+        out += stick([f'<path d="{d}"/>'], fill)
+        out += stick([f'<rect x="{cx-13}" y="{66}" width="28" height="8" rx="3.5"/>'], "#2B3450", sw=1.2)
+        out += stick([f'<rect x="{cx-14}" y="{10}" width="28" height="12" rx="5"/>'], cuff)
+    return out
+
+
+def g_rain_boots():
+    return svg(_boot_pair("#FFD23F", "#FFE98A"))
 
 
 def g_snow_boots():
-    boot = '<path d="M28,22 L52,22 L52,60 L74,64 Q84,66 84,76 L84,80 L28,80 Z"/>'
-    out = stick([boot], "#8B5E3C")
-    out += stick(['<rect x="24" y="78" width="64" height="9" rx="4"/>'], "#2B3450", sw=1.2)
-    out += stick(['<rect x="24" y="16" width="32" height="13" rx="5"/>'], "#F4F1EA")
-    return svg(out)
+    return svg(_boot_pair("#8B5E3C", "#F4F1EA"))
 
 
 def _beanie100(dome, band, pom):
@@ -1104,17 +1171,17 @@ def _beanie100(dome, band, pom):
 
 
 def g_warm_hat():
-    return svg(_beanie100("#FF7EB3", "#FFB3CF", "#FFFFFF"))
+    return svg(_beanie100("#6C4BD8", "#8F74E8", "#FFFFFF"))
 
 
 def g_sunglasses():
-    lenses = [heart(33, 52, 17), heart(67, 52, 17)]
-    out = (f'<path d="M50,44 Q50,38 50,44" fill="none" stroke="{O}" stroke-width="4"/>'
-           f'<path d="M16,42 L8,32 M84,42 L92,32" stroke="{O}" stroke-width="4.5" stroke-linecap="round"/>')
-    out += stick(lenses, "#FF5FA2", sw=2.2)
-    out += f'<path d="M46,46 Q50,42 54,46" fill="none" stroke="{O}" stroke-width="3.4" stroke-linecap="round"/>'
-    for x in (33, 67):
-        out += f'<ellipse cx="{x-5}" cy="46" rx="3" ry="2" fill="#fff" opacity="0.85"/>'
+    # Dark heart lenses on a frame, the same glasses the cat wears.
+    lens = [heart(28, 52, 15), heart(72, 52, 15)]
+    out = (f'<path d="M45,46 Q50,40 55,46" fill="none" stroke="{O}" stroke-width="4.5" stroke-linecap="round"/>'
+           f'<path d="M10,44 L4,36 M90,44 L96,36" stroke="{O}" stroke-width="4.5" stroke-linecap="round"/>')
+    out += stick(lens, "#3E4A6B")
+    out += ('<path d="M17,46 L26,46 M62,46 L71,46" stroke="#ffffff" stroke-width="3" stroke-linecap="round" '
+            'opacity="0.75"/>')
     return svg(out)
 
 
@@ -1133,7 +1200,7 @@ GARMENTS = {
     "shorts": g_shorts, "long_pants": g_long_pants,
     "hoodie": g_hoodie, "light_jacket": c_jacket, "rain_jacket": g_rain_jacket,
     "warm_coat": c_coat, "winter_coat": g_winter_coat,
-    "sneakers": g_sneakers, "rain_boots": c_boots, "snow_boots": g_snow_boots,
+    "sneakers": g_sneakers, "rain_boots": g_rain_boots, "snow_boots": g_snow_boots,
     "warm_hat": g_warm_hat, "gloves": c_mittens, "umbrella": c_umbrella,
     "sunglasses": g_sunglasses, "water_bottle": c_water, "scarf": g_scarf,
 }
@@ -1144,8 +1211,10 @@ def x_bolt():
 
 
 def x_hat_gloves():
-    out = f'<g transform="translate(14,-16) scale(0.72)">{_beanie100("#FF7EB3", "#FFB3CF", "#FFFFFF")}</g>'
-    out += f'<g transform="translate(38,36) scale(0.58)">{mitten(0, -8, "#9C8CFF")}</g>'
+    # ONE icon, two items side by side at full size (the old version stacked
+    # a small hat over a smaller mitten and neither could be read).
+    out = f'<g transform="translate(-8,14) scale(0.68)">{_beanie100("#6C4BD8", "#8F74E8", "#FFFFFF")}</g>'
+    out += f'<g transform="translate(52,28) scale(0.62)">{mitten(0, -8, "#9C8CFF")}</g>'
     return svg(out)
 
 
@@ -1165,7 +1234,7 @@ def x_wind():
 
 
 def x_heart():
-    return svg(stick([heart(50, 50, 28)], "#E0457B", sw=2.4))
+    return svg(stick([heart(50, 53, 36)], "#E0457B", sw=2.4))
 
 
 def x_sparkle():

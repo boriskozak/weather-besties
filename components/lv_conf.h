@@ -1009,7 +1009,7 @@
 #define LV_USE_GSTREAMER 0
 
 /** Decode bin images to RAM */
-#define LV_BIN_DECODER_RAM_LOAD 0
+#define LV_BIN_DECODER_RAM_LOAD 1   /* required: image assets are RLE-compressed; the bin decoder refuses compressed images without this */
 
 /** RLE decompress library */
 #define LV_USE_RLE 1   /* image assets are RLE-compressed (tools/make_assets.py) */

@@ -47,7 +47,11 @@ void cat_season(int year, int month, int day, int hour, cat_season_t *out)
     bool christmas = month == 12 && day >= 15 && day <= 26;
 
     if (month == 10) {
-        out->hat = CAT_SEASON_HAT_WITCH;
+        /* The witch hat is a costume, not an outfit item: Halloween day only,
+         * so the cat never wears something the tiles don't list. */
+        if (day == 31) {
+            out->hat = CAT_SEASON_HAT_WITCH;
+        }
         out->prop = CAT_SEASON_PROP_PUMPKIN;
     }
     if (candles >= 0) {

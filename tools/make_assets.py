@@ -37,11 +37,23 @@ GARMENT_SIZES = (96, 56)
 EXTRA_SIZE = 48
 
 # Generated files from the 1.x pipeline that 2.0 no longer produces.
-STALE_PATTERNS = ("img_kitty_", "img_wear_", "img_fx_", "font_temp_xl")
+STALE_PATTERNS = ("img_kitty_", "img_wear_", "img_fx_", "font_temp_xl", "font_temp_l")
 STALE_FILES = ("kitty_sets.c",)
 
 
-def render(svg_text, size, path, height=None):
+def _zoom(svg_text, z):
+    """Wrap a 100x100-box drawing in a centred scale so the artwork fills
+    more of its box. (Judged on the renders, the drawings sat at ~75% of
+    their nominal size: a '96 px' tile icon showed a ~72 px garment.)"""
+    i = svg_text.index('>') + 1
+    j = svg_text.rindex('</svg>')
+    return (svg_text[:i] + f'<g transform="translate(50 50) scale({z}) translate(-50 -50)">'
+            + svg_text[i:j] + '</g>' + svg_text[j:])
+
+
+def render(svg_text, size, path, height=None, zoom=1.0):
+    if zoom != 1.0:
+        svg_text = _zoom(svg_text, zoom)
     data = bytes(resvg_py.svg_to_bytes(svg_string=svg_text, width=size, height=height or size))
     Image.open(io.BytesIO(data)).convert("RGBA").save(path)
 
@@ -78,7 +90,7 @@ for key, fn in icons.WEATHER.items():
     for sz, px in WX_SIZES.items():
         name = f"img_wx_{key}_{sz}"
         p = os.path.join(PNG, name + ".png")
-        render(fn(), px, p)
+        render(fn(), px, p, zoom=1.14)
         to_c(p, name)
         images.append(name)
 
@@ -99,7 +111,7 @@ for key, fn in icons.GARMENTS.items():
     for px in GARMENT_SIZES:
         name = f"img_g_{key}_{px}"
         p = os.path.join(PNG, name + ".png")
-        render(fn(), px, p)
+        render(fn(), px, p, zoom=1.16)
         to_c(p, name)
         images.append(name)
 
@@ -107,7 +119,7 @@ for key, fn in icons.GARMENTS.items():
 for key, fn in icons.EXTRA_ICONS.items():
     name = f"img_x_{key}"
     p = os.path.join(PNG, name + ".png")
-    render(fn(), EXTRA_SIZE, p)
+    render(fn(), EXTRA_SIZE, p, zoom=1.0 if key == "sparkle" else 1.10)
     to_c(p, name)
     images.append(name)
 
@@ -214,7 +226,6 @@ FA = os.path.join(FONTS, "FontAwesome5-Solid+Brands+Regular.woff")
 FONT_JOBS = [
     # name,             ttf,                  size, ranges,               add symbols
     ("font_h1",        "Fredoka-SemiBold.ttf", 40,  TEXT,                  False),
-    ("font_temp_l",    "Fredoka-SemiBold.ttf", 40,  TEXT,                  False),
     ("font_label",     "Fredoka-SemiBold.ttf", 30,  TEXT,                  False),
     ("font_title",     "Fredoka-SemiBold.ttf", 32,  TEXT,                  True),
     ("font_body",      "Fredoka-Medium.ttf",   26,  TEXT,                  True),

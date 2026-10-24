@@ -85,9 +85,9 @@ set(WB_ASSET_SRCS
     assets/img_cat2_layer_warm.c
     assets/img_cat2_layer_winter.c
     assets/img_cat2_scarf.c
-    assets/img_cat2_gloves.c
     assets/img_cat2_held_umbrella.c
     assets/img_cat2_held_water.c
+    assets/img_cat2_gloves.c
     assets/img_cat2_face_sun.c
     assets/img_cat2_hat_warm.c
     assets/img_cat2_hat_witch.c
@@ -105,7 +105,6 @@ set(WB_ASSET_SRCS
     assets/img_cat2_pink_puzzled.c
     assets/img_cat2_flame.c
     assets/font_h1.c
-    assets/font_temp_l.c
     assets/font_label.c
     assets/font_title.c
     assets/font_body.c

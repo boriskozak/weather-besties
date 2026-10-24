@@ -89,9 +89,9 @@ LV_IMAGE_DECLARE(img_cat2_layer_rain);
 LV_IMAGE_DECLARE(img_cat2_layer_warm);
 LV_IMAGE_DECLARE(img_cat2_layer_winter);
 LV_IMAGE_DECLARE(img_cat2_scarf);
-LV_IMAGE_DECLARE(img_cat2_gloves);
 LV_IMAGE_DECLARE(img_cat2_held_umbrella);
 LV_IMAGE_DECLARE(img_cat2_held_water);
+LV_IMAGE_DECLARE(img_cat2_gloves);
 LV_IMAGE_DECLARE(img_cat2_face_sun);
 LV_IMAGE_DECLARE(img_cat2_hat_warm);
 LV_IMAGE_DECLARE(img_cat2_hat_witch);
@@ -110,7 +110,6 @@ LV_IMAGE_DECLARE(img_cat2_pink_puzzled);
 LV_IMAGE_DECLARE(img_cat2_flame);
 
 LV_FONT_DECLARE(font_h1);
-LV_FONT_DECLARE(font_temp_l);
 LV_FONT_DECLARE(font_label);
 LV_FONT_DECLARE(font_title);
 LV_FONT_DECLARE(font_body);
