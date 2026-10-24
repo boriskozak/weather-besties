@@ -206,6 +206,7 @@ bool wx_parse_openmeteo(const char *json, size_t len, bool fahrenheit, wx_t *out
     const cJSON *hpop = cJSON_GetObjectItemCaseSensitive(hourly, "precipitation_probability");
     const cJSON *hcode = cJSON_GetObjectItemCaseSensitive(hourly, "weather_code");
     const cJSON *hday = cJSON_GetObjectItemCaseSensitive(hourly, "is_day");
+    const cJSON *hgust = cJSON_GetObjectItemCaseSensitive(hourly, "wind_gusts_10m");
     int total = cJSON_GetArraySize(ht);
     int h0 = 0;
     for (int i = 0; i < total; i++) {
@@ -235,6 +236,7 @@ bool wx_parse_openmeteo(const char *json, size_t len, bool fahrenheit, wx_t *out
         out->h_pop[i] = (int8_t)arr_num(hpop, j, 0);
         out->h_code[i] = (uint8_t)arr_num(hcode, j, 3);
         out->h_day[i] = arr_num(hday, j, 1) > 0.5;
+        out->h_gust[i] = (float)arr_num(hgust, j, out->gust);
     }
     out->now_idx = out->hour < n ? out->hour : 0;
 

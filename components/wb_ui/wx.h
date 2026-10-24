@@ -59,6 +59,7 @@ typedef struct {
     int now_idx;
     float h_temp[WX_MAX_HOURS];
     float h_feels[WX_MAX_HOURS];
+    float h_gust[WX_MAX_HOURS];   /* display wind units (mph or km/h), like gust */
     int8_t h_pop[WX_MAX_HOURS];
     uint8_t h_code[WX_MAX_HOURS];
     bool h_day[WX_MAX_HOURS];

@@ -38,79 +38,26 @@ int cat_hanukkah_candles(int year, int month, int day, int hour)
     return -1;
 }
 
-static bool wears(const advice_t *a, wear_t w)
+void cat_season(int year, int month, int day, int hour, cat_season_t *out)
 {
-    for (int i = 0; i < a->nwear; i++) {
-        if (a->wear[i] == w) {
-            return true;
-        }
-    }
-    return false;
-}
-
-cat_fx_t cat_pick_fx(int month, int day, const wx_t *wx)
-{
-    if (!wx || !wx->valid) {
-        return FX_NONE;
-    }
-    switch (wx_kind(wx->code)) {
-    case WXK_SNOW: return FX_SNOW;
-    case WXK_ICE: return FX_SLEET;
-    case WXK_THUNDER: return FX_STORM;
-    case WXK_DRIZZLE: return FX_DRIZZLE;
-    case WXK_RAIN: return (wx->code == 65 || wx->code == 82) ? FX_HEAVY_RAIN : FX_RAIN;
-    default: break;
-    }
-    bool clear_sky = wx->code <= 2;   /* clear, mainly clear, partly cloudy */
-    if (!wx->is_day && clear_sky) {
-        return FX_STARS;
-    }
-    bool autumn = (month == 9 && day >= 22) || month == 10 || month == 11;
-    if (autumn) {
-        return FX_LEAVES;
-    }
-    return FX_NONE;
-}
-
-void cat_pick_look(int year, int month, int day, int hour, const wx_t *wx, const advice_t *adv, cat_look_t *out)
-{
-    *out = (cat_look_t){.why = "weather"};
-    out->fx = cat_pick_fx(month, day, wx);
-
-    /* Dressed for the weather, matching the bubble. */
-    cat_hat_t w_hat = CAT_HAT_NONE;
-    cat_neck_t w_neck = CAT_NECK_NONE;
-    cat_face_t w_face = CAT_FACE_NONE;
-    if (adv) {
-        bool rain = wears(adv, WEAR_UMBRELLA);
-        bool cold = wears(adv, WEAR_BEANIE) || wears(adv, WEAR_MITTENS) || wears(adv, WEAR_COAT);
-        bool chilly = wears(adv, WEAR_JACKET);
-        w_hat = rain ? CAT_HAT_RAIN : cold ? CAT_HAT_BEANIE : CAT_HAT_NONE;
-        w_neck = (cold || chilly) ? CAT_NECK_SCARF : CAT_NECK_NONE;
-        w_face = (!rain && wears(adv, WEAR_SUNGLASSES)) ? CAT_FACE_SUNGLASSES : CAT_FACE_NONE;
-    }
-    out->hat = w_hat;
-    out->neck = w_neck;
-    out->face = w_face;
+    *out = (cat_season_t){.hat = CAT_SEASON_HAT_NONE, .prop = CAT_SEASON_PROP_NONE, .candles = -1};
+    out->doy = (int)(days_from_civil(year, month, day) - days_from_civil(year, 1, 1)) + 1;
 
     int candles = cat_hanukkah_candles(year, month, day, hour);
     bool christmas = month == 12 && day >= 15 && day <= 26;
 
     if (month == 10) {
-        out->hat = CAT_HAT_WITCH;
-        out->neck = CAT_NECK_CAPE;
-        out->face = CAT_FACE_NONE;
-        out->prop = CAT_PROP_PUMPKIN;
-        out->why = "Halloween";
-    } else if (candles >= 0) {
-        out->hat = christmas ? CAT_HAT_SANTA : w_hat;
-        out->neck = CAT_NECK_SCARF_BLUE;
-        out->prop = CAT_PROP_MENORAH;
+        out->hat = CAT_SEASON_HAT_WITCH;
+        out->prop = CAT_SEASON_PROP_PUMPKIN;
+    }
+    if (candles >= 0) {
+        out->prop = CAT_SEASON_PROP_MENORAH;   /* the menorah wins the prop slot */
         out->candles = candles;
-        out->why = christmas ? "Hanukkah and Christmas" : "Hanukkah";
+        if (christmas) {
+            out->hat = CAT_SEASON_HAT_SANTA;
+        }
     } else if (christmas) {
-        out->hat = CAT_HAT_SANTA;
-        out->prop = CAT_PROP_PRESENT;
-        out->why = "Christmas";
+        out->hat = CAT_SEASON_HAT_SANTA;
+        out->prop = CAT_SEASON_PROP_PRESENT;
     }
 }

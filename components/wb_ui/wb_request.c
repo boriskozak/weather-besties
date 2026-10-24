@@ -10,7 +10,7 @@ int wb_forecast_url(char *buf, size_t n, double lat, double lon, bool celsius)
                     "https://" WB_FORECAST_HOST "/v1/forecast?latitude=%.4f&longitude=%.4f"
                     "&current=temperature_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,wind_gusts_10m,"
                     "precipitation"
-                    "&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,is_day"
+                    "&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,is_day,wind_gusts_10m"
                     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
                     "uv_index_max,sunshine_duration"
                     "&temperature_unit=%s&wind_speed_unit=%s&precipitation_unit=%s&timezone=auto&forecast_days=4"
