@@ -65,6 +65,17 @@
 /* The DONE tag's muted grey (iter-18): the stale check disc's
  * grey, so a finished event reads as switched off, not broken. */
 #define COL_MD_DONE_BG 0xC9C9C9
+/* My Day cards (iter-19, the owner's approved mockup): every row is
+ * a white card with a soft border; the all-day card is tinted
+ * peach, the NOW/NEXT card tinted mint with a mint border, and a
+ * DONE card washes to a pale grey under its dimmed contents. The
+ * tints are sampled from the mockup; the plain card is the app's
+ * own tile white over the tile border tones. */
+#define COL_MD_PEACH 0xFDE6D0
+#define COL_MD_PEACH_LINE 0xF0CD9E
+#define COL_MD_MINT 0xDCF4E6
+#define COL_MD_MINT_LINE 0x63CFAC
+#define COL_MD_DONE_CARD 0xF0EFE9
 
 #define C(hex) lv_color_hex(hex)
 
@@ -245,22 +256,49 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
 #define MD_TODAY_MAX 4
 #define MD_TOM_MAX 3
 #define MD_ROWS (MD_TODAY_MAX + MD_TOM_MAX)
-#define MD_GAP 6        /* the gap after each row block (iter-16: a constant 4;
-                         * iter-18: 6, part of the footer funding below) */
+#define MD_GAP 2        /* the gap after each card (iter-19: the cards carry
+                         * their own padding now, so the air between rows
+                         * lives inside them; iter-18 had 6) */
 #define MD_PILL_H 30    /* one pill system (iter-17): ALL DAY, the status
                          * tags (iter-18) and the name tags */
 #define MD_PILL_PAD 24  /* horizontal padding inside every pill */
-#define MD_HDR_ADV 26   /* a section header's advance (font_label under the h1) */
-#define MD_TITLE_STEP 21 /* a title line's step: font_label, line space tightened */
-#define MD_SUB_H 16     /* the place-line space reserved in every row block */
-#define MD_LOC_OFF 24   /* the place line hangs this far below its title
-                         * line's top: iter-17's offset, kept whatever the
-                         * title step is, because it is the distance at
+#define MD_HDR_ADV 24   /* a section header's advance (iter-19: 26 in
+                         * iter-18; the headers render in front of the
+                         * first card, so their descenders ride over
+                         * its top padding, never under its fill) */
+#define MD_TITLE_STEP 19 /* a title line's step: font_label, line space tightened
+                         * (iter-19: 21 in iter-18; two points of the room
+                         * the cards cost) */
+#define MD_SUB_H 11     /* the place-line space reserved in every row block
+                         * (iter-19: 16 in iter-18) */
+#define MD_LOC_OFF 23   /* the place line hangs this far below its title
+                         * line's top: iter-17's offset (24), tightened
+                         * one pixel in iter-19; it is the distance at
                          * which the place text clears the title's
                          * descenders (measured on the renders) */
 #define MD_SEC_EXTRA 2  /* extra air before the Tomorrow header, on top of MD_GAP */
 #define MD_MSG_CY 248   /* the message states centre on the content canvas,
                          * tab bar accounted for (iter-18) */
+/* Iter-19 card geometry: a card's content is its title block (or
+ * the medallion, or the place label's bottom, whichever reaches
+ * lowest), framed by MD_CARD_PAD above and below. The medallion is
+ * the owner's icon-sheet art at 96 px, scaled to MD_MEDAL on
+ * screen. MD_TIME_X is the time column's offset inside a card:
+ * card padding 8, the medallion, and 10 of air. */
+#define MD_CARD_PAD 3
+#define MD_CARD_RAD 14
+#define MD_MEDAL 42
+#define MD_MEDAL_X 8
+#define MD_TIME_X (MD_MEDAL_X + MD_MEDAL + 10)
+#define MD_HALF_GAP 8   /* between Tomorrow's two half-width cards */
+#define MD_CAT_Y 64     /* Pippa's top on the populated page (iter-19:
+                         * iter-15 put her at 120; the mockup stands
+                         * her at the title line, and down at 120 her
+                         * feet block the Tomorrow half cards, which
+                         * pass below them at this height) */
+#define MD_FEET_Y 308   /* below this y the page is clear of her ink:
+                         * a Tomorrow section starting here may run
+                         * its half cards to the page's right edge */
 /* The protected footer zone (iter-18, round 15: the stale stamp
  * shared the last row's location band and the two read as one
  * jumbled line). The freshness line is bottom-anchored so its box
@@ -281,8 +319,12 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * time, and the Grandma call when it carries NEXT). The limit is
  * a block limit; the last fixture row's place ink ends at 395,
  * 2 px above the stale stamp's ink at 397, measured on render
- * 43. */
-#define MD_LIST_BOTTOM 390
+ * 43. Iter-19: the limit is a CARD limit now (a card's bottom
+ * edge, not its text), and the fresh form of the line has moved
+ * into the tab-bar row, so only the stale form still guards this
+ * zone; the card limit sits 1 px above the stamp's ink, the same
+ * clearance iter-18 left its last place line. */
+#define MD_LIST_BOTTOM 396
 #define MD_FRESH_BOTTOM 422   /* the freshness line's box bottom; the tab bar starts at 424 */
 static lv_obj_t *md_date;
 static lv_obj_t *md_sec[2];        /* section headers: Today, Tomorrow */
@@ -294,9 +336,12 @@ static lv_obj_t *md_row[MD_ROWS], *md_time[MD_ROWS], *md_name[MD_ROWS], *md_loc[
 static lv_obj_t *md_pill[MD_ROWS], *md_pill_lbl[MD_ROWS];   /* the ALL DAY pill in a row's time column */
 static lv_obj_t *md_next[MD_ROWS], *md_next_lbl[MD_ROWS];   /* the NEXT tag after a row's title */
 static lv_obj_t *md_tag[MD_ROWS], *md_tag_lbl[MD_ROWS];     /* the name tag after a title (iter-17) */
+static lv_obj_t *md_icon[MD_ROWS]; /* the event's medallion at its card's left (iter-19) */
 static lv_obj_t *md_msg, *md_msg2, *md_msg3, *md_pippa;   /* the page states (iter-17: a third line) */
 static lv_obj_t *md_cat;           /* Pippa on the populated page (full sprite) */
-static lv_obj_t *md_fresh;         /* the "Updated ..." line above the tab bar */
+static lv_obj_t *md_fresh;         /* the stale "Calendar is ..." line above the tab bar */
+static lv_obj_t *md_tabfresh;      /* the fresh "Updated ..." line, in the tab-bar row (iter-19) */
+static int s_md_line_hex;          /* the plain cards' border tone for the page's daypart */
 static bool s_cal_configured;      /* a calendar link exists (ui_set_calendar_configured) */
 /* Calendar freshness (iter-15): the last successful fetch, recorded
  * by ui_show_calendar from the UI clock, and whether a later fetch
@@ -323,6 +368,9 @@ static char s_md_nametag[8];                         /* the name tag's text ("" 
 static char s_md_nametag_row[96];                    /* title of the row carrying the name tag */
 static char s_md_dimmed[192];                        /* today's past rows' titles, ';'-joined ("" = none) */
 static char s_md_tom_date[32];                       /* the Tomorrow header's date ("Wed, Oct 28") */
+static char s_md_icons[MD_ROWS][12];                 /* each shown row's medallion category (iter-19) */
+static char s_md_icon_list[128];                     /* shown rows' categories, ','-joined, slot order */
+static int s_md_half;                                /* Tomorrow rendered as two half cards (iter-19) */
 #endif
 
 /* main: bottom bar */
@@ -1875,6 +1923,12 @@ static void build_myday_page(lv_obj_t *scr)
         lv_obj_t *row = box(page_myday);
         md_row[r] = row;
         lv_obj_set_size(row, UI_W - 56, 40);
+        /* Iter-19: the row IS the mockup's card. Its fill and
+         * border colour are set per event by render (md_card_style);
+         * the shape lives here: a generous radius and the app's
+         * tile border weight. */
+        lv_obj_set_style_radius(row, MD_CARD_RAD, 0);
+        lv_obj_set_style_border_width(row, 2, 0);
         /* The status tag (iter-16 as NEXT; iter-18: NOW, NEXT and
          * DONE share this one pill): a small pill after the title
          * of a timed event today, saying where it sits against the
@@ -1912,7 +1966,7 @@ static void build_myday_page(lv_obj_t *scr)
          * than the event it belonged to (round 14). */
         md_time[r] = label(row, &font_body, "");
         lv_obj_set_style_text_color(md_time[r], C(COL_INK2), 0);
-        lv_obj_set_pos(md_time[r], 14, 0);   /* width set by render_myday */
+        lv_obj_set_pos(md_time[r], MD_TIME_X, 0);   /* width set by render_myday */
         /* All-day events wear a navy pill in the time column (the
          * active tab's language), not the words "All day". */
         md_pill[r] = box(row);
@@ -1920,7 +1974,7 @@ static void build_myday_page(lv_obj_t *scr)
         lv_obj_set_style_radius(md_pill[r], MD_PILL_H / 2, 0);
         lv_obj_set_style_bg_opa(md_pill[r], LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(md_pill[r], C(COL_INK), 0);
-        lv_obj_set_pos(md_pill[r], 14, 0);
+        lv_obj_set_pos(md_pill[r], MD_TIME_X, 0);
         md_pill_lbl[r] = label(md_pill[r], &font_chip, "ALL DAY");
         lv_obj_set_style_text_color(md_pill_lbl[r], lv_color_white(), 0);
         lv_obj_center(md_pill_lbl[r]);
@@ -1947,6 +2001,20 @@ static void build_myday_page(lv_obj_t *scr)
         lv_obj_set_style_text_opa(md_loc[r], LV_OPA_90, 0);
         lv_label_set_long_mode(md_loc[r], LV_LABEL_LONG_MODE_CLIP);
         lv_obj_set_pos(md_loc[r], 136, 0);   /* render_myday drops it under the title */
+        /* The event medallion (iter-19): the owner's sheet art at
+         * 96 px, scaled to MD_MEDAL by render. Created last in the
+         * card so it draws over the card's fill, in its own zone
+         * at the left, clear of every text column. The pivot is
+         * pinned to the corner (the xchip pattern): LVGL scales
+         * about the image's centre by default, which would centre
+         * the 42 px result inside the 96 px box and shift it
+         * (+27, +27) off its zone. The box size is left at the
+         * source size on purpose: sizing an image widget by hand
+         * fights the scale (and lv_image_set_src resets it). */
+        md_icon[r] = lv_image_create(row);
+        lv_image_set_pivot(md_icon[r], 0, 0);
+        lv_image_set_scale(md_icon[r], 256 * MD_MEDAL / 96);
+        hide(md_icon[r]);
         hide(row);
     }
 
@@ -1974,6 +2042,21 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_set_pos(md_fresh, 28, 395);
     hide(md_fresh);
 
+    /* The fresh form of the freshness line (iter-19, the
+     * mockup): it leaves the footer zone and rides in the tab-bar
+     * row, right-aligned past the last tab, vertically centred on
+     * the tabs. Only the stale form keeps the footer zone now
+     * (md_fresh above); render_myday shows exactly one of them.
+     * The tabs end near x=628, so the line's box starts at 612
+     * and runs to the page's right margin; right-aligned, the
+     * text itself clears the last tab. */
+    md_tabfresh = label(page_myday, &font_tiny, "");
+    lv_obj_set_style_text_color(md_tabfresh, C(COL_INK2), 0);
+    lv_obj_set_width(md_tabfresh, 160);
+    lv_obj_set_style_text_align(md_tabfresh, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_pos(md_tabfresh, 612, 441);
+    hide(md_tabfresh);
+
     /* The whole-page states (no calendar link yet; a link but
      * nothing ever loaded; a link and a clear two days): friendly
      * lines beside a full-size Pippa, the cat and the text composed
@@ -1995,6 +2078,17 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_set_width(md_msg3, 470);
     lv_label_set_long_mode(md_msg3, LV_LABEL_LONG_MODE_WRAP);
     hide(md_msg3);
+
+    /* Iter-19: the section headers (and Tomorrow's date) render in
+     * front of the cards. A header's descenders reach a few pixels
+     * into the first card's top padding at MD_HDR_ADV 24; drawn
+     * behind the card, the fill would shave them, and drawn in
+     * front they read as the mockup's overlapping structure. */
+    for (int s = 0; s < 2; s++) {
+        lv_obj_move_foreground(md_bar[s]);
+        lv_obj_move_foreground(md_sec[s]);
+    }
+    lv_obj_move_foreground(md_sec_date);
     hide(page_myday);
 }
 
@@ -2379,6 +2473,112 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
  * a range a kid can use, so those keep the single time too.
  * Pickup time is half the reason to check this page (round 12),
  * so the range is the default. */
+/* Event medallions (iter-19): each card carries a round icon a
+ * pre-reader can name, matched from the event's title. The order
+ * is the icon sheet's (icons.EVENT_ICONS in tools/icons.py), and
+ * the match order below is the brief's: the first keyword that
+ * hits wins, so "Birthday party" is the balloon, not the palette,
+ * and a title naming nothing lands on the neutral star. */
+enum {
+    EV_ICON_CAMERA, EV_ICON_BOOK, EV_ICON_SOCCER, EV_ICON_VIDEOCALL,
+    EV_ICON_CUPCAKE, EV_ICON_PIANO, EV_ICON_SCHOOL, EV_ICON_BALLOON,
+    EV_ICON_MUSIC, EV_ICON_PALETTE, EV_ICON_SWIM, EV_ICON_SNOW,
+    EV_ICON_GIFT, EV_ICON_STAR, EV_ICON_TOOTH, EV_ICON_PAW, EV_ICON_COUNT
+};
+static const lv_image_dsc_t *EVENT_ICONS[] = WB_EVENT_ICONS;
+static const char *const EV_ICON_NAMES[EV_ICON_COUNT] = {
+    "camera", "book", "soccer", "videocall", "cupcake", "piano", "school",
+    "balloon", "music", "palette", "swim", "snow", "gift", "star", "tooth", "paw"
+};
+
+static bool md_has(const char *title, const char *kw)
+{
+    size_t klen = strlen(kw);
+    for (const char *p = title; *p; p++) {
+        if (strncasecmp(p, kw, klen) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int md_icon_for(const char *title)
+{
+    if (md_has(title, "picture") || md_has(title, "photo") || md_has(title, "camera")) {
+        return EV_ICON_CAMERA;
+    }
+    if (md_has(title, "library") || md_has(title, "book") || md_has(title, "story")) {
+        return EV_ICON_BOOK;
+    }
+    if (md_has(title, "soccer")) {
+        return EV_ICON_SOCCER;
+    }
+    if (md_has(title, "video call") || md_has(title, "zoom") || md_has(title, "facetime") ||
+        md_has(title, "call with")) {
+        return EV_ICON_VIDEOCALL;
+    }
+    if (md_has(title, "bake") || md_has(title, "cupcake")) {
+        return EV_ICON_CUPCAKE;
+    }
+    if (md_has(title, "piano")) {
+        return EV_ICON_PIANO;
+    }
+    if (md_has(title, "music")) {
+        return EV_ICON_MUSIC;
+    }
+    if (md_has(title, "school")) {
+        return EV_ICON_SCHOOL;
+    }
+    if (md_has(title, "birthday")) {
+        return EV_ICON_BALLOON;
+    }
+    if (md_has(title, "art") || md_has(title, "paint") || md_has(title, "craft")) {
+        return EV_ICON_PALETTE;
+    }
+    if (md_has(title, "swim") || md_has(title, "pool")) {
+        return EV_ICON_SWIM;
+    }
+    if (md_has(title, "snow")) {
+        return EV_ICON_SNOW;
+    }
+    if (md_has(title, "dentist") || md_has(title, "tooth")) {
+        return EV_ICON_TOOTH;
+    }
+    if (md_has(title, "dog") || md_has(title, "pet") || md_has(title, "vet")) {
+        return EV_ICON_PAW;
+    }
+    if (md_has(title, "gift") || md_has(title, "present")) {
+        return EV_ICON_GIFT;
+    }
+    return EV_ICON_STAR;
+}
+
+/* A card's fill and border (iter-19): the NOW/NEXT card is the
+ * mockup's mint highlight, the all-day card its peach, a DONE card
+ * washes grey, and a plain card is the tile white over the plain
+ * border tone for the page's daypart. Status wins over all-day,
+ * which cannot co-occur anyway: all-day events never carry one. */
+static void md_card_style(lv_obj_t *card, int status, bool all_day, bool past)
+{
+    int fill, line;
+    if (status == 2 || status == 3) {
+        fill = COL_MD_MINT;
+        line = COL_MD_MINT_LINE;
+    } else if (all_day) {
+        fill = COL_MD_PEACH;
+        line = COL_MD_PEACH_LINE;
+    } else if (past) {
+        fill = COL_MD_DONE_CARD;
+        line = s_md_line_hex;
+    } else {
+        fill = COL_TILE;
+        line = s_md_line_hex;
+    }
+    lv_obj_set_style_bg_color(card, C(fill), 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(card, C(line), 0);
+}
+
 static void md_time_text(const cal_event_t *ev, char *buf, size_t n)
 {
     struct tm s, e;
@@ -2433,6 +2633,56 @@ static int md_first_line_w(const char *txt, int maxw)
     return best;
 }
 
+/* The rendered width of a title's LAST wrapped line in a column
+ * maxw wide, by the same greedy word wrap LVGL performs: walk the
+ * words, keep the running line while the next word still fits,
+ * and start a fresh line when it does not. A word wider than the
+ * column reports its own width (LVGL breaks it mid-word; the
+ * tags_last caller only needs a safe upper bound). iter-19: the
+ * tags-last placement checks the last line clears the tag group. */
+static int md_last_line_w(const char *txt, int maxw)
+{
+    char line[128], cand[128];
+    line[0] = '\0';
+    const char *p = txt;
+    while (*p) {
+        while (*p == ' ') {
+            p++;
+        }
+        if (!*p) {
+            break;
+        }
+        const char *s = p;
+        while (*p && *p != ' ') {
+            p++;
+        }
+        size_t wl = (size_t)(p - s);
+        if (wl >= sizeof(cand)) {
+            wl = sizeof(cand) - 1;
+        }
+        if (line[0]) {
+            size_t ll = strlen(line);
+            if (ll + 1 + wl >= sizeof(cand)) {
+                break;
+            }
+            memcpy(cand, line, ll);
+            cand[ll] = ' ';
+            memcpy(cand + ll + 1, s, wl);
+            cand[ll + 1 + wl] = '\0';
+        } else {
+            memcpy(cand, s, wl);
+            cand[wl] = '\0';
+        }
+        if (text_w(cand, &font_label) <= maxw) {
+            strcpy(line, cand);
+        } else {
+            memcpy(line, s, wl);
+            line[wl] = '\0';
+        }
+    }
+    return text_w(line, &font_label);
+}
+
 /* The name tag a title carries (iter-17): "CLEO" or "LILA" when
  * the title names one of the girls as a whole word, matched
  * case-insensitively ("Cleo's piano lesson" carries CLEO; a name
@@ -2461,28 +2711,10 @@ static bool md_name_tag(const char *title, char *out, size_t n)
     return false;
 }
 
-/* One section of the agenda: lays its rows out from y and returns
- * the y below them. slot0 is the section's first row slot.
- * Iter-16: the rows are blocks (the title's wrapped lines plus
- * the place line when the event has one) with the single constant
- * MD_GAP after each block. Iter-17: every block also RESERVES the
- * place-line space (MD_SUB_H) whether the event has a place or
- * not, so the pitch from one row's title to the next is the same
- * with or without a place line (round 14: the rhythm still
- * changed where place lines came and went). A row whose block
- * would run off the page folds into the section's "+N more" line
- * instead (the section caps still apply). colw is the page's
- * shared time-column width, title_x the title column's offset
- * within a row, title_w its width, right the list's right edge
- * (Pippa sets it), sec_date the muted date after the header
- * (Tomorrow only, else NULL), and now_min the UI clock in
- * minutes, which drives the status tags and the past-event
- * dimming (Today only; -1 turns both off). Iter-18: the statuses
- * are computed here, per row, against the clock, replacing the
- * single nextup index render_myday used to pass down. */
-static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n, int y,
-                      int colw, int title_x, int title_w, int right,
-                      const char *sec_date, long now_min)
+/* A section's header: the pink accent bar, the section word, and
+ * (Tomorrow only) its muted date riding after it. Shared by the
+ * stacked sections and Tomorrow's half-card form (iter-19). */
+static void md_section_head(int sec, int y, const char *sec_date)
 {
     show_obj(md_bar[sec]);
     lv_obj_set_pos(md_bar[sec], 28, y + 2);
@@ -2495,7 +2727,38 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
     } else if (sec == 1) {
         hide(md_sec_date);
     }
+}
+
+/* One section of the agenda: lays its rows out from y and returns
+ * the y below them. slot0 is the section's first row slot.
+ * Iter-16: the rows are blocks (the title's wrapped lines plus
+ * the place line when the event has one) with the single constant
+ * MD_GAP after each block. Iter-17: every block also RESERVES the
+ * place-line space (MD_SUB_H) whether the event has a place or
+ * not, so the pitch from one row's title to the next is the same
+ * with or without a place line (round 14: the rhythm still
+ * changed where place lines came and went). A row whose block
+ * would run off the page folds into the section's "+N more" line
+ * instead (the section caps still apply). colw is the page's
+ * shared time-column width, right the list's right edge (Pippa
+ * sets it), sec_date the muted date after the header (Tomorrow
+ * only, else NULL), and now_min the UI clock in minutes, which
+ * drives the status tags and the past-event dimming (Today only;
+ * -1 turns both off). Iter-18: the statuses are computed here,
+ * per row, against the clock, replacing the single nextup index
+ * render_myday used to pass down. Iter-19: the row is the
+ * mockup's card (md_card_style picks its tint), a medallion sits
+ * at its left, and the title column starts after the medallion
+ * and the shared time column; the block becomes the card's
+ * content, MD_CARD_PAD of air above and below it, and the fold
+ * limit is the card's bottom edge against MD_LIST_BOTTOM. */
+static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n, int y,
+                      int colw, int right, const char *sec_date, long now_min)
+{
+    md_section_head(sec, y, sec_date);
     y += MD_HDR_ADV;
+    int title_x = MD_TIME_X + colw + 10;
+    int title_w = right - 28 - title_x - 8;
     if (n == 0) {
         show_obj(md_none[sec]);
         lv_obj_set_pos(md_none[sec], 28 + title_x, y);
@@ -2547,7 +2810,17 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
          * in the title column, so a title wraps ahead of its tags
          * and they never meet. A column too narrow to share drops
          * the name tag first (it is the decorative one), then the
-         * status tag, as before. */
+         * status tag, as before.
+         * iter-19 adds one fallback: the medallion column took
+         * ~54px of the title column, and with both tags reserved
+         * beside line 1 a long two-tag title now wraps to three
+         * lines and spills out of its card ("Lila's library story
+         * time" is the fixture case). When the full reserve wraps
+         * past two lines, retry with only the status tag reserved
+         * and ride both tags on the title's LAST line instead,
+         * right-aligned (tags_last): the wrap lands on two lines,
+         * the last line is short, and the tags clear it. If even
+         * that wraps long, drop the name tag and keep the retry. */
         const char *status_word = status == 1 ? "DONE" : status == 2 ? "NOW" : "NEXT";
         int status_w = status ? text_w(status_word, &font_chip) + MD_PILL_PAD : 0;
         char namebuf[8];
@@ -2568,13 +2841,29 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         lv_point_t sz;
         lv_text_get_size(&sz, ev->summary, &font_label, 0, 0, row_title_w, LV_TEXT_FLAG_NONE);
         int lines = sz.y / lh;
+        bool tags_last = false;
+        if (lines > 2 && (status || named)) {
+            int w2 = title_w - (status ? status_w + 10 : 0);
+            lv_text_get_size(&sz, ev->summary, &font_label, 0, 0, w2, LV_TEXT_FLAG_NONE);
+            if (sz.y / lh <= 2) {
+                row_title_w = w2;
+                lines = sz.y / lh;
+                tags_last = true;
+            } else if (named) {
+                named = false;
+                row_title_w = w2;
+                lv_text_get_size(&sz, ev->summary, &font_label, 0, 0, row_title_w, LV_TEXT_FLAG_NONE);
+                lines = sz.y / lh;
+                tags_last = true;
+            }
+        }
         if (lines < 1) {
             lines = 1;
         }
         if (lines > 2) {
             lines = 2;
         }
-        if (lines == 1 && (status || named)) {
+        if (!tags_last && lines == 1 && (status || named)) {
             /* The tags fit beside a one-line title without
              * narrowing it: keep the line whole instead of
              * wrapping the title just to make room. */
@@ -2583,37 +2872,78 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
                 row_title_w = title_w;
             }
         }
-        /* The block: the title's lines at MD_TITLE_STEP, plus the
-         * place-line space, reserved whether or not this event
-         * has a place — the constant pitch. At least the pill's
-         * height, so an all-day row still reads as a row. */
-        int h = lines * MD_TITLE_STEP + MD_SUB_H;
-        if (h < MD_PILL_H) {
-            h = MD_PILL_H;
+        /* The card's content: the title's lines at MD_TITLE_STEP,
+         * plus the place-line space, reserved whether or not this
+         * event has a place — the constant pitch. The place
+         * label's own bottom counts too (it hangs at MD_LOC_OFF
+         * and LVGL clips children to the card, the iter-18 lesson),
+         * and the medallion sets a floor, so a one-line card still
+         * reads as a card. MD_CARD_PAD of air frames the content
+         * above and below. */
+        int content = lines * MD_TITLE_STEP + MD_SUB_H;
+        if (ev->location[0]) {
+            int loc_bottom = (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF + 25;
+            if (loc_bottom > content) {
+                content = loc_bottom;
+            }
         }
-        if (y + h > MD_LIST_BOTTOM && shown > 0) {
+        if (content < MD_MEDAL) {
+            content = MD_MEDAL;
+        }
+        int card_h = content + 2 * MD_CARD_PAD;
+        if (y + card_h > MD_LIST_BOTTOM && shown > 0) {
             break;   /* out of page: the rest folds into "+N more" */
         }
         int r = slot0 + shown;
         if (ev->all_day) {
             hide(md_time[r]);
             lv_obj_set_size(md_pill[r], text_w("ALL DAY", &font_chip) + MD_PILL_PAD, MD_PILL_H);
+            lv_obj_set_pos(md_pill[r], MD_TIME_X, MD_CARD_PAD);
             lv_obj_center(md_pill_lbl[r]);
             show_obj(md_pill[r]);
         } else {
             hide(md_pill[r]);
             lv_label_set_text(md_time[r], tbuf);
             lv_obj_set_width(md_time[r], colw);
+            lv_obj_set_pos(md_time[r], MD_TIME_X, MD_CARD_PAD + 1);
             lv_obj_set_style_text_opa(md_time[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
             show_obj(md_time[r]);
         }
+        /* The medallion (iter-19): the event's category icon,
+         * centred in the card at its left. It dims with a DONE
+         * row like everything else on it. */
+        int cat = md_icon_for(ev->summary);
+        lv_image_set_src(md_icon[r], EVENT_ICONS[cat]);
+        lv_obj_set_style_opa(md_icon[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
+        lv_obj_set_pos(md_icon[r], MD_MEDAL_X, (card_h - MD_MEDAL) / 2);
+        show_obj(md_icon[r]);
+        md_card_style(md_row[r], status, ev->all_day, past);
+#ifdef WB_SIM
+        snprintf(s_md_icons[r], sizeof(s_md_icons[r]), "%s", EV_ICON_NAMES[cat]);
+#endif
         /* The tags sit right after the title's first line, the
          * status tag first when a row carries both, each clamped
          * to the title column's end for a first line that fills
-         * it. NOW and NEXT wear the status pink with white text;
-         * DONE wears the muted grey with ink text, and dims with
-         * its row like everything else on a finished event. */
+         * it. On a tags_last row they ride the title's last line
+         * instead, right-aligned as a group, nudged after the
+         * last line's text if that line runs long. NOW and NEXT
+         * wear the status pink with white text; DONE wears the
+         * muted grey with ink text, and dims with its row like
+         * everything else on a finished event. */
         int tag_x = title_x + md_first_line_w(ev->summary, row_title_w) + 10;
+        int tag_y = MD_CARD_PAD;
+        if (tags_last) {
+            int group_w = (status ? status_w : 0) + (status && named ? 10 : 0) + (named ? name_w : 0);
+            tag_x = title_x + title_w - group_w;
+            int last_end = title_x + md_last_line_w(ev->summary, row_title_w);
+            if (last_end + 10 > tag_x) {
+                tag_x = last_end + 10;
+                if (tag_x + group_w > title_x + title_w) {
+                    tag_x = title_x + title_w - group_w;
+                }
+            }
+            tag_y = MD_CARD_PAD + (lines - 1) * MD_TITLE_STEP;
+        }
         if (status) {
             int tx = tag_x;
             if (tx + status_w > title_x + title_w) {
@@ -2626,7 +2956,7 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
             lv_obj_set_style_text_opa(md_next_lbl[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
             lv_obj_set_size(md_next[r], status_w, MD_PILL_H);
             lv_obj_center(md_next_lbl[r]);
-            lv_obj_set_pos(md_next[r], tx, 0);
+            lv_obj_set_pos(md_next[r], tx, tag_y);
             show_obj(md_next[r]);
             tag_x = tx + status_w + 10;
 #ifdef WB_SIM
@@ -2651,7 +2981,7 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
             lv_obj_center(md_tag_lbl[r]);
             lv_obj_set_style_bg_opa(md_tag[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
             lv_obj_set_style_text_opa(md_tag_lbl[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
-            lv_obj_set_pos(md_tag[r], tx, 0);
+            lv_obj_set_pos(md_tag[r], tx, tag_y);
             show_obj(md_tag[r]);
 #ifdef WB_SIM
             snprintf(s_md_nametag, sizeof(s_md_nametag), "%s", namebuf);
@@ -2665,33 +2995,18 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         lv_label_set_text(md_name[r], ev->summary);
         lv_obj_set_width(md_name[r], row_title_w);
         lv_obj_set_style_text_opa(md_name[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
-        lv_obj_set_pos(md_name[r], title_x, 0);
+        lv_obj_set_pos(md_name[r], title_x, MD_CARD_PAD);
         if (ev->location[0]) {
             lv_label_set_text(md_loc[r], ev->location);
             lv_obj_set_width(md_loc[r], row_title_w);
             lv_obj_set_style_text_opa(md_loc[r], past ? LV_OPA_40 : LV_OPA_90, 0);
-            lv_obj_set_pos(md_loc[r], title_x, (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF);
+            lv_obj_set_pos(md_loc[r], title_x, MD_CARD_PAD + (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF);
             show_obj(md_loc[r]);
         } else {
             hide(md_loc[r]);
         }
         lv_obj_set_pos(md_row[r], 28, y);
-        /* The row's BOX is taller than its block when the row has
-         * a place line: the label is 25 px at MD_LOC_OFF, which
-         * reaches past a tightened block, and LVGL clips children
-         * to the row — in iter-18's first cut that silently ate
-         * the place line's lower half (iter-17's block left it
-         * 1 px of room). The pitch math above still advances by
-         * the block h; the box is transparent and nothing hit-tests
-         * it, so the extra height only un-clips the place text. */
-        int box_h = h;
-        if (ev->location[0]) {
-            int loc_bottom = (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF + 25;
-            if (loc_bottom > box_h) {
-                box_h = loc_bottom;
-            }
-        }
-        lv_obj_set_size(md_row[r], right - 28, box_h);
+        lv_obj_set_size(md_row[r], right - 28, card_h);
         show_obj(md_row[r]);
 #ifdef WB_SIM
         snprintf(s_md_rows[r], sizeof(s_md_rows[r]), "%.39s|%.63s|%.63s", tbuf, ev->summary, ev->location);
@@ -2703,7 +3018,7 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         }
 #endif
         shown++;
-        y += h + MD_GAP;
+        y += card_h + MD_GAP;
     }
     for (int r = slot0 + shown; r < slot0 + max_rows; r++) {
         hide(md_row[r]);
@@ -2725,6 +3040,144 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
     return y;
 }
 
+/* Tomorrow with exactly two events (iter-19, the mockup's bottom
+ * row): the two events sit side by side as half-width cards —
+ * medallion top-left, title beside it, then time and place stacked
+ * inside the card. Below Pippa's feet (MD_FEET_Y) the pair may run
+ * to the page's right edge, the mockup's full-width row; higher
+ * up, beside her, they share the list's width instead. A name tag
+ * rides at the place line's right end, so the title keeps the
+ * card's whole width (the mockup's CLEO corner, lowered a line:
+ * at the title's own line it would crowd a full-width title).
+ * Returns the y below the cards, or -1 when the pair would run
+ * past MD_LIST_BOTTOM — render_myday then falls back to the
+ * stacked section, whose own fold keeps the page's invariants. */
+static int md_section_half(const cal_event_t **evs, int y, int right, const char *sec_date)
+{
+    md_section_head(1, y, sec_date);
+    y += MD_HDR_ADV;
+    int avail = (y >= MD_FEET_Y) ? (UI_W - 56) : (right - 28);
+    int cardw = (avail - MD_HALF_GAP) / 2;
+    int lh = (int)lv_font_get_line_height(&font_label);
+    int card_h = 0;
+    int hs[2], tys[2], lys[2], tws[2], tag_ws[2];
+    char namebufs[2][8];
+    bool nameds[2];
+    for (int i = 0; i < 2; i++) {
+        const cal_event_t *ev = evs[i];
+        nameds[i] = md_name_tag(ev->summary, namebufs[i], sizeof(namebufs[i]));
+        tag_ws[i] = nameds[i] ? text_w(namebufs[i], &font_chip) + MD_PILL_PAD : 0;
+        int title_w = cardw - 58 - 8;
+        lv_point_t sz;
+        lv_text_get_size(&sz, ev->summary, &font_label, 0, 0, title_w, LV_TEXT_FLAG_NONE);
+        int lines = sz.y / lh;
+        if (lines < 1) {
+            lines = 1;
+        }
+        /* The time starts under the TITLE (which stands beside
+         * the medallion), not under the medallion: the text
+         * column is clear of the medallion from MD_HALF_TITLE_X
+         * on, so the card stays compact. */
+        tys[i] = MD_CARD_PAD + lines * MD_TITLE_STEP + 3;
+        lys[i] = tys[i] + 23;
+        int need = ev->location[0] ? lys[i] + 25 : tys[i] + 30;
+        if (nameds[i]) {
+            int tag_bottom = (ev->location[0] ? lys[i] - 3 : tys[i]) + MD_PILL_H;
+            if (tag_bottom > need) {
+                need = tag_bottom;
+            }
+        }
+        hs[i] = need + MD_CARD_PAD;
+        tws[i] = title_w;
+        if (hs[i] > card_h) {
+            card_h = hs[i];
+        }
+    }
+    if (y + card_h > MD_LIST_BOTTOM) {
+        return -1;
+    }
+    for (int i = 0; i < 2; i++) {
+        const cal_event_t *ev = evs[i];
+        int r = MD_TODAY_MAX + i;
+        int cardx = 28 + i * (cardw + MD_HALF_GAP);
+        char tbuf[40];
+        if (ev->all_day) {
+            snprintf(tbuf, sizeof(tbuf), "ALL DAY");
+        } else {
+            md_time_text(ev, tbuf, sizeof(tbuf));
+        }
+        md_card_style(md_row[r], 0, ev->all_day, false);
+        int cat = md_icon_for(ev->summary);
+        lv_image_set_src(md_icon[r], EVENT_ICONS[cat]);
+        lv_obj_set_style_opa(md_icon[r], LV_OPA_COVER, 0);
+        lv_obj_set_pos(md_icon[r], MD_MEDAL_X, (card_h - MD_MEDAL) / 2);
+        show_obj(md_icon[r]);
+        hide(md_next[r]);
+        lv_label_set_text(md_name[r], ev->summary);
+        lv_obj_set_width(md_name[r], tws[i]);
+        lv_obj_set_style_text_opa(md_name[r], LV_OPA_COVER, 0);
+        lv_obj_set_pos(md_name[r], 58, MD_CARD_PAD);
+        if (ev->all_day) {
+            hide(md_time[r]);
+            lv_obj_set_size(md_pill[r], text_w("ALL DAY", &font_chip) + MD_PILL_PAD, MD_PILL_H);
+            lv_obj_set_pos(md_pill[r], 58, tys[i]);
+            lv_obj_center(md_pill_lbl[r]);
+            show_obj(md_pill[r]);
+        } else {
+            hide(md_pill[r]);
+            lv_label_set_text(md_time[r], tbuf);
+            lv_obj_set_width(md_time[r], cardw - 58 - 8);
+            lv_obj_set_pos(md_time[r], 58, tys[i]);
+            lv_obj_set_style_text_opa(md_time[r], LV_OPA_COVER, 0);
+            show_obj(md_time[r]);
+        }
+        if (ev->location[0]) {
+            lv_label_set_text(md_loc[r], ev->location);
+            lv_obj_set_width(md_loc[r], cardw - 58 - 8 - (nameds[i] ? tag_ws[i] + 10 : 0));
+            lv_obj_set_style_text_opa(md_loc[r], LV_OPA_90, 0);
+            lv_obj_set_pos(md_loc[r], 58, lys[i]);
+            show_obj(md_loc[r]);
+        } else {
+            hide(md_loc[r]);
+        }
+        if (nameds[i]) {
+            lv_label_set_text(md_tag_lbl[r], namebufs[i]);
+            lv_obj_set_style_bg_color(md_tag[r],
+                                      C(strcmp(namebufs[i], "CLEO") == 0 ? COL_TAG_CLEO : COL_TAG_LILA), 0);
+            lv_obj_set_size(md_tag[r], tag_ws[i], MD_PILL_H);
+            lv_obj_center(md_tag_lbl[r]);
+            lv_obj_set_style_bg_opa(md_tag[r], LV_OPA_COVER, 0);
+            lv_obj_set_style_text_opa(md_tag_lbl[r], LV_OPA_COVER, 0);
+            lv_obj_set_pos(md_tag[r], cardw - 8 - tag_ws[i], ev->location[0] ? lys[i] - 3 : tys[i]);
+            show_obj(md_tag[r]);
+#ifdef WB_SIM
+            snprintf(s_md_nametag, sizeof(s_md_nametag), "%s", namebufs[i]);
+            snprintf(s_md_nametag_row, sizeof(s_md_nametag_row), "%s", ev->summary);
+            size_t tl = strlen(s_md_nametags);
+            snprintf(s_md_nametags + tl, sizeof(s_md_nametags) - tl, "%s%s:%.63s", tl ? ";" : "", namebufs[i],
+                     ev->summary);
+#endif
+        } else {
+            hide(md_tag[r]);
+        }
+        lv_obj_set_pos(md_row[r], cardx, y);
+        lv_obj_set_size(md_row[r], cardw, card_h);
+        show_obj(md_row[r]);
+#ifdef WB_SIM
+        snprintf(s_md_rows[r], sizeof(s_md_rows[r]), "%.39s|%.63s|%.63s", tbuf, ev->summary, ev->location);
+        snprintf(s_md_icons[r], sizeof(s_md_icons[r]), "%s", EV_ICON_NAMES[cat]);
+#endif
+    }
+    hide(md_row[MD_TODAY_MAX + 2]);
+    hide(md_more[1]);
+    hide(md_none[1]);
+#ifdef WB_SIM
+    s_md_n[1] = 2;
+    s_md_half = 1;
+#endif
+    return y + card_h;
+}
+
 static void render_myday(const struct tm *now)
 {
     char buf[64];
@@ -2742,8 +3195,11 @@ static void render_myday(const struct tm *now)
     s_md_nametag[0] = 0;
     s_md_nametag_row[0] = 0;
     s_md_dimmed[0] = 0;
+    s_md_half = 0;
+    s_md_icon_list[0] = 0;
     for (int r = 0; r < MD_ROWS; r++) {
         s_md_rows[r][0] = 0;
+        s_md_icons[r][0] = 0;
     }
 #endif
 
@@ -2804,6 +3260,7 @@ static void render_myday(const struct tm *now)
      * has no line either: nothing was ever promised. */
     if (!s_cal_configured || !s_cal_fetched) {
         hide(md_fresh);
+        hide(md_tabfresh);
     } else {
         char tbuf[24], when[40], fbuf[96];
         fmt_time12(s_cal_fetch_h, s_cal_fetch_mi, tbuf, sizeof(tbuf));
@@ -2836,11 +3293,23 @@ static void render_myday(const struct tm *now)
             }
             ffont = &font_body;
         }
-        lv_obj_set_style_text_font(md_fresh, ffont, 0);
-        lv_label_set_text(md_fresh, fbuf);
-        lv_obj_set_style_text_color(md_fresh, C(stale ? COL_WARN_TX : COL_INK2), 0);
-        lv_obj_set_pos(md_fresh, 28, MD_FRESH_BOTTOM - (int)lv_font_get_line_height(ffont));
-        show_obj(md_fresh);
+        /* Iter-19: the two forms now live in two places. Fresh is
+         * the mockup's quiet line in the tab-bar row (md_tabfresh);
+         * stale keeps iter-18's loud footer form (md_fresh) in the
+         * protected zone the cards may not enter. Exactly one of
+         * them is ever visible. */
+        if (!stale) {
+            hide(md_fresh);
+            lv_label_set_text(md_tabfresh, fbuf);
+            show_obj(md_tabfresh);
+        } else {
+            hide(md_tabfresh);
+            lv_obj_set_style_text_font(md_fresh, ffont, 0);
+            lv_label_set_text(md_fresh, fbuf);
+            lv_obj_set_style_text_color(md_fresh, C(COL_WARN_TX), 0);
+            lv_obj_set_pos(md_fresh, 28, MD_FRESH_BOTTOM - (int)lv_font_get_line_height(ffont));
+            show_obj(md_fresh);
+        }
 #ifdef WB_SIM
         snprintf(s_md_fresh, sizeof(s_md_fresh), "%s", fbuf);
 #endif
@@ -2960,9 +3429,11 @@ static void render_myday(const struct tm *now)
      * stage would wear (pippa_variant_for over the outfit engine's
      * own resolution for today). When no look can be resolved (no
      * weather, or stale past using) she wears the base sprite, the
-     * unavailable screen's choice. She stands right-aligned in the
-     * content area, vertically centred; her width sets the list's
-     * right edge, so titles can never run under her. */
+     * unavailable screen's choice. She stands right-aligned at
+     * MD_CAT_Y (iter-19: the mockup's high stance, which also
+     * clears her feet for the Tomorrow half cards); her width
+     * sets the list's right edge, so titles can never run under
+     * her. */
     int var = PIPPA_BASE;
     outfit_t o;
     if (s_have_wx && s_md_bucket < 2 && outfit_make(&s_wx, now, 0, &s_opts, &o) && o.ok) {
@@ -2970,9 +3441,12 @@ static void render_myday(const struct tm *now)
     }
     const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
     lv_image_set_src(md_cat, spr);
-    lv_obj_set_pos(md_cat, 778 - (int)spr->header.w, 120);
+    lv_obj_set_pos(md_cat, 778 - (int)spr->header.w, MD_CAT_Y);
     show_obj(md_cat);
     int right = 778 - (int)spr->header.w - 10;
+    /* The plain cards' border follows the page background's
+     * daypart, the tile rule the rest of the app uses. */
+    s_md_line_hex = now->tm_hour >= 17 ? COL_TILE_LINE_E : COL_TILE_LINE_M;
 
     /* One shared time column for the whole page, as wide as the
      * widest time it has to carry (ranges included), so single
@@ -2995,8 +3469,6 @@ static void render_myday(const struct tm *now)
     if (colw > 236) {
         colw = 236;
     }
-    int title_x = 14 + colw + 10;
-    int title_w = right - 28 - title_x;
 
     /* The rows' statuses (DONE, NOW, NEXT) are computed inside
      * md_section against now_min (iter-18); through iter-17 this
@@ -3004,13 +3476,28 @@ static void render_myday(const struct tm *now)
      * is exactly the pick that could not tell an event in
      * progress from the one after it (round 15). */
 
-    int y = md_section(0, 0, MD_TODAY_MAX, tod, ntod, 42, colw, title_x, title_w, right,
-                       NULL, now_min);
+    int y = md_section(0, 0, MD_TODAY_MAX, tod, ntod, 40, colw, right, NULL, now_min);
     /* The gap before Tomorrow is a section break, larger than
-     * the gap between rows (iter-15): MD_GAP + MD_SEC_EXTRA,
-     * 5 px against the 3 px row gap since iter-18. */
-    md_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, y + MD_SEC_EXTRA, colw, title_x, title_w,
-               right, tom_date, -1);
+     * the gap between rows (iter-15): MD_GAP + MD_SEC_EXTRA.
+     * Iter-19: a two-event Tomorrow takes the mockup's half-card
+     * row when it fits the page, and the stacked section when it
+     * does not (its fold keeps the footer's invariants either
+     * way). */
+    int ytom = y + MD_SEC_EXTRA;
+    if (ntom != 2 || md_section_half(tom, ytom, right, tom_date) < 0) {
+        md_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, ytom, colw, right, tom_date, -1);
+    }
+#ifdef WB_SIM
+    s_md_icon_list[0] = 0;
+    for (int s = 0; s < 2; s++) {
+        int base = s ? MD_TODAY_MAX : 0;
+        for (int i = 0; i < s_md_n[s]; i++) {
+            size_t tl = strlen(s_md_icon_list);
+            snprintf(s_md_icon_list + tl, sizeof(s_md_icon_list) - tl, "%s%s", tl ? "," : "",
+                     s_md_icons[base + i]);
+        }
+    }
+#endif
 }
 
 static void render(void)
@@ -3879,6 +4366,8 @@ void ui_test_dump(const char *path)
     fprintf(f, "myday_nametag_row=%s\n", s_md_nametag_row);
     fprintf(f, "myday_dimmed=%s\n", s_md_dimmed);
     fprintf(f, "myday_tom_date=%s\n", s_md_tom_date);
+    fprintf(f, "myday_icons=%s\n", s_md_icon_list);
+    fprintf(f, "myday_half=%d\n", s_md_half);
     fprintf(f, "myday_today_n=%d\nmyday_tom_n=%d\n", s_md_n[0], s_md_n[1]);
     for (int r = 0; r < MD_TODAY_MAX; r++) {
         fprintf(f, "myday_today%d=%s\n", r, s_md_rows[r]);

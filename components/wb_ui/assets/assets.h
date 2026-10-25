@@ -76,6 +76,22 @@ LV_IMAGE_DECLARE(img_g_tights_pink_96);
 LV_IMAGE_DECLARE(img_g_tights_pink_56);
 LV_IMAGE_DECLARE(img_g_dress_shoes_pink_96);
 LV_IMAGE_DECLARE(img_g_dress_shoes_pink_56);
+LV_IMAGE_DECLARE(img_ev_camera);
+LV_IMAGE_DECLARE(img_ev_book);
+LV_IMAGE_DECLARE(img_ev_soccer);
+LV_IMAGE_DECLARE(img_ev_videocall);
+LV_IMAGE_DECLARE(img_ev_cupcake);
+LV_IMAGE_DECLARE(img_ev_piano);
+LV_IMAGE_DECLARE(img_ev_school);
+LV_IMAGE_DECLARE(img_ev_balloon);
+LV_IMAGE_DECLARE(img_ev_music);
+LV_IMAGE_DECLARE(img_ev_palette);
+LV_IMAGE_DECLARE(img_ev_swim);
+LV_IMAGE_DECLARE(img_ev_snow);
+LV_IMAGE_DECLARE(img_ev_gift);
+LV_IMAGE_DECLARE(img_ev_star);
+LV_IMAGE_DECLARE(img_ev_tooth);
+LV_IMAGE_DECLARE(img_ev_paw);
 LV_IMAGE_DECLARE(img_x_sparkle);
 LV_IMAGE_DECLARE(img_cat2_bottom_shorts);
 LV_IMAGE_DECLARE(img_cat2_bottom_pants);
@@ -121,6 +137,9 @@ LV_FONT_DECLARE(font_tiny);
 /* Weather icon tables, indexed by wx_icon_t (see wx.h). */
 #define WB_WX_ICONS_M { &img_wx_clear_day_m, &img_wx_clear_night_m, &img_wx_partly_day_m, &img_wx_partly_night_m, &img_wx_cloudy_m, &img_wx_fog_m, &img_wx_drizzle_m, &img_wx_rain_m, &img_wx_heavy_rain_m, &img_wx_snow_m, &img_wx_sleet_m, &img_wx_thunder_m }
 #define WB_WX_ICONS_S { &img_wx_clear_day_s, &img_wx_clear_night_s, &img_wx_partly_day_s, &img_wx_partly_night_s, &img_wx_cloudy_s, &img_wx_fog_s, &img_wx_drizzle_s, &img_wx_rain_s, &img_wx_heavy_rain_s, &img_wx_snow_s, &img_wx_sleet_s, &img_wx_thunder_s }
+
+/* My Day event medallions, in md_icon_t order (see ui.c). */
+#define WB_EVENT_ICONS { &img_ev_camera, &img_ev_book, &img_ev_soccer, &img_ev_videocall, &img_ev_cupcake, &img_ev_piano, &img_ev_school, &img_ev_balloon, &img_ev_music, &img_ev_palette, &img_ev_swim, &img_ev_snow, &img_ev_gift, &img_ev_star, &img_ev_tooth, &img_ev_paw }
 
 /* Garment tile icons, in garment_t order (see outfit.h). */
 #define WB_GARMENT_ICONS_96 { &img_g_short_sleeves_96, &img_g_long_sleeves_96, &img_g_shorts_96, &img_g_long_pants_96, &img_g_hoodie_96, &img_g_light_jacket_96, &img_g_rain_jacket_96, &img_g_warm_coat_96, &img_g_winter_coat_96, &img_g_sneakers_96, &img_g_rain_boots_96, &img_g_snow_boots_96, &img_g_warm_hat_96, &img_g_gloves_96, &img_g_umbrella_96, &img_g_sunglasses_96, &img_g_water_bottle_96, &img_g_scarf_96, &img_g_dress_96, &img_g_tights_96, &img_g_dress_shoes_96 }

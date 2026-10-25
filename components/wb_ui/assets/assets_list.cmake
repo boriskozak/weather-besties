@@ -72,6 +72,22 @@ set(WB_ASSET_SRCS
     assets/img_g_tights_pink_56.c
     assets/img_g_dress_shoes_pink_96.c
     assets/img_g_dress_shoes_pink_56.c
+    assets/img_ev_camera.c
+    assets/img_ev_book.c
+    assets/img_ev_soccer.c
+    assets/img_ev_videocall.c
+    assets/img_ev_cupcake.c
+    assets/img_ev_piano.c
+    assets/img_ev_school.c
+    assets/img_ev_balloon.c
+    assets/img_ev_music.c
+    assets/img_ev_palette.c
+    assets/img_ev_swim.c
+    assets/img_ev_snow.c
+    assets/img_ev_gift.c
+    assets/img_ev_star.c
+    assets/img_ev_tooth.c
+    assets/img_ev_paw.c
     assets/img_x_sparkle.c
     assets/img_cat2_bottom_shorts.c
     assets/img_cat2_bottom_pants.c

@@ -1281,3 +1281,15 @@ EXTRA_ICONS = {
     # sparkle burst still needs an extra icon asset.
     "sparkle": x_sparkle,
 }
+
+# My Day event medallions (iter-19): not drawn here — the art is the
+# owner's generated icon sheet, sliced by tools/slice_event_icons.py
+# into tools/event_icons/<key>.png. This list is only the order: the
+# medallion enum in ui.c (md_icon_t) and the WB_EVENT_ICONS table in
+# assets.h both follow it. Sheet order, left to right, top to bottom.
+EVENT_ICONS = [
+    "camera", "book", "soccer", "videocall",
+    "cupcake", "piano", "school", "balloon",
+    "music", "palette", "swim", "snow",
+    "gift", "star", "tooth", "paw",
+]

@@ -151,6 +151,20 @@ for key in ("tights", "dress_shoes"):
         to_c(p, name)
         images.append(name)
 
+# ------------------------------------------- My Day event medallions
+# The medallions are the owner's generated sheet art, sliced by
+# tools/slice_event_icons.py into tools/event_icons/<key>.png (96 px,
+# circular alpha). They convert like every other image; ui.c scales
+# them down to the card medallion size. Order: icons.EVENT_ICONS.
+EVENT_ICON_PNGS = os.path.join(HERE, "event_icons")
+for key in icons.EVENT_ICONS:
+    name = f"img_ev_{key}"
+    src = os.path.join(EVENT_ICON_PNGS, key + ".png")
+    p = os.path.join(PNG, name + ".png")
+    Image.open(src).convert("RGBA").save(p)
+    to_c(p, name)
+    images.append(name)
+
 # ------------------------------------------------------- extra icons (48 px)
 # Zoom 0.86, not a fill zoom (iter-08, panel round 6): at 1.10 the art
 # was scaled PAST the canvas and clipped at its edges (the sun-up sun
@@ -299,6 +313,9 @@ with open(os.path.join(OUT, "assets.h"), "w") as f:
     for sz in WX_SIZES:
         arr = ", ".join(f"&img_wx_{k}_{sz}" for k in keys)
         f.write(f"#define WB_WX_ICONS_{sz.upper()} {{ {arr} }}\n")
+    f.write("\n/* My Day event medallions, in md_icon_t order (see ui.c). */\n")
+    arr = ", ".join(f"&img_ev_{k}" for k in icons.EVENT_ICONS)
+    f.write(f"#define WB_EVENT_ICONS {{ {arr} }}\n")
     f.write("\n/* Garment tile icons, in garment_t order (see outfit.h). */\n")
     for px in GARMENT_SIZES:
         arr = ", ".join(f"&img_g_{k}_{px}" for k in icons.GARMENTS)
