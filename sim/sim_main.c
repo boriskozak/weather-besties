@@ -228,6 +228,7 @@ int main(int argc, char **argv)
     ui_test_set_page(2);
     pump(10);
     save(out, "24_next_days");
+    dump(out, "24_next_days");   /* iter-09: the fc*_tiles lines assert the cards' full outfits */
     ui_test_set_page(0);
 
     load(sc, "stale_2h");

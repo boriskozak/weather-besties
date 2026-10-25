@@ -72,15 +72,6 @@ set(WB_ASSET_SRCS
     assets/img_g_tights_pink_56.c
     assets/img_g_dress_shoes_pink_96.c
     assets/img_g_dress_shoes_pink_56.c
-    assets/img_x_bolt.c
-    assets/img_x_umbrella.c
-    assets/img_x_hat_gloves.c
-    assets/img_x_gloves.c
-    assets/img_x_sun_up.c
-    assets/img_x_water.c
-    assets/img_x_sunglasses.c
-    assets/img_x_wind.c
-    assets/img_x_heart.c
     assets/img_x_sparkle.c
     assets/img_cat2_bottom_shorts.c
     assets/img_cat2_bottom_pants.c

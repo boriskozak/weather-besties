@@ -294,14 +294,19 @@ S["hanukkah_night3"] = build(
     sunrise=7, sunset=16, feels_delta=-7)
 S["hanukkah_night3"]["sim_clock"] = "2026-12-06T17:37"
 
-# A plain cold morning in the dress band (iter-06): departure feels-like
-# 40F, dry, warming to 56F. Warm coat, no hat or gloves (both thresholds
-# are colder), so the outfit is the dress and its coat, nothing else.
-# This is the dress outfit's reference scenario (and the heart
-# animation's, since the frames exist for the dress sprite only).
+# A mild morning in the dress band (iter-06; retuned iter-09):
+# departure feels-like ~48F, dry, warming to 60F. That is the
+# light-jacket tier, the only band the dress look may be chosen in
+# (iter-09 bound: the dress sprite's jacket IS a light jacket; the old
+# 40F-low version of this fixture was a warm-coat departure, which is
+# a winter-kit morning now, covered by brief_morning at 33F). Light
+# jacket, no hat or gloves (both thresholds are colder), so the outfit
+# is the dress and its jacket, nothing else. This is the dress outfit's
+# reference scenario (and the heart animation's, since the frames
+# exist for the dress sprite only).
 S["dress_morning"] = build(
-    "2026-11-04", "08:00", {"t": 44.0, "f": 42.0, "day": 1, "code": 1, "gust": 9},
-    (2, 55, 40, 10, 3.0, 6.0), [(1, 58, 40, 0, 3.0, 7.0), (2, 56, 41, 10, 2.8, 6.0), (3, 54, 42, 20, 2.4, 4.0),
+    "2026-11-04", "08:00", {"t": 50.0, "f": 48.0, "day": 1, "code": 1, "gust": 9},
+    (2, 62, 48, 10, 3.0, 6.0), [(1, 62, 48, 0, 3.0, 7.0), (2, 56, 41, 10, 2.8, 6.0), (3, 54, 42, 20, 2.4, 4.0),
                                 (0, 57, 40, 0, 3.2, 8.0)],
     lambda i: 1 if i < 48 else 2,
     lambda i: 0 if i < 48 else 10,

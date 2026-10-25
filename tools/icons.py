@@ -1276,7 +1276,8 @@ def x_sparkle():
 
 
 EXTRA_ICONS = {
-    "bolt": x_bolt, "umbrella": c_umbrella, "hat_gloves": x_hat_gloves,
-    "gloves": c_mittens, "sun_up": x_sun_up, "water": c_water,
-    "sunglasses": g_sunglasses, "wind": x_wind, "heart": x_heart, "sparkle": x_sparkle,
+    # iter-09: the advice-row glyph (bolt/umbrella/hat_gloves/gloves/sun_up/
+    # water/sunglasses/wind/heart) is gone from the UI, so only the all-done
+    # sparkle burst still needs an extra icon asset.
+    "sparkle": x_sparkle,
 }

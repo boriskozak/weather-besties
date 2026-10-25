@@ -8,11 +8,16 @@ chips=Umbrella
 advice=Wear long sleeves. Wear your rain jacket. Rain later in the morning. Keep your rain jacket handy. Don't forget your umbrella.
 advice_shown=Rain later in the morning. Keep your rain jacket handy. Don't forget your umbrella.
 wx1=High 55°
-extra_icon=1
+wx_icon=7
+stale_banner=0
+fc0_tiles=
+fc1_tiles=
+fc2_tiles=
 info_begin
-  WiFi: HomeWiFi
-  Town: Upper Montclair, New Jersey
-  Updated 7:30 AM
-Address: 192.168.1.42     Version 2.0.0
-Weather data by Open-Meteo.com
+WiFi: HomeWiFi
+Town: Upper Montclair, New Jersey
+Updated: 7:30 AM
+Address: 192.168.1.42
+Version: 2.0.0
 info_end
+speed_label=Speed test: off

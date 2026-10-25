@@ -9,21 +9,31 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Tier boundary (iter-08, panel round 6): the full winter kit
- * (LOOK_SNOW: puffer, hat, gloves, boots) is reserved for a departure
- * feels-like at or below this temperature, or for actual snow/ice in
- * the school window (which reaches the kit through the winter-coat
- * layer / snow-boots rules, not through this constant). The 39-46F
- * band is the warm-coat tier: the dress or pants look with a warm
- * coat. Round 6's cliff was that the kit upgrade keyed on the
- * hat/gloves extras alone, whose thresholds (38F / 35F, and 50F for
- * bike-bus gloves) straddle the coat bands invisibly: the same 44F
- * "now" sent the bike-bus morning to the full kit (gloves extra via
- * the bike rule) while the plain morning beside it wore a dress and
- * warm coat. Inside the warm-coat band a hat/gloves need can now only
- * arise from the bike-bus rule, and it is carried by the advice
- * sentence ("Bike bus today! Dress warm."), never by an unworn chip. */
-#define WINTER_KIT_MAX_F 38.0f
+/* Look bound (iter-09, panel round 7): the dress look is bounded by
+ * what its sprite actually wears. The dress sprite's blue jacket is
+ * SHORT, LIGHT and OPEN, the identical garment the pants sprite wears
+ * and 38_warm_day honestly tiles as "Light jacket". Round 7's parent
+ * judges caught every dress screen tiling a heavy long "Warm coat"
+ * against that picture: a child copying the picture at a 33F departure
+ * would be underdressed against the screen's own tile. So:
+ *   - the dress look's layer IS the light jacket (tile "Light jacket",
+ *     the light-jacket sheet icon, "Extra layer" caption);
+ *   - the dress look may only be chosen when the engine's departure
+ *     layer need is the light-jacket tier (LAYER_LIGHT_JACKET). The
+ *     hoodie tier below it belongs to the fall sprite, which wears a
+ *     hoodie; no tier above it may borrow the dress.
+ *   - where a warm coat is genuinely needed at departure
+ *     (LAYER_WARM_COAT, or LAYER_WINTER_COAT / snow boots), the dress
+ *     look is NOT available: the full winter kit is the only sprite
+ *     that wears a real warm coat, so it takes those mornings whole
+ *     (puffer, warm boots, hat, gloves). The iter-07/08 warm-up
+ *     carve-out is gone: a big warm-up no longer rescues the dress
+ *     look when departure needs a warm coat, because the tile would
+ *     still be lying about the coldest hour of the day.
+ * The boundary is now simply the engine's own layer bands, so the
+ * iter-08 WINTER_KIT_MAX_F cliff (and the 39-46F "warm-coat tier"
+ * where the same 44F morning split between kit and dress) no longer
+ * exists: one departure layer need, one look. */
 
 /* Days since 1970-01-01 (Howard Hinnant's days_from_civil). A static copy
  * already exists in cat.c; it is static there, so this file keeps its own. */
@@ -140,7 +150,6 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         return false;
     }
     memset(out, 0, sizeof(*out));
-    out->extra_icon = EXTRA_ICON_NONE;
     if (!wx || !now || !wx->valid || day_offset < 0) {
         return false;
     }
@@ -303,17 +312,19 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      *         a hoodie (the fall sprite wears a hoodie, not a light
      *         jacket), and the light scarf she wears as the only extra.
      *   DRESS: the dress itself replaces top+bottom as a tile; the blue
-     *         jacket she wears is the warm coat. Tights and Mary Janes
-     *         are tiles too (iter-08, panel round 6: with only dress +
-     *         coat the 2x2 grid had a dead quadrant and two garments
-     *         she wears were never lay-out items; their icons are
-     *         crops of the dress sprite itself). No extras: she wears
-     *         none.
+     *         jacket she wears is the LIGHT jacket (iter-09: it is the
+     *         same short open jacket as the pants sprite's, and it is
+     *         tiled as "Light jacket" with the "Extra layer" caption).
+     *         Tights and Mary Janes are tiles too (iter-08, panel
+     *         round 6: with only dress + coat the 2x2 grid had a dead
+     *         quadrant and two garments she wears were never lay-out
+     *         items; their icons are crops of the dress sprite
+     *         itself). No extras: she wears none.
      *   PANTS: the engine's top/bottom/feet (sneakers), no extras, and
      *         (iter-07) the open blue jacket the sprite wears over her
      *         tee, prescribed as the light-jacket tile: no garment on
      *         her body may be unprescribed, so the jacket is a tile
-     *         exactly like the dress look's warm coat.
+     *         exactly like the dress look's light jacket.
      *
      * Safety: canonicalisation never dresses her lighter than the
      * weather rules demanded. Winter-coat weather and snow boots go to
@@ -337,16 +348,14 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      *     cold day the same boots are "Warm boots": snow boots are a
      *     precipitation item, and a screen that says "warm after lunch"
      *     under a sun icon cannot prescribe them by that name.
-     *   - Coat-off-later days: when the school day warms up
-     *     substantially (CH_WARMUP) and there is no snow or ice, a
-     *     warm-coat day takes the dress + warm coat look instead of
-     *     being upgraded to the full winter kit for its hat/gloves.
-     *     The full kit is reserved for genuinely cold days (a winter
-     *     coat at departure, or no big warm-up) and for snow. The
-     *     safety floor is unchanged: she still wears the warm coat
-     *     the coldest school-window hour demands; what changes is
-     *     that a day heading for the 60s no longer dresses her for
-     *     a blizzard at 8 AM.
+     *   - Coat-off-later days (SUPERSEDED by iter-09, panel round 7):
+     *     iter-07 let a warm-coat day with a big warm-up take the dress
+     *     look instead of the winter kit. Round 7's parents killed it:
+     *     the dress sprite wears no warm coat, so the carve-out made
+     *     the tile lie exactly on the mornings it claimed to fix. A
+     *     warm-coat departure now always takes the winter kit (see the
+     *     look bound at the top of this file); the warm-up survives
+     *     only as advice ("Take your winter coat off later.").
      *   - Hot storms: temperature rules the base outfit in storms too.
      *     At hot-day temperatures (CH_HOT) a storm takes the hot look
      *     (short sleeves, shorts, sneakers); the storm itself is
@@ -367,22 +376,22 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     } else if (out->layer == LAYER_RAIN_JACKET || out->feet == FEET_RAIN_BOOTS || (change & CH_STORM) ||
                (extras & EX_UMBRELLA)) {
         look = LOOK_RAIN;
-    } else if (out->layer == LAYER_HOODIE || out->layer == LAYER_LIGHT_JACKET) {
-        look = LOOK_FALL;
     } else if (out->layer == LAYER_WARM_COAT) {
-        /* A hat/gloves need upgrades a warm-coat day to the winter kit,
-         * the only sprite that wears them, but only at the winter tier
-         * (iter-08: departure feels-like at or below WINTER_KIT_MAX_F;
-         * see the boundary note at the top of this file) and UNLESS
-         * the day warms up substantially with no snow or ice (iter-07):
-         * then the dress and its warm coat are the honest outfit, and
-         * the hat/gloves are dropped with the kit they belonged to.
-         * In the 39-46F band the only possible hat/gloves need is the
-         * bike-bus gloves reminder, which the advice sentence carries
-         * on its own (the CH_BIKE_BUS sentences below). */
-        bool kit = (extras & (EX_HAT | EX_GLOVES)) && f_dep <= WINTER_KIT_MAX_F &&
-                   !((change & CH_WARMUP) && !has_snow && !ice);
-        look = kit ? LOOK_SNOW : LOOK_DRESS;
+        /* iter-09 bound: a warm coat is genuinely needed at departure,
+         * and the winter kit is the only sprite that wears one, so the
+         * kit takes the morning whole (hat and gloves included: at
+         * this tier they are part of the same cold). The dress look is
+         * NOT available here, warm-up or not (see the bound note at
+         * the top of this file). A bike-bus gloves need in this band
+         * is then satisfied by the kit itself, which wears them. */
+        look = LOOK_SNOW;
+    } else if (out->layer == LAYER_LIGHT_JACKET) {
+        /* iter-09: the light-jacket tier is the dress look's band, and
+         * the only band it may be chosen in: its sprite's jacket IS
+         * this layer. */
+        look = LOOK_DRESS;
+    } else if (out->layer == LAYER_HOODIE) {
+        look = LOOK_FALL;
     } else {
         look = (change & CH_HOT) ? LOOK_HOT : LOOK_PANTS;
     }
@@ -416,12 +425,16 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         /* The pants sprite wears an open blue jacket over her tee.
          * Round 5's parent judge caught it as the one garment with no
          * tile: it is prescribed now, as the light jacket, presented
-         * exactly like the dress look's warm coat (a layer tile). */
+         * exactly like the dress look's light jacket (a layer tile). */
         out->layer = LAYER_LIGHT_JACKET;
         extras = 0;   /* she wears no extras */
         break;
-    default:   /* LOOK_DRESS: no extras; the sprite wears none */
-        extras = 0;
+    default:   /* LOOK_DRESS */
+        /* The dress sprite's layer is her light jacket, stated as
+         * such (iter-09): the canonicalisation pins it so the tile,
+         * the caption and the advice can never call it a warm coat. */
+        out->layer = LAYER_LIGHT_JACKET;
+        extras = 0;   /* no extras; the sprite wears none */
         break;
     }
     out->extras = extras;
@@ -461,24 +474,9 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     }
     out->ntiles = n;
 
-    /* ---- 4.4 extra icon, by priority ---- */
-    if (change & CH_STORM) {
-        out->extra_icon = EXTRA_ICON_BOLT;
-    } else if (extras & EX_UMBRELLA) {
-        out->extra_icon = EXTRA_ICON_UMBRELLA;
-    } else if (extras & EX_GLOVES) {
-        out->extra_icon = (extras & EX_HAT) ? EXTRA_ICON_HAT_GLOVES : EXTRA_ICON_GLOVES;
-    } else if (change & CH_WARMUP) {
-        out->extra_icon = EXTRA_ICON_SUN_UP;
-    } else if (extras & EX_WATER) {
-        out->extra_icon = EXTRA_ICON_WATER;
-    } else if (extras & EX_SUNGLASSES) {
-        out->extra_icon = EXTRA_ICON_SUNGLASSES;
-    } else if (change & CH_WINDY) {
-        out->extra_icon = EXTRA_ICON_WIND;
-    } else {
-        out->extra_icon = EXTRA_ICON_NONE;
-    }
+    /* (The plan-4.4 advice-row extra icon was removed in iter-09:
+     * two panel rounds flagged the miniature glyph as undecodable
+     * clutter, so the advice row is text only now.) */
 
     /* ---- 4.5 advice sentences (no numbers) ---- */
     char a[64], b[80];   /* longest A is 43 chars, longest B is 70, both fit advice_short */

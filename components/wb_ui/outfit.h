@@ -49,7 +49,11 @@ typedef enum {
  * is visible on the sprite. The UI picks the sprite from this field
  * alone, so tiles, chips, advice and cat can never disagree. */
 typedef enum {
-    LOOK_DRESS = 0,   /* dress + tights + Mary Janes + her blue warm coat */
+    LOOK_DRESS = 0,   /* dress + tights + Mary Janes + her blue LIGHT jacket:
+                       * the sprite's jacket is short, light and open, so the
+                       * tile says "Light jacket" and the look is only chosen
+                       * when a light jacket is the truthful departure layer
+                       * (iter-09; see the bound in outfit.c) */
     LOOK_PANTS,       /* tee + jeans + sneakers + her open blue jacket,
                        * prescribed as the light-jacket tile (iter-07) */
     LOOK_SNOW,        /* puffer, beanie, mittens, snow boots, long everything */
@@ -57,21 +61,6 @@ typedef enum {
     LOOK_HOT,         /* tee, shorts, sneakers, heart sunglasses, water bottle */
     LOOK_FALL         /* hoodie, long pants, sneakers, light scarf */
 } look_t;
-
-/* Extra-item icons for the advice row, in the priority order of plan 4.4
- * (the names match plan 5.5 EXTRA_ICONS). outfit_t.extra_icon is a plain
- * int holding one of these, or EXTRA_ICON_NONE (-1). */
-typedef enum {
-    EXTRA_ICON_NONE = -1,
-    EXTRA_ICON_BOLT = 0,        /* bolt: storm */
-    EXTRA_ICON_UMBRELLA,        /* umbrella */
-    EXTRA_ICON_HAT_GLOVES,      /* hat_gloves: hat + gloves combined */
-    EXTRA_ICON_GLOVES,          /* gloves */
-    EXTRA_ICON_SUN_UP,          /* sun_up: warmup */
-    EXTRA_ICON_WATER,           /* water: water bottle */
-    EXTRA_ICON_SUNGLASSES,      /* sunglasses */
-    EXTRA_ICON_WIND               /* wind: windy */
-} extra_icon_t;
 
 typedef struct {
     bool ok;                 /* false = don't prescribe (unavailable) */
@@ -82,7 +71,6 @@ typedef struct {
     int ntiles; int tile_kind[4];  /* garment ids in display order, see garment_t */
     char advice[192];        /* A + B + the chip-naming clause (iter-08) */
     char advice_short[128];  /* sentence B only (fallback), same clause */
-    int extra_icon;          /* extra_icon_t or -1 */
     float t_now, hi, lo; int pop_day; int wx_code; bool is_day;  /* for the weather block */
 } outfit_t;
 

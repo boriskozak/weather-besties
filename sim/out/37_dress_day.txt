@@ -3,16 +3,21 @@ bucket=0
 look=0
 look_name=dress
 ntiles=4
-tiles=Dress|Warm coat|Tights|Dress shoes
+tiles=Dress|Light jacket|Tights|Dress shoes
 chips=
-advice=Wear your dress. Bring your warm coat. Cold this morning, warm after lunch. Take your warm coat off later.
-advice_shown=Cold this morning, warm after lunch. Take your warm coat off later.
-wx1=44° now
-extra_icon=4
+advice=Wear your dress. Wear a light jacket.
+advice_shown=Wear your dress. Wear a light jacket.
+wx1=50° now
+wx_icon=0
+stale_banner=0
+fc0_tiles=Long sleeves|Long pants|Rain jacket|Rain boots
+fc1_tiles=Dress|Light jacket|Tights|Dress shoes
+fc2_tiles=Dress|Light jacket|Tights|Dress shoes
 info_begin
-  WiFi: HomeWiFi
-  Town: Upper Montclair, New Jersey
-  Updated 7:30 AM
-Address: 192.168.1.42     Version 2.0.0
-Weather data by Open-Meteo.com
+WiFi: HomeWiFi
+Town: Upper Montclair, New Jersey
+Updated: 7:30 AM
+Address: 192.168.1.42
+Version: 2.0.0
 info_end
+speed_label=Speed test: off
