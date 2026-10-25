@@ -199,7 +199,7 @@ static void fixture_cal(bool with_events)
                       d0, d0);
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-4\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
-                      "DTEND;TZID=America/New_York:%sT104500\r\nSUMMARY:Library story time\r\nEND:VEVENT\r\n",
+                      "DTEND;TZID=America/New_York:%sT104500\r\nSUMMARY:Lila's library story time\r\nEND:VEVENT\r\n",
                       d0, d0);
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-5\r\nDTSTART;TZID=America/New_York:%sT160000\r\n"
@@ -476,9 +476,17 @@ int main(int argc, char **argv)
     save(out, "42_myday_unconfigured");
     dump(out, "42_myday_unconfigured");
 
-    /* Stale (iter-17): the same populated page at 3:45 PM with the
-     * last good fetch still the 7:02 AM one, over six hours old,
-     * so the freshness line takes its warn form. */
+    /* Stale (iter-17; iter-18 fixture hygiene): the same populated
+     * page at 3:45 PM with the last good fetch still the 7:02 AM
+     * one, over six hours old, so the freshness line takes its
+     * warn form. Iter-18 loads the afternoon weather first (the
+     * same Tuesday, cold all day, fetched at 3:30 PM): Pippa wears
+     * the morning's snow look and the weather is fresh, so no
+     * weather-stale chip competes with the calendar's own stale
+     * stamp. Renders 40, 43 and 45 are the same fictional day;
+     * only the clock and the fetch ages differ. */
+    load(sc, "myday_afternoon");
+    show();
     ui_set_calendar_configured(true);
     fixture_cal(true);
     fixture_fetched();
@@ -489,10 +497,15 @@ int main(int argc, char **argv)
     save(out, "43_myday_stale");
     dump(out, "43_myday_stale");
 
-    /* Late (iter-17): the same 3:45 PM clock with a fresh 3:02 PM
-     * fetch, isolating the afternoon behaviour: story time is over
-     * and dimmed, soccer (3:30-4:30) carries NEXT. */
+    /* Late (iter-17; iter-18): the same 3:45 PM clock with a fresh
+     * 3:02 PM fetch, isolating the afternoon statuses: story time
+     * is over (DONE, dimmed), soccer (3:30-4:30) is in progress
+     * (NOW), and the Grandma call is still to come (NEXT). The
+     * refresh matters: the fetch helper renders with the clock
+     * parked at 3:02, when soccer is still NEXT, so the page must
+     * render again at the real 3:45 before it is captured. */
     fixture_fetched_at(15, 2);
+    ui_refresh_clock();
     pump(10);
     save(out, "45_myday_late");
     dump(out, "45_myday_late");

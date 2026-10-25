@@ -225,6 +225,20 @@ S["brief_evening"]["sim_clock"] = "2026-10-27T19:30"
 S["stale_2h"] = _brief("11:45", {"t": 50.8, "f": 50.8, "day": 1, "code": 1, "gust": 10})
 S["stale_2h"]["sim_clock"] = "2026-10-27T13:39"
 
+# Iter-18: the same brief Tuesday, but cold all day (high 40, not
+# 64) and fetched at 15:30, for the My Day afternoon renders. The
+# afternoon departure still lands in the warm-coat band, so Pippa
+# wears the morning's snow look, and the weather is fresh at the
+# 3:45 PM clock: the afternoon renders isolate the calendar's own
+# states (stale stamp, DONE/NOW/NEXT) with no weather-stale chip
+# competing for the same corner of the page.
+BR_TUE_COLD = (1, 40, 30, 0, 4.0, 9.0)
+S["myday_afternoon"] = build(
+    "2026-10-27", "15:30", {"t": 36.0, "f": 36.0, "day": 1, "code": 1, "gust": 10},
+    BR_MON, [BR_TUE_COLD, BR_WED, BR_THU, BR_FRI],
+    _brief_codes, _brief_pops, sunrise=7, sunset=18, feels_delta=0)
+S["myday_afternoon"]["sim_clock"] = "2026-10-27T15:45"
+
 # Forecast is Monday 18:00, clock Tuesday 07:30: too old, unavailable screen.
 S["too_old"] = build(
     "2026-10-26", "18:00", {"t": 58.5, "f": 58.5, "day": 0, "code": 2, "gust": 9},

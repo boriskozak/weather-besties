@@ -1301,8 +1301,8 @@ def main():
     # the point) and all-day events read ALL DAY (the navy pill).
     check(md["myday_today0"] == "ALL DAY|Picture Day|",
           f"40_myday: today row 1 is the all-day picture day with the ALL DAY pill ({md['myday_today0']})")
-    check(md["myday_today1"] == "10:00-10:45 AM|Library story time|",
-          f"40_myday: today row 2 is library story time with its end time ({md['myday_today1']})")
+    check(md["myday_today1"] == "10:00-10:45 AM|Lila's library story time|",
+          f"40_myday: today row 2 is Lila's library story time with its end time ({md['myday_today1']})")
     check(md["myday_today2"] == "3:30-4:30 PM|Soccer practice|Roosevelt Field, north gate",
           f"40_myday: today row 3 is soccer with its end time, escaped comma unescaped ({md['myday_today2']})")
     check(md["myday_today3"] == "4:00-4:45 PM|Video call with Grandma|",
@@ -1314,20 +1314,28 @@ def main():
     # Iter-15: the freshness line (fixture fetch pinned to 7:02 AM
     # today, so the same-day form). Iter-16: the NEXT tag — at the
     # 7:35 fixture clock the first TIMED event still to come is the
-    # 10:00 library story time; the all-day row never carries it.
-    # The dump names the tagged row's title.
+    # 10:00 story time; the all-day row never carries it. Iter-18:
+    # the statuses are computed against the clock (DONE/NOW/NEXT);
+    # at 7:35 AM nothing is in progress and nothing is over, so
+    # story time keeps NEXT and there is no NOW or DONE anywhere.
+    # The dumps name the tagged rows' titles.
     check(md["myday_fresh"] == "Updated 7:02 AM",
           f"40_myday: freshness line shows the pinned fetch time ({md['myday_fresh']})")
-    check(md["myday_nextup"] == "Library story time",
-          f"40_myday: NEXT tag on the library story time row ({md['myday_nextup']})")
+    check(md["myday_nextup"] == "Lila's library story time",
+          f"40_myday: NEXT tag on the story time row ({md['myday_nextup']})")
+    check(md["myday_nowup"] == "" and md["myday_done"] == "",
+          f"40_myday: no NOW or DONE tags in the morning (nowup={md['myday_nowup']!r}, done={md['myday_done']!r})")
     # Iter-17: Tomorrow's header carries its date (Tue Oct 27's
     # tomorrow is Wed Oct 28), the piano row wears its CLEO name
     # tag, and at 7:35 AM nothing today is over yet, so no row is
-    # dimmed.
+    # dimmed. Iter-18: both girls appear across the page, LILA on
+    # the story time row, CLEO on the piano row.
     check(md["myday_tom_date"] == "Wed, Oct 28",
           f"40_myday: tomorrow header shows its date ({md['myday_tom_date']})")
     check(md["myday_nametag"] == "CLEO" and md["myday_nametag_row"] == "Cleo's piano lesson",
           f"40_myday: CLEO name tag on the piano row (tag={md['myday_nametag']!r}, row={md['myday_nametag_row']!r})")
+    check(md["myday_nametags"] == "LILA:Lila's library story time;CLEO:Cleo's piano lesson",
+          f"40_myday: LILA and CLEO name tags across the page ({md['myday_nametags']!r})")
     check(md["myday_dimmed"] == "",
           f"40_myday: no past rows dimmed in the morning ({md['myday_dimmed']!r})")
 
@@ -1344,31 +1352,37 @@ def main():
 
     # Iter-17: the three new states/views of the same page. Stale:
     # the populated page at 3:45 PM still showing the 7:02 AM
-    # fetch, so the freshness line takes its warn "Calendar from"
-    # form; story time (over at 10:45) is dimmed and soccer is
-    # next. Never: a link exists but no fetch has ever landed, its
-    # own state, which must not claim the days are empty. Late:
-    # the same 3:45 PM clock with a fresh 3:02 PM fetch.
+    # fetch. Never: a link exists but no fetch has ever landed,
+    # its own state, which must not claim the days are empty.
+    # Late: the same 3:45 PM clock with a fresh 3:02 PM fetch.
+    # Iter-18: the stale line steps up and says its age ("Calendar
+    # is 8 hours old"); the afternoon statuses are DONE on the
+    # finished story time, NOW on soccer (3:30-4:30, in progress
+    # at 3:45), NEXT on the Grandma call; the never state has no
+    # freshness footer at all, its body copy carries it.
     md43 = dump("43_myday_stale")
     check(md43["myday_state"] == "events" and md43["myday_today_n"] == "4" and md43["myday_tom_n"] == "2",
           f"43_myday_stale: populated data under the stale stamp (state={md43['myday_state']}, {md43['myday_today_n']}/{md43['myday_tom_n']})")
-    check(md43["myday_fresh"] == "Calendar from 7:02 AM",
-          f"43_myday_stale: freshness line in its stale form ({md43['myday_fresh']})")
-    check(md43["myday_nextup"] == "Soccer practice" and md43["myday_dimmed"] == "Library story time",
-          f"43_myday_stale: soccer next, story time over (nextup={md43['myday_nextup']!r}, dimmed={md43['myday_dimmed']!r})")
+    check(md43["myday_fresh"] == "Calendar is 8 hours old · from 7:02 AM",
+          f"43_myday_stale: freshness line in its stale form, age spelled out ({md43['myday_fresh']})")
+    check(md43["myday_nextup"] == "Video call with Grandma" and md43["myday_nowup"] == "Soccer practice"
+          and md43["myday_done"] == "Lila's library story time" and md43["myday_dimmed"] == "Lila's library story time",
+          f"43_myday_stale: Grandma next, soccer now, story time done (nextup={md43['myday_nextup']!r}, nowup={md43['myday_nowup']!r}, done={md43['myday_done']!r})")
     md44 = dump("44_myday_never")
     check(md44["myday_state"] == "never",
           f"44_myday_never: configured but never loaded state (state={md44['myday_state']})")
-    check(md44["myday_fresh"] == "Calendar has not loaded yet" and md44["myday_today_n"] == "0"
+    check(md44["myday_fresh"] == "" and md44["myday_today_n"] == "0"
           and md44["myday_tom_n"] == "0" and md44["myday_nextup"] == "",
-          f"44_myday_never: not-loaded line, no rows (fresh={md44['myday_fresh']!r})")
+          f"44_myday_never: no freshness footer, no rows (fresh={md44['myday_fresh']!r})")
     md45 = dump("45_myday_late")
     check(md45["myday_state"] == "events" and md45["myday_fresh"] == "Updated 3:02 PM",
           f"45_myday_late: populated with a fresh afternoon fetch (state={md45['myday_state']}, fresh={md45['myday_fresh']})")
-    check(md45["myday_nextup"] == "Soccer practice",
-          f"45_myday_late: NEXT tag moved to soccer practice ({md45['myday_nextup']})")
-    check(md45["myday_dimmed"] == "Library story time",
-          f"45_myday_late: story time dimmed as past ({md45['myday_dimmed']!r})")
+    check(md45["myday_nextup"] == "Video call with Grandma",
+          f"45_myday_late: NEXT tag on the Grandma call ({md45['myday_nextup']})")
+    check(md45["myday_nowup"] == "Soccer practice",
+          f"45_myday_late: NOW tag on soccer practice, in progress at 3:45 ({md45['myday_nowup']})")
+    check(md45["myday_done"] == "Lila's library story time" and md45["myday_dimmed"] == "Lila's library story time",
+          f"45_myday_late: story time DONE and dimmed as past (done={md45['myday_done']!r})")
     check(md45["myday_tom1"] == "4:00-4:30 PM|Cleo's piano lesson|Music school",
           f"45_myday_late: tomorrow rows unchanged in the afternoon ({md45['myday_tom1']})")
 
@@ -1387,18 +1401,29 @@ def main():
         frac = non_bg_fraction(img, (72, 120, 230, 348))
         check(frac > 0.10, f"{name}: full Pippa beside the message ({frac:.1%} non-background, need > 10%)")
 
-    # Iter-17 pixels: the tags and states the dumps name must also
-    # be on screen. NEXT pink beside the title it tags (library in
-    # the morning, soccer in the afternoon); the CLEO name tag's
-    # neutral fill beside the piano title; the past row's ink
-    # actually dimmed (full-ink pixels gone from its title zone in
-    # the afternoon renders); the stale stamp in warn colour where
-    # the fresh one has none.
+    # Iter-17 pixels, iter-18 zones and fills: the tags and states
+    # the dumps name must also be on screen. NEXT pink beside the
+    # title it tags (story time in the morning, the Grandma call
+    # in the afternoon), NOW pink beside soccer in the afternoon,
+    # DONE's muted grey beside the finished story time, and the
+    # name tags in their own colours (LILA teal, CLEO lavender).
+    # The past row's ink actually dimmed (full-ink pixels gone
+    # from its title zone in the afternoon renders); the stale
+    # stamp big and warn-coloured in the protected footer zone,
+    # clear of the last row's location; no weather-stale chip in
+    # the afternoon renders (their weather is fresh); no footer
+    # line at all in the never state.
     def is_next_pink(r, g, b):
         return r > 200 and 60 < g < 120 and b > 120
 
-    def is_nametag_fill(r, g, b):
-        return abs(r - 222) <= 12 and abs(g - 222) <= 12 and abs(b - 228) <= 12
+    def is_cleo_fill(r, g, b):
+        return abs(r - 216) <= 12 and abs(g - 204) <= 12 and abs(b - 242) <= 12
+
+    def is_lila_fill(r, g, b):
+        return abs(r - 181) <= 12 and abs(g - 223) <= 12 and abs(b - 213) <= 12
+
+    def is_done_fill(r, g, b):
+        return abs(r - 226) <= 10 and abs(g - 223) <= 10 and abs(b - 219) <= 10
 
     def is_full_ink(r, g, b):
         return r < 110 and g < 110 and b < 130
@@ -1406,23 +1431,41 @@ def main():
     def is_warn_tx(r, g, b):
         return 100 < r < 180 and 40 < g < 110 and b < 60
 
+    def is_warn_bg(r, g, b):
+        return abs(r - 255) <= 6 and abs(g - 235) <= 6 and abs(b - 199) <= 6
+
     img = Image.open(os.path.join(OUT, "40_myday.png"))
-    n = count_where(img, (440, 115, 580, 150), is_next_pink)
-    check(n > 400, f"40_myday: NEXT pill drawn beside library story time ({n} pink px, need > 400)")
-    n = count_where(img, (470, 365, 580, 400), is_nametag_fill)
-    check(n > 400, f"40_myday: CLEO name tag drawn beside the piano title ({n} fill px, need > 400)")
-    lib40 = count_where(img, (215, 118, 480, 150), is_full_ink)
-    check(lib40 > 400, f"40_myday: library title at full ink in the morning ({lib40} px, need > 400)")
+    n = count_where(img, (402, 105, 500, 143), is_next_pink)
+    check(n > 400, f"40_myday: NEXT pill drawn beside Lila's story time ({n} pink px, need > 400)")
+    n = count_where(img, (500, 105, 585, 143), is_lila_fill)
+    check(n > 400, f"40_myday: LILA name tag in teal beside the story time title ({n} fill px, need > 400)")
+    n = count_where(img, (489, 328, 584, 366), is_cleo_fill)
+    check(n > 400, f"40_myday: CLEO name tag in lavender beside the piano title ({n} fill px, need > 400)")
+    lib40 = count_where(img, (232, 108, 405, 166), is_full_ink)
+    check(lib40 > 400, f"40_myday: story time title at full ink in the morning ({lib40} px, need > 400)")
     img45 = Image.open(os.path.join(OUT, "45_myday_late.png"))
-    n = count_where(img45, (390, 175, 540, 215), is_next_pink)
-    check(n > 400, f"45_myday_late: NEXT pill drawn beside soccer practice ({n} pink px, need > 400)")
-    lib45 = count_where(img45, (215, 118, 480, 150), is_full_ink)
-    check(lib45 < 40, f"45_myday_late: library title dimmed, no full ink left ({lib45} px, need < 40)")
+    n = count_where(img45, (402, 105, 500, 143), is_done_fill)
+    check(n > 400, f"45_myday_late: DONE pill in muted grey beside story time ({n} fill px, need > 400)")
+    n = count_where(img45, (443, 168, 533, 206), is_next_pink)
+    check(n > 400, f"45_myday_late: NOW pill drawn beside soccer practice ({n} pink px, need > 400)")
+    n = count_where(img45, (433, 207, 531, 252), is_next_pink)
+    check(n > 400, f"45_myday_late: NEXT pill drawn beside the Grandma call ({n} pink px, need > 400)")
+    lib45 = count_where(img45, (232, 108, 405, 166), is_full_ink)
+    check(lib45 < 40, f"45_myday_late: story time title dimmed, no full ink left ({lib45} px, need < 40)")
+    n = count_where(img45, (500, 48, 795, 92), is_warn_bg)
+    check(n == 0, f"45_myday_late: no weather-stale chip, the weather is fresh ({n} px, need 0)")
     img43 = Image.open(os.path.join(OUT, "43_myday_stale.png"))
-    n = count_where(img43, (480, 388, 790, 420), is_warn_tx)
-    check(n > 300, f"43_myday_stale: freshness stamp in warn colour ({n} px, need > 300)")
-    n = count_where(img, (480, 388, 790, 420), is_warn_tx)
+    n = count_where(img43, (480, 394, 790, 422), is_warn_tx)
+    check(n > 300, f"43_myday_stale: freshness stamp stepped up in warn colour ({n} px, need > 300)")
+    n = count_where(img43, (250, 360, 430, 392), is_warn_tx)
+    check(n == 0, f"43_myday_stale: stale stamp clear of the last row's location zone ({n} px, need 0)")
+    n = count_where(img43, (500, 48, 795, 92), is_warn_bg)
+    check(n == 0, f"43_myday_stale: no weather-stale chip, only the calendar is stale ({n} px, need 0)")
+    n = count_where(img, (480, 388, 790, 422), is_warn_tx)
     check(n == 0, f"40_myday: no warn colour in the fresh stamp ({n} px, need 0)")
+    img44 = Image.open(os.path.join(OUT, "44_myday_never.png"))
+    frac = non_bg_fraction(img44, (28, 384, 790, 422))
+    check(frac < 0.005, f"44_myday_never: footer zone empty, no freshness line ({frac:.2%} non-background, need < 0.5%)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

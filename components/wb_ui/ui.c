@@ -54,10 +54,17 @@
 #define COL_CMP_WARM_TX 0x7A4A00
 #define COL_CMP_SAME_BG 0xEAE7DE
 #define COL_CMP_SAME_TX 0x545A72
-/* My Day name tags (iter-17): a soft neutral stone, deliberately
- * neither the NEXT tag's pink nor the ALL DAY pill's navy, so a
- * child's name reads as information, not as a status. */
-#define COL_NAMETAG_BG 0xDEDEE4
+/* My Day name tags (iter-17; iter-18: a colour system, round 15 —
+ * one soft colour per girl, so the tag identifies at a glance
+ * instead of repeating the title's name in a second voice). Both
+ * sit in the page's palette family: the lavender is the Pippa
+ * dress lavender lightened, the teal its cool counterpart; ink
+ * text on both. Neither is the status pink nor the ALL DAY navy. */
+#define COL_TAG_CLEO 0xD8CCF2   /* soft lavender */
+#define COL_TAG_LILA 0xB5DFD5   /* soft teal */
+/* The DONE tag's muted grey (iter-18): the stale check disc's
+ * grey, so a finished event reads as switched off, not broken. */
+#define COL_MD_DONE_BG 0xC9C9C9
 
 #define C(hex) lv_color_hex(hex)
 
@@ -238,14 +245,45 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
 #define MD_TODAY_MAX 4
 #define MD_TOM_MAX 3
 #define MD_ROWS (MD_TODAY_MAX + MD_TOM_MAX)
-#define MD_GAP 4        /* the one constant gap after each row block (iter-16) */
-#define MD_PILL_H 30    /* one pill system (iter-17): ALL DAY, NEXT and name tags */
+#define MD_GAP 6        /* the gap after each row block (iter-16: a constant 4;
+                         * iter-18: 6, part of the footer funding below) */
+#define MD_PILL_H 30    /* one pill system (iter-17): ALL DAY, the status
+                         * tags (iter-18) and the name tags */
 #define MD_PILL_PAD 24  /* horizontal padding inside every pill */
-#define MD_HDR_ADV 30   /* a section header's advance (font_label under the h1) */
-#define MD_TITLE_STEP 26 /* a title line's step: font_label, line space tightened */
-#define MD_SUB_H 20     /* the place-line space reserved in every row block */
-#define MD_SEC_EXTRA 10 /* extra air before the Tomorrow header, on top of MD_GAP */
-#define MD_MSG_CY 240   /* the message states centre on the content area's middle */
+#define MD_HDR_ADV 26   /* a section header's advance (font_label under the h1) */
+#define MD_TITLE_STEP 21 /* a title line's step: font_label, line space tightened */
+#define MD_SUB_H 16     /* the place-line space reserved in every row block */
+#define MD_LOC_OFF 24   /* the place line hangs this far below its title
+                         * line's top: iter-17's offset, kept whatever the
+                         * title step is, because it is the distance at
+                         * which the place text clears the title's
+                         * descenders (measured on the renders) */
+#define MD_SEC_EXTRA 2  /* extra air before the Tomorrow header, on top of MD_GAP */
+#define MD_MSG_CY 248   /* the message states centre on the content canvas,
+                         * tab bar accounted for (iter-18) */
+/* The protected footer zone (iter-18, round 15: the stale stamp
+ * shared the last row's location band and the two read as one
+ * jumbled line). The freshness line is bottom-anchored so its box
+ * ends at MD_FRESH_BOTTOM, just above the tab bar, and the event
+ * list may never reach below MD_LIST_BOTTOM, so no row text can
+ * ever share the stamp's band. The funding, disclosed in the
+ * iter-18 report: the first section starts at y=42 instead of 50,
+ * the header advance 26 instead of 30, the title step 21 instead
+ * of 26, the place reserve 16 instead of 20, the row gap 6
+ * instead of 4, and the section extra 2 instead of 10. Two
+ * earlier cuts failed on the renders and are recorded in the
+ * report: a place reserve of 13 left the place line's descenders
+ * a pixel from the next row's title, and tying the place line's
+ * offset to the tightened title step put it inside the title's
+ * own descenders; the offset is now its own constant
+ * (MD_LOC_OFF). What the room mostly buys is the two fixture
+ * titles that now wrap at the tightened column (Lila's story
+ * time, and the Grandma call when it carries NEXT). The limit is
+ * a block limit; the last fixture row's place ink ends at 395,
+ * 2 px above the stale stamp's ink at 397, measured on render
+ * 43. */
+#define MD_LIST_BOTTOM 390
+#define MD_FRESH_BOTTOM 422   /* the freshness line's box bottom; the tab bar starts at 424 */
 static lv_obj_t *md_date;
 static lv_obj_t *md_sec[2];        /* section headers: Today, Tomorrow */
 static lv_obj_t *md_sec_date;      /* Tomorrow's date, muted, after its header (iter-17) */
@@ -276,8 +314,11 @@ static bool s_real_clock;          /* render()'s clock was the real clock */
 static char s_md_state[16];                          /* events | empty | unconfigured | never */
 static int s_md_n[2];                                /* rows shown per section */
 static char s_md_rows[MD_ROWS][192];                 /* "time|title|place" per shown row */
-static char s_md_fresh[64];                          /* the freshness line's text ("" = hidden) */
+static char s_md_fresh[96];                          /* the freshness line's text ("" = hidden) */
 static char s_md_nextup[96];                         /* title of today's row carrying the NEXT tag, "" = none */
+static char s_md_nowup[96];                          /* title of today's row carrying the NOW tag, "" = none */
+static char s_md_done[192];                          /* today's DONE rows' titles, ';'-joined */
+static char s_md_nametags[256];                      /* every name tag shown, "TAG:title" ';'-joined */
 static char s_md_nametag[8];                         /* the name tag's text ("" = none shown) */
 static char s_md_nametag_row[96];                    /* title of the row carrying the name tag */
 static char s_md_dimmed[192];                        /* today's past rows' titles, ';'-joined ("" = none) */
@@ -1834,14 +1875,16 @@ static void build_myday_page(lv_obj_t *scr)
         lv_obj_t *row = box(page_myday);
         md_row[r] = row;
         lv_obj_set_size(row, UI_W - 56, 40);
-        /* The NEXT tag (iter-16): a small pink pill after the title
-         * of today's next timed event still to come. A bare dot in
-         * the gutter said nothing to anyone (round 13); the word
-         * does. Size and position are set by render_myday, which
-         * reserves the tag's width in that row's title column.
-         * Iter-17: it shares the one pill geometry (MD_PILL_H,
-         * font_chip, MD_PILL_PAD, radius MD_PILL_H / 2) with the
-         * ALL DAY pill and the name tags. */
+        /* The status tag (iter-16 as NEXT; iter-18: NOW, NEXT and
+         * DONE share this one pill): a small pill after the title
+         * of a timed event today, saying where it sits against the
+         * clock. A bare dot in the gutter said nothing to anyone
+         * (round 13); the word does. Text, colour, size and
+         * position are set by render_myday, which reserves the
+         * tag's width in that row's title column. It shares the
+         * one pill geometry (MD_PILL_H, font_chip, MD_PILL_PAD,
+         * radius MD_PILL_H / 2) with the ALL DAY pill and the
+         * name tags. */
         md_next[r] = box(row);
         lv_obj_set_style_radius(md_next[r], MD_PILL_H / 2, 0);
         lv_obj_set_style_bg_opa(md_next[r], LV_OPA_COVER, 0);
@@ -1851,13 +1894,15 @@ static void build_myday_page(lv_obj_t *scr)
         lv_obj_center(md_next_lbl[r]);
         hide(md_next[r]);
         /* The name tag (iter-17): when a title names Cleo or Lila,
-         * a small neutral pill with her name follows the title, in
-         * the same pill geometry (round 14: nothing on the page
-         * said whose event was whose). Set by render_myday. */
+         * a small pill with her name follows the title, in the
+         * same pill geometry (round 14: nothing on the page said
+         * whose event was whose). Iter-18: each girl has her own
+         * soft colour (COL_TAG_CLEO, COL_TAG_LILA), set per row by
+         * render_myday; the build colour is just a placeholder. */
         md_tag[r] = box(row);
         lv_obj_set_style_radius(md_tag[r], MD_PILL_H / 2, 0);
         lv_obj_set_style_bg_opa(md_tag[r], LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_color(md_tag[r], C(COL_NAMETAG_BG), 0);
+        lv_obj_set_style_bg_color(md_tag[r], C(COL_TAG_CLEO), 0);
         md_tag_lbl[r] = label(md_tag[r], &font_chip, "");
         lv_obj_set_style_text_color(md_tag_lbl[r], C(COL_INK), 0);
         lv_obj_center(md_tag_lbl[r]);
@@ -1894,10 +1939,12 @@ static void build_myday_page(lv_obj_t *scr)
          * Iter-17: it steps to font_small, still ink at 70% (never
          * grey), which is the room the constant row pitch costs;
          * the times, stepped down in the same pass, stay a full
-         * size above it. */
+         * size above it. Iter-18 (round 15: the palest text on the
+         * page, unreadable across a room): the ink rises to 90%,
+         * size unchanged; render_myday sets the per-row value. */
         md_loc[r] = label(row, &font_small, "");
         lv_obj_set_style_text_color(md_loc[r], C(COL_INK), 0);
-        lv_obj_set_style_text_opa(md_loc[r], LV_OPA_70, 0);
+        lv_obj_set_style_text_opa(md_loc[r], LV_OPA_90, 0);
         lv_label_set_long_mode(md_loc[r], LV_LABEL_LONG_MODE_CLIP);
         lv_obj_set_pos(md_loc[r], 136, 0);   /* render_myday drops it under the title */
         hide(row);
@@ -1914,12 +1961,17 @@ static void build_myday_page(lv_obj_t *scr)
      * bar, in the clear strip under Pippa's feet. Iter-17 (round
      * 14: at font_tiny it read as a footnote and a parent could
      * not tell live data from a frozen feed at a glance): it steps
-     * up to font_small, a trust signal, not a caption. */
+     * up to font_small, a trust signal, not a caption. Iter-18
+     * (round 15: the stale form still read as a footnote, and it
+     * collided with the last row): the line now spans the page in
+     * the protected footer zone (MD_FRESH_BOTTOM) and render_myday
+     * sets its font, colour and y per state, fresh small and calm,
+     * stale a size up in the warn colour with its age spelled out. */
     md_fresh = label(page_myday, &font_small, "");
     lv_obj_set_style_text_color(md_fresh, C(COL_INK2), 0);
-    lv_obj_set_width(md_fresh, 380);
+    lv_obj_set_width(md_fresh, 744);
     lv_obj_set_style_text_align(md_fresh, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(md_fresh, 392, 391);
+    lv_obj_set_pos(md_fresh, 28, 395);
     hide(md_fresh);
 
     /* The whole-page states (no calendar link yet; a link but
@@ -2422,13 +2474,14 @@ static bool md_name_tag(const char *title, char *out, size_t n)
  * instead (the section caps still apply). colw is the page's
  * shared time-column width, title_x the title column's offset
  * within a row, title_w its width, right the list's right edge
- * (Pippa sets it), nextup the index into evs carrying the NEXT
- * tag (Today only, and only ever a timed event), sec_date the
- * muted date after the header (Tomorrow only, else NULL), and
- * now_min the UI clock in minutes for the past-event dimming
- * (Today only; -1 turns the dimming off). */
+ * (Pippa sets it), sec_date the muted date after the header
+ * (Tomorrow only, else NULL), and now_min the UI clock in
+ * minutes, which drives the status tags and the past-event
+ * dimming (Today only; -1 turns both off). Iter-18: the statuses
+ * are computed here, per row, against the clock, replacing the
+ * single nextup index render_myday used to pass down. */
 static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n, int y,
-                      int colw, int title_x, int title_w, int right, int nextup,
+                      int colw, int title_x, int title_w, int right,
                       const char *sec_date, long now_min)
 {
     show_obj(md_bar[sec]);
@@ -2454,8 +2507,8 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
     }
     hide(md_none[sec]);
     int lh = (int)lv_font_get_line_height(&font_label);
-    int next_w = text_w("NEXT", &font_chip) + MD_PILL_PAD;
     int shown = 0;
+    bool next_used = false;   /* the NEXT tag goes to one row only */
     for (int i = 0; i < n && shown < max_rows; i++) {
         const cal_event_t *ev = evs[i];
         char tbuf[40];
@@ -2464,36 +2517,53 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         } else {
             md_time_text(ev, tbuf, sizeof(tbuf));
         }
-        /* Already over (iter-17): a timed event today whose end
-         * has passed renders dimmed, so the page itself says what
-         * is done and what is still to come. The NEXT event is by
-         * construction never past, and all-day events and the
-         * whole Tomorrow section never dim. */
-        bool past = false;
+        /* Where this event sits against the clock (iter-18,
+         * round 15: the old pick could not tell "happening now"
+         * from "up next", and finished events were only faded).
+         * A timed event today whose end has passed is DONE (and
+         * dims, as iter-17 had it); one that has started and not
+         * ended is NOW; the first one that starts after the clock
+         * is NEXT. NOW and NEXT can share the screen on different
+         * rows. All-day events and the whole Tomorrow section
+         * (now_min < 0) never carry a status. */
+        int status = 0;   /* 0 none, 1 DONE, 2 NOW, 3 NEXT */
         if (now_min >= 0 && !ev->all_day) {
-            struct tm et;
+            struct tm st, et;
+            localtime_r(&ev->start, &st);
             localtime_r(&ev->end, &et);
+            long start_min = minutes_of(st.tm_year + 1900, st.tm_mon + 1, st.tm_mday, st.tm_hour, st.tm_min);
             long end_min = minutes_of(et.tm_year + 1900, et.tm_mon + 1, et.tm_mday, et.tm_hour, et.tm_min);
-            past = end_min <= now_min;
+            if (end_min <= now_min) {
+                status = 1;
+            } else if (start_min <= now_min) {
+                status = 2;
+            } else if (!next_used) {
+                status = 3;
+            }
         }
-        /* The row's tags: NEXT for the next event still to come,
-         * and a name tag when the title names one of the girls.
-         * Both reserve their width in the title column, so a title
-         * wraps ahead of its tags and they never meet. A column too
-         * narrow to share drops the name tag first (it is the
-         * decorative one), then the NEXT tag, as before. */
-        bool tagged = i == nextup;
+        bool past = status == 1;
+        /* The row's tags: the status tag, and a name tag when the
+         * title names one of the girls. Both reserve their width
+         * in the title column, so a title wraps ahead of its tags
+         * and they never meet. A column too narrow to share drops
+         * the name tag first (it is the decorative one), then the
+         * status tag, as before. */
+        const char *status_word = status == 1 ? "DONE" : status == 2 ? "NOW" : "NEXT";
+        int status_w = status ? text_w(status_word, &font_chip) + MD_PILL_PAD : 0;
         char namebuf[8];
         bool named = md_name_tag(ev->summary, namebuf, sizeof(namebuf));
         int name_w = named ? text_w(namebuf, &font_chip) + MD_PILL_PAD : 0;
-        int row_title_w = title_w - (tagged ? next_w + 10 : 0) - (named ? name_w + 10 : 0);
+        int row_title_w = title_w - (status ? status_w + 10 : 0) - (named ? name_w + 10 : 0);
         if (named && row_title_w < 60) {
             named = false;
-            row_title_w = title_w - (tagged ? next_w + 10 : 0);
+            row_title_w = title_w - (status ? status_w + 10 : 0);
         }
-        if (tagged && row_title_w < 60) {
-            tagged = false;
-            row_title_w = title_w;
+        if (status && row_title_w < 60) {
+            status = 0;
+            row_title_w = title_w - (named ? name_w + 10 : 0);
+        }
+        if (status == 3) {
+            next_used = true;   /* claimed only once the tag survives */
         }
         lv_point_t sz;
         lv_text_get_size(&sz, ev->summary, &font_label, 0, 0, row_title_w, LV_TEXT_FLAG_NONE);
@@ -2504,12 +2574,12 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         if (lines > 2) {
             lines = 2;
         }
-        if (lines == 1 && (tagged || named)) {
+        if (lines == 1 && (status || named)) {
             /* The tags fit beside a one-line title without
              * narrowing it: keep the line whole instead of
              * wrapping the title just to make room. */
             int flw = md_first_line_w(ev->summary, title_w);
-            if (flw + (tagged ? next_w + 10 : 0) + (named ? name_w + 10 : 0) <= title_w) {
+            if (flw + (status ? status_w + 10 : 0) + (named ? name_w + 10 : 0) <= title_w) {
                 row_title_w = title_w;
             }
         }
@@ -2521,7 +2591,7 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         if (h < MD_PILL_H) {
             h = MD_PILL_H;
         }
-        if (y + h > 416 && shown > 0) {
+        if (y + h > MD_LIST_BOTTOM && shown > 0) {
             break;   /* out of page: the rest folds into "+N more" */
         }
         int r = slot0 + shown;
@@ -2537,22 +2607,35 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
             lv_obj_set_style_text_opa(md_time[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
             show_obj(md_time[r]);
         }
-        /* The tags sit right after the title's first line, NEXT
-         * first when a row somehow carries both, each clamped to
-         * the title column's end for a first line that fills it. */
+        /* The tags sit right after the title's first line, the
+         * status tag first when a row carries both, each clamped
+         * to the title column's end for a first line that fills
+         * it. NOW and NEXT wear the status pink with white text;
+         * DONE wears the muted grey with ink text, and dims with
+         * its row like everything else on a finished event. */
         int tag_x = title_x + md_first_line_w(ev->summary, row_title_w) + 10;
-        if (tagged) {
+        if (status) {
             int tx = tag_x;
-            if (tx + next_w > title_x + title_w) {
-                tx = title_x + title_w - next_w;
+            if (tx + status_w > title_x + title_w) {
+                tx = title_x + title_w - status_w;
             }
-            lv_obj_set_size(md_next[r], next_w, MD_PILL_H);
+            lv_label_set_text(md_next_lbl[r], status_word);
+            lv_obj_set_style_bg_color(md_next[r], C(status == 1 ? COL_MD_DONE_BG : COL_ACCENT), 0);
+            lv_obj_set_style_text_color(md_next_lbl[r], status == 1 ? C(COL_INK) : lv_color_white(), 0);
+            lv_obj_set_style_bg_opa(md_next[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
+            lv_obj_set_style_text_opa(md_next_lbl[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
+            lv_obj_set_size(md_next[r], status_w, MD_PILL_H);
             lv_obj_center(md_next_lbl[r]);
             lv_obj_set_pos(md_next[r], tx, 0);
             show_obj(md_next[r]);
-            tag_x = tx + next_w + 10;
+            tag_x = tx + status_w + 10;
 #ifdef WB_SIM
-            snprintf(s_md_nextup, sizeof(s_md_nextup), "%s", ev->summary);
+            if (status == 3) {
+                snprintf(s_md_nextup, sizeof(s_md_nextup), "%s", ev->summary);
+            }
+            if (status == 2 && !s_md_nowup[0]) {
+                snprintf(s_md_nowup, sizeof(s_md_nowup), "%s", ev->summary);
+            }
 #endif
         } else {
             hide(md_next[r]);
@@ -2563,6 +2646,7 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
                 tx = title_x + title_w - name_w;
             }
             lv_label_set_text(md_tag_lbl[r], namebuf);
+            lv_obj_set_style_bg_color(md_tag[r], C(strcmp(namebuf, "CLEO") == 0 ? COL_TAG_CLEO : COL_TAG_LILA), 0);
             lv_obj_set_size(md_tag[r], name_w, MD_PILL_H);
             lv_obj_center(md_tag_lbl[r]);
             lv_obj_set_style_bg_opa(md_tag[r], past ? LV_OPA_50 : LV_OPA_COVER, 0);
@@ -2572,6 +2656,8 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
 #ifdef WB_SIM
             snprintf(s_md_nametag, sizeof(s_md_nametag), "%s", namebuf);
             snprintf(s_md_nametag_row, sizeof(s_md_nametag_row), "%s", ev->summary);
+            size_t tl = strlen(s_md_nametags);
+            snprintf(s_md_nametags + tl, sizeof(s_md_nametags) - tl, "%s%s:%.63s", tl ? ";" : "", namebuf, ev->summary);
 #endif
         } else {
             hide(md_tag[r]);
@@ -2583,20 +2669,37 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         if (ev->location[0]) {
             lv_label_set_text(md_loc[r], ev->location);
             lv_obj_set_width(md_loc[r], row_title_w);
-            lv_obj_set_style_text_opa(md_loc[r], past ? LV_OPA_40 : LV_OPA_70, 0);
-            lv_obj_set_pos(md_loc[r], title_x, lines * MD_TITLE_STEP - 2);
+            lv_obj_set_style_text_opa(md_loc[r], past ? LV_OPA_40 : LV_OPA_90, 0);
+            lv_obj_set_pos(md_loc[r], title_x, (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF);
             show_obj(md_loc[r]);
         } else {
             hide(md_loc[r]);
         }
         lv_obj_set_pos(md_row[r], 28, y);
-        lv_obj_set_size(md_row[r], right - 28, h);
+        /* The row's BOX is taller than its block when the row has
+         * a place line: the label is 25 px at MD_LOC_OFF, which
+         * reaches past a tightened block, and LVGL clips children
+         * to the row — in iter-18's first cut that silently ate
+         * the place line's lower half (iter-17's block left it
+         * 1 px of room). The pitch math above still advances by
+         * the block h; the box is transparent and nothing hit-tests
+         * it, so the extra height only un-clips the place text. */
+        int box_h = h;
+        if (ev->location[0]) {
+            int loc_bottom = (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF + 25;
+            if (loc_bottom > box_h) {
+                box_h = loc_bottom;
+            }
+        }
+        lv_obj_set_size(md_row[r], right - 28, box_h);
         show_obj(md_row[r]);
 #ifdef WB_SIM
         snprintf(s_md_rows[r], sizeof(s_md_rows[r]), "%.39s|%.63s|%.63s", tbuf, ev->summary, ev->location);
         if (past) {
             size_t dl = strlen(s_md_dimmed);
             snprintf(s_md_dimmed + dl, sizeof(s_md_dimmed) - dl, "%s%s", dl ? ";" : "", ev->summary);
+            size_t dn = strlen(s_md_done);
+            snprintf(s_md_done + dn, sizeof(s_md_done) - dn, "%s%.63s", dn ? ";" : "", ev->summary);
         }
 #endif
         shown++;
@@ -2632,6 +2735,9 @@ static void render_myday(const struct tm *now)
 #ifdef WB_SIM
     s_md_n[0] = s_md_n[1] = 0;
     s_md_nextup[0] = 0;
+    s_md_nowup[0] = 0;
+    s_md_done[0] = 0;
+    s_md_nametags[0] = 0;
     s_md_fresh[0] = 0;
     s_md_nametag[0] = 0;
     s_md_nametag_row[0] = 0;
@@ -2679,41 +2785,61 @@ static void render_myday(const struct tm *now)
     }
 
     /* The freshness line (iter-15): a dead feed must not look like
-     * live data (round 12). Fresh reads "Updated 7:02 AM"; over six
-     * hours old, or a failed fetch after a success, it takes the
-     * outfit pages' stale wording and warn colour ("Calendar from
-     * 7:02 AM"); configured but never fetched it says so plainly.
-     * Unconfigured has no line at all: nothing was ever promised.
-     * Iter-16: the stamp names its day when the fetch was not
-     * today (round 13: yesterday's 7:02 AM could pass for this
-     * morning's) — the weekday inside the last week ("Updated Mon
-     * 7:02 AM"), the full date beyond it ("Updated Oct 20, 7:02
-     * AM"). The stale form follows the same rule. */
-    if (!s_cal_configured) {
+     * live data (round 12). Iter-16: the stamp names its day when
+     * the fetch was not today (round 13: yesterday's 7:02 AM could
+     * pass for this morning's) — the weekday inside the last week
+     * ("Updated Mon 7:02 AM"), the full date beyond it ("Updated
+     * Oct 20, 7:02 AM"). Iter-18 (round 15: fresh and stale
+     * differed by one word and a tint on the smallest text on the
+     * page, and the stale form collided with the last row): the
+     * two states are now unmistakable opposites. Fresh stays the
+     * small calm line, "Updated 7:02 AM". Stale steps up to
+     * font_body in the warn colour and says its age ("Calendar is
+     * 8 hours old · from 7:02 AM"), so the contrast is the
+     * system. The line is bottom-anchored in the protected footer
+     * zone (MD_FRESH_BOTTOM) and the list may never enter it
+     * (MD_LIST_BOTTOM). Configured but never fetched has no line
+     * at all: the message state carries it, and a footer that
+     * repeated the headline helped nobody (round 15). Unconfigured
+     * has no line either: nothing was ever promised. */
+    if (!s_cal_configured || !s_cal_fetched) {
         hide(md_fresh);
-    } else if (!s_cal_fetched) {
-        lv_label_set_text(md_fresh, "Calendar has not loaded yet");
-        lv_obj_set_style_text_color(md_fresh, C(COL_INK2), 0);
-        show_obj(md_fresh);
-#ifdef WB_SIM
-        snprintf(s_md_fresh, sizeof(s_md_fresh), "Calendar has not loaded yet");
-#endif
     } else {
-        char tbuf[24], fbuf[64];
+        char tbuf[24], when[40], fbuf[96];
         fmt_time12(s_cal_fetch_h, s_cal_fetch_mi, tbuf, sizeof(tbuf));
         bool stale = s_cal_fetch_failed || (s_real_clock && now_min - s_cal_fetch_min > 360);
         long age = today - s_cal_fetch_day;
         if (age <= 0) {
-            snprintf(fbuf, sizeof(fbuf), "%s %s", stale ? "Calendar from" : "Updated", tbuf);
+            snprintf(when, sizeof(when), "%s", tbuf);
         } else if (age < 7) {
-            snprintf(fbuf, sizeof(fbuf), "%s %s %s", stale ? "Calendar from" : "Updated",
-                     wx_wday_name(s_cal_fetch_wday, true), tbuf);
+            snprintf(when, sizeof(when), "%s %s", wx_wday_name(s_cal_fetch_wday, true), tbuf);
         } else {
-            snprintf(fbuf, sizeof(fbuf), "%s %s %d, %s", stale ? "Calendar from" : "Updated",
-                     wx_month_name(s_cal_fetch_mon, true), s_cal_fetch_mday, tbuf);
+            snprintf(when, sizeof(when), "%s %d, %s", wx_month_name(s_cal_fetch_mon, true),
+                     s_cal_fetch_mday, tbuf);
         }
+        const lv_font_t *ffont;
+        if (!stale) {
+            snprintf(fbuf, sizeof(fbuf), "Updated %s", when);
+            ffont = &font_small;
+        } else {
+            long mins = now_min - s_cal_fetch_min;
+            if (mins < 0) {
+                mins = 0;
+            }
+            long hrs = mins / 60;
+            if (hrs < 1) {
+                snprintf(fbuf, sizeof(fbuf), "Calendar is under 1 hour old " MDOT " from %s", when);
+            } else if (hrs == 1) {
+                snprintf(fbuf, sizeof(fbuf), "Calendar is 1 hour old " MDOT " from %s", when);
+            } else {
+                snprintf(fbuf, sizeof(fbuf), "Calendar is %ld hours old " MDOT " from %s", hrs, when);
+            }
+            ffont = &font_body;
+        }
+        lv_obj_set_style_text_font(md_fresh, ffont, 0);
         lv_label_set_text(md_fresh, fbuf);
         lv_obj_set_style_text_color(md_fresh, C(stale ? COL_WARN_TX : COL_INK2), 0);
+        lv_obj_set_pos(md_fresh, 28, MD_FRESH_BOTTOM - (int)lv_font_get_line_height(ffont));
         show_obj(md_fresh);
 #ifdef WB_SIM
         snprintf(s_md_fresh, sizeof(s_md_fresh), "%s", fbuf);
@@ -2745,7 +2871,11 @@ static void render_myday(const struct tm *now)
              * setup portal, where the calendar link field lives,
              * opens from Settings' "Change WiFi or town". */
             lv_label_set_text(md_msg2, "Grown-ups: it is in Settings, under Change WiFi or town.");
-            lv_label_set_text(md_msg3, "Paste the calendar's iCal link from Google Calendar.");
+            /* Iter-18 (round 15): name the link exactly, the
+             * secret iCal link in that calendar's own Google
+             * Calendar settings, one step further than iter-17's
+             * wording, which left a parent hunting for it. */
+            lv_label_set_text(md_msg3, "Paste the calendar's secret iCal link from its Google Calendar settings.");
             third = true;
 #ifdef WB_SIM
             snprintf(s_md_state, sizeof(s_md_state), "unconfigured");
@@ -2753,6 +2883,12 @@ static void render_myday(const struct tm *now)
         } else if (!s_cal_fetched) {
             lv_label_set_text(md_msg, "My Day has not loaded yet.");
             lv_label_set_text(md_msg2, "It will fill in by itself when the calendar loads.");
+            /* Iter-18 (round 15): what to do if it never fills in,
+             * in the stepped-down third line, like the unconfigured
+             * state's grown-up detail. This state has no freshness
+             * footer any more, so the body copy carries it all. */
+            lv_label_set_text(md_msg3, "If it stays like this, ask a grown-up to check the link in Settings.");
+            third = true;
 #ifdef WB_SIM
             snprintf(s_md_state, sizeof(s_md_state), "never");
 #endif
@@ -2792,7 +2928,9 @@ static void render_myday(const struct tm *now)
          * group hugged the top and the bottom half of the screen
          * was void) centres it vertically too: the cat on the
          * content area's middle, the words centred on the same
-         * line, stacked with small gaps. */
+         * line, stacked with small gaps. Iter-18: the centre moves
+         * to MD_MSG_CY 248, the middle of the full content canvas
+         * with the tab bar accounted for, a touch lower. */
         int bx = (UI_W - (bw + 28 + tw)) / 2;
         lv_obj_set_pos(md_pippa, bx, MD_MSG_CY - (int)spr->header.h / 2);
         show_obj(md_pippa);
@@ -2860,32 +2998,19 @@ static void render_myday(const struct tm *now)
     int title_x = 14 + colw + 10;
     int title_w = right - 28 - title_x;
 
-    /* Next up (iter-15, tagged in iter-16): the first of today's
-     * TIMED events whose end is still ahead of the clock — the one
-     * a kid needs to get ready for. All-day events never carry the
-     * tag (round 13: the dot sat on the all-day row all day and
-     * said nothing); one timed event carries it, or none do. */
-    int nextup = -1;
-    for (int i = 0; i < ntod; i++) {
-        if (tod[i]->all_day) {
-            continue;
-        }
-        struct tm et;
-        localtime_r(&tod[i]->end, &et);
-        long end_min = minutes_of(et.tm_year + 1900, et.tm_mon + 1, et.tm_mday, et.tm_hour, et.tm_min);
-        if (end_min > now_min) {
-            nextup = i;
-            break;
-        }
-    }
+    /* The rows' statuses (DONE, NOW, NEXT) are computed inside
+     * md_section against now_min (iter-18); through iter-17 this
+     * spot picked the single NEXT index and passed it down, which
+     * is exactly the pick that could not tell an event in
+     * progress from the one after it (round 15). */
 
-    int y = md_section(0, 0, MD_TODAY_MAX, tod, ntod, 50, colw, title_x, title_w, right, nextup,
+    int y = md_section(0, 0, MD_TODAY_MAX, tod, ntod, 42, colw, title_x, title_w, right,
                        NULL, now_min);
-    /* The gap before Tomorrow is a section break, clearly larger
-     * than the gap between rows (iter-15; iter-17 keeps it at
-     * MD_GAP + MD_SEC_EXTRA against the 4 px row gap). */
+    /* The gap before Tomorrow is a section break, larger than
+     * the gap between rows (iter-15): MD_GAP + MD_SEC_EXTRA,
+     * 5 px against the 3 px row gap since iter-18. */
     md_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, y + MD_SEC_EXTRA, colw, title_x, title_w,
-               right, -1, tom_date, -1);
+               right, tom_date, -1);
 }
 
 static void render(void)
@@ -3747,6 +3872,9 @@ void ui_test_dump(const char *path)
     fprintf(f, "myday_state=%s\n", s_md_state);
     fprintf(f, "myday_fresh=%s\n", s_md_fresh);
     fprintf(f, "myday_nextup=%s\n", s_md_nextup);
+    fprintf(f, "myday_nowup=%s\n", s_md_nowup);
+    fprintf(f, "myday_done=%s\n", s_md_done);
+    fprintf(f, "myday_nametags=%s\n", s_md_nametags);
     fprintf(f, "myday_nametag=%s\n", s_md_nametag);
     fprintf(f, "myday_nametag_row=%s\n", s_md_nametag_row);
     fprintf(f, "myday_dimmed=%s\n", s_md_dimmed);
