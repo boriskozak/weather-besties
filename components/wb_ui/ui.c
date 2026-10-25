@@ -18,7 +18,8 @@
 
 #define COL_BG_MORNING 0xFBF6EE
 #define COL_BG_EVENING 0xF2EFF8
-#define COL_BG_FORECAST 0xF4F8FC
+/* (iter-10: the forecast page's old third tint, a pale blue-grey
+ * 0xF4F8FC, is gone; the page follows the outfit pages' rule.) */
 #define COL_INK 0x1E2340
 #define COL_INK2 0x545A72
 #define COL_TILE 0xFFFFFF
@@ -154,17 +155,23 @@ static lv_obj_t *lbl_advice;   /* iter-09: the advice row is text only; the
 /* Stale treatment (iter-09): the prescription stage is faded back
  * (style opa in render()) plus a big kid-worded banner pill, shown
  * only when the outfit comes from the stale bucket. The exact
- * "Weather from ..." pill for grown-ups stays where it was (bottom
- * right). */
+ * "Weather from ..." pill for grown-ups is a small status toast
+ * above the tab bar (iter-10: it used to sit IN the tab row,
+ * tab-shaped and tab-sized, reading as a fourth tab). */
 static lv_obj_t *stale_banner, *lbl_stale_big;
 
 /* main: forecast page */
 static lv_obj_t *fc_col[3], *fc_name[3], *fc_date[3], *fc_img[3], *fc_hi[3], *fc_lo[3];
-static lv_obj_t *fc_rain[3], *fc_drop[3], *fc_pop[3], *fc_garment[3], *fc_glabel[3];
+static lv_obj_t *fc_rain[3], *fc_drop[3], *fc_pop[3], *fc_garment[3];
 static lv_obj_t *fc_oimg[3][4];   /* the day's full outfit as small garment
                                    * icons, a 2x2 stack beside mini Pippa
                                    * (iter-09: a forecast card must be
                                    * copyable like an outfit page) */
+static lv_obj_t *fc_olabel[3][4]; /* iter-10: each stack icon's word under
+                                   * it, so the card's outfit can be read,
+                                   * not just seen; the old single
+                                   * key-garment label under the stack is
+                                   * gone (it wrapped: "Light / jacket") */
 static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) */
 
 /* main: bottom bar */
@@ -190,11 +197,15 @@ static struct {
     int wx_icon;        /* header weather icon index actually shown */
     bool stale_banner;  /* the big stale banner pill is on screen */
     char advice[192], shown[192], wx1[48];
+    char title[64];     /* the headline the render actually set (iter-10:
+                         * the unavailable screen's headline is a state,
+                         * and only the dump can assert on it) */
 } s_dump;
 #endif
 /* Forecast stash: each card's full tile list (read by ui_test_dump). */
 static int s_fc_n[3];
 static int s_fc_tiles[3][4];
+static char s_fc_labels[3][4][16];   /* iter-10: the stack words per card */
 
 static void render(void);
 static lv_obj_t *pill_button(lv_obj_t *parent, const char *txt, bool primary, lv_event_cb_t cb, void *ud);
@@ -581,23 +592,35 @@ static void build_settings(void)
     lv_obj_remove_flag(settings, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(settings, on_settings_bg, LV_EVENT_CLICKED, NULL);
 
-    /* Content column x 80..720, the old panel's outer box. */
+    /* Iter-10 (panel round 8): the content uses the page. It used
+     * to live in the old panel's x 80..720 column, hugging the left
+     * with a dead right strip, and the Cat pills sat at fixed 186 px
+     * pitches, so their gaps varied with each pill's text width. The
+     * measure is now x 56..744 (the app's own 28 px page margin,
+     * doubled for a settings sheet), the Cat pills ride a
+     * space-between row across the measure so both gaps are equal
+     * by construction, and the info rows' values run to the same
+     * right edge. All controls and behaviours are unchanged. */
     lv_obj_t *t = label(settings, &font_title, LV_SYMBOL_SETTINGS "  Settings");
     lv_obj_set_style_text_color(t, C(COL_INK), 0);
-    lv_obj_set_pos(t, 80, 14);
+    lv_obj_set_pos(t, 56, 14);
 
     /* Cat choice (plan 3.6). */
     lv_obj_t *cat_lbl = label(settings, &font_body, "Cat");
     lv_obj_set_style_text_color(cat_lbl, C(COL_INK), 0);
-    lv_obj_set_pos(cat_lbl, 80, 72);
+    lv_obj_set_pos(cat_lbl, 56, 72);
+    lv_obj_t *cat_row = box(settings);
+    lv_obj_set_pos(cat_row, 140, 62);
+    lv_obj_set_size(cat_row, 604, 46);
+    lv_obj_set_flex_flow(cat_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(cat_row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     static const char *cat_names[3] = {"Black cat", "Pink cat", "Take turns"};
     for (int i = 0; i < 3; i++) {
-        lv_obj_t *b = lv_button_create(settings);
+        lv_obj_t *b = lv_button_create(cat_row);
         lv_obj_remove_style_all(b);
         lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_pad_hor(b, 20, 0);
         lv_obj_set_height(b, 46);
-        lv_obj_set_pos(b, 150 + i * 186, 62);
         cat_pill[i] = b;
         cat_pill_lbl[i] = label(b, &font_chip, cat_names[i]);
         lv_obj_center(cat_pill_lbl[i]);
@@ -609,21 +632,21 @@ static void build_settings(void)
      * body size, one fact per row. */
     lv_obj_t *grown = label(settings, &font_body, "For grown-ups");
     lv_obj_set_style_text_color(grown, C(COL_INK), 0);
-    lv_obj_set_pos(grown, 80, 120);
+    lv_obj_set_pos(grown, 56, 120);
     static const char *info_names[5] = {"WiFi", "Town", "Updated", "Address", "Version"};
     for (int r = 0; r < 5; r++) {
         lv_obj_t *k = label(settings, &font_body, info_names[r]);
         lv_obj_set_style_text_color(k, C(COL_INK), 0);
-        lv_obj_set_pos(k, 80, 150 + r * 34);
+        lv_obj_set_pos(k, 56, 150 + r * 34);
         set_val[r] = label(settings, &font_body, "");
         lv_obj_set_style_text_color(set_val[r], C(COL_INK2), 0);
-        lv_obj_set_pos(set_val[r], 232, 150 + r * 34);
-        lv_obj_set_width(set_val[r], 488);
+        lv_obj_set_pos(set_val[r], 240, 150 + r * 34);
+        lv_obj_set_width(set_val[r], 504);
         lv_label_set_long_mode(set_val[r], LV_LABEL_LONG_MODE_DOTS);
     }
     lv_obj_t *credit = label(settings, &font_small, "Weather data by Open-Meteo.com");
     lv_obj_set_style_text_color(credit, C(COL_INK2), 0);
-    lv_obj_set_pos(credit, 80, 328);
+    lv_obj_set_pos(credit, 56, 328);
 
     /* Speed test: ONE pill that shows its state (iter-09). The label
      * is the state text show_speed_lbl() maintains; tapping the pill
@@ -635,15 +658,15 @@ static void build_settings(void)
     lv_obj_set_style_bg_opa(set_speed_pill, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_hor(set_speed_pill, 26, 0);
     lv_obj_set_height(set_speed_pill, 48);
-    lv_obj_set_pos(set_speed_pill, 80, 362);
+    lv_obj_set_pos(set_speed_pill, 56, 362);
     set_speed_lbl = label(set_speed_pill, &font_body, "Speed test: off");
     lv_obj_set_style_text_color(set_speed_lbl, C(COL_INK), 0);
     lv_obj_center(set_speed_lbl);
     lv_obj_add_event_cb(set_speed_pill, on_speed_pill, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *row = box(settings);
-    lv_obj_set_pos(row, 80, 424);
-    lv_obj_set_size(row, 640, LV_SIZE_CONTENT);
+    lv_obj_set_pos(row, 56, 424);
+    lv_obj_set_size(row, 688, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_height(pill_button(row, "Change WiFi or town", true, on_settings_btn, (void *)1), 48);
@@ -769,22 +792,31 @@ static void init_asset_tables(void)
     GARMENT_56_PINK[DRESS_SHOES] = &img_g_dress_shoes_pink_56;
 }
 
-/* garment ids for the forecast page's key garment */
-static int layer_garment(layer_t l)
+/* Short kid words for the forecast cards' outfit stacks (iter-10):
+ * one or two syllables a new reader can sound out, one line each at
+ * the stack's cell pitch. The outfit pages keep the full garment
+ * names; these are the same garments in forecast size. */
+static const char *fc_short_label(int garment)
 {
-    switch (l) {
-    case LAYER_HOODIE: return HOODIE;
-    case LAYER_LIGHT_JACKET: return LIGHT_JACKET;
-    case LAYER_RAIN_JACKET: return RAIN_JACKET;
-    case LAYER_WARM_COAT: return WARM_COAT;
-    case LAYER_WINTER_COAT: return WINTER_COAT;
-    default: return -1;
+    switch (garment) {
+    case SHORT_SLEEVES: return "T-shirt";
+    case LONG_SLEEVES: return "Sleeves";
+    case SHORTS: return "Shorts";
+    case LONG_PANTS: return "Pants";
+    case HOODIE: return "Hoodie";
+    case LIGHT_JACKET: return "Jacket";
+    case RAIN_JACKET: return "Raincoat";
+    case WARM_COAT: return "Coat";
+    case WINTER_COAT: return "Coat";
+    case SNEAKERS: return "Shoes";
+    case RAIN_BOOTS: return "Boots";
+    case SNOW_BOOTS: return "Boots";
+    case WARM_BOOTS: return "Boots";
+    case DRESS: return "Dress";
+    case TIGHTS: return "Tights";
+    case DRESS_SHOES: return "Shoes";
+    default: return "";
     }
-}
-
-static int top_garment(top_t t)
-{
-    return t == TOP_SHORT_SLEEVES ? SHORT_SLEEVES : LONG_SLEEVES;
 }
 
 /* ------------------------------------------------------------------ swipes (kept from 1.x) */
@@ -1325,30 +1357,40 @@ static void build_tabs(lv_obj_t *scr)
         lv_obj_add_event_cb(b, on_tab, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     }
 
+    /* Status pills (iter-10, panel round 8): these two used to sit
+     * in the tab row itself, tab-shaped (full radius), tab-sized
+     * (40 px, font_small) and bottom-right aligned with the tabs, so
+     * they read as a fourth navigation tab. They are status, not
+     * navigation: smaller (28 px, font_tiny), a squarer radius the
+     * tabs never use, and render() places them OUT of the tab row:
+     * the stale/offline pill as a toast above the tab bar (on the
+     * forecast page, in the header band above the cards), the
+     * progress pill in the header zone beside the day chip. Their
+     * texts and show/hide behaviour are unchanged. */
     stale_chip = box(scr);
-    lv_obj_set_style_radius(stale_chip, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_radius(stale_chip, 10, 0);
     lv_obj_set_style_bg_opa(stale_chip, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(stale_chip, C(COL_WARN_BG), 0);
-    lv_obj_set_style_pad_hor(stale_chip, 16, 0);
-    lv_obj_set_height(stale_chip, 40);
-    lbl_stale = label(stale_chip, &font_small, "");
+    lv_obj_set_style_pad_hor(stale_chip, 14, 0);
+    lv_obj_set_height(stale_chip, 28);
+    lbl_stale = label(stale_chip, &font_tiny, "");
     lv_obj_set_style_text_color(lbl_stale, C(COL_WARN_TX), 0);
     lv_obj_center(lbl_stale);
-    lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
+    lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 392);
     hide(stale_chip);
 
-    /* "2 of 4 ready" progress pill: same slot as the stale chip, shown when
-     * the data is fresh and some (not all) tiles are checked. */
+    /* "2 of 4 ready" progress pill: header zone (render() positions
+     * it beside the day chip), shown when the data is fresh and some
+     * (not all) tiles are checked. */
     prog_chip = box(scr);
-    lv_obj_set_style_radius(prog_chip, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_radius(prog_chip, 10, 0);
     lv_obj_set_style_bg_opa(prog_chip, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(prog_chip, C(COL_OK_BG), 0);
-    lv_obj_set_style_pad_hor(prog_chip, 16, 0);
-    lv_obj_set_height(prog_chip, 40);
-    lbl_prog = label(prog_chip, &font_small, "");
+    lv_obj_set_style_pad_hor(prog_chip, 14, 0);
+    lv_obj_set_height(prog_chip, 28);
+    lbl_prog = label(prog_chip, &font_tiny, "");
     lv_obj_set_style_text_color(lbl_prog, C(COL_INK), 0);
     lv_obj_center(lbl_prog);
-    lv_obj_align(prog_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
     hide(prog_chip);
 }
 
@@ -1505,25 +1547,37 @@ static void build_forecast_page(lv_obj_t *scr)
         lv_obj_set_flex_flow(gcol, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(gcol, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_row(gcol, 2, 0);
-        /* iter-09: the day's FULL outfit as a 2x2 stack of small
-         * garment icons (top, bottom, layer, footwear, from the same
-         * engine tile list the outfit pages show), so a forecast card
-         * can be copied like an outfit page; the key garment's word
-         * stays under the stack. The icons are the 56 px garment set
-         * scaled to ~36 px glyphs in fixed cells. */
-        lv_obj_t *ogrid = box(gcol);
-        lv_obj_set_size(ogrid, 84, 84);
+        /* The day's FULL outfit as a 2x2 stack (top, bottom, layer,
+         * footwear, from the same engine tile list the outfit pages
+         * show), so a forecast card can be copied like an outfit
+         * page (iter-09). Iter-10: EVERY icon in the stack carries
+         * its word under it (a short kid label, font_tiny, one line,
+         * clipped never wrapped), because a stack of bare glyphs
+         * still could not be read aloud by a child; the single
+         * key-garment label that used to sit under the stack is gone
+         * (it wrapped to two lines for "Light jacket" while "Rain
+         * jacket" sat on one, and it named only one garment of
+         * four). Cells are 58 px pitch: icon ~30 px over its word,
+         * two rows totalling 104 px, the mini's own height class, so
+         * the row's bottom-aligned baseline survives. The widest
+         * mini (rain, 103 px) plus the 116 px stack plus the row's
+         * gaps ends at x 227 of the card's 230 px content width. */
+        lv_obj_t *stack = box(gcol);
+        lv_obj_set_size(stack, 116, 104);
         for (int k = 0; k < 4; k++) {
-            fc_oimg[i][k] = lv_image_create(ogrid);
+            int cx = (k % 2) * 58, cy = (k / 2) * 52;
+            fc_oimg[i][k] = lv_image_create(stack);
             lv_image_set_pivot(fc_oimg[i][k], 0, 0);
-            lv_image_set_scale(fc_oimg[i][k], 164);
-            lv_obj_set_pos(fc_oimg[i][k], (k % 2) * 44, (k / 2) * 44);
+            lv_image_set_scale(fc_oimg[i][k], 137);   /* 56 px art -> ~30 px glyph */
+            lv_obj_set_pos(fc_oimg[i][k], cx + 14, cy);
+            fc_olabel[i][k] = label(stack, &font_tiny, "");
+            lv_obj_set_style_text_color(fc_olabel[i][k], C(COL_INK), 0);
+            lv_obj_set_style_text_align(fc_olabel[i][k], LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_set_style_text_letter_space(fc_olabel[i][k], -1, 0);
+            lv_obj_set_width(fc_olabel[i][k], 58);
+            lv_label_set_long_mode(fc_olabel[i][k], LV_LABEL_LONG_MODE_CLIP);
+            lv_obj_set_pos(fc_olabel[i][k], cx, cy + 32);
         }
-        fc_glabel[i] = label(gcol, &font_small, "");
-        lv_obj_set_style_text_color(fc_glabel[i], C(COL_INK), 0);
-        lv_obj_set_style_text_align(fc_glabel[i], LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_width(fc_glabel[i], 112);
-        lv_label_set_long_mode(fc_glabel[i], LV_LABEL_LONG_MODE_WRAP);
     }
     hide(page_forecast);
 }
@@ -1844,7 +1898,6 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
         } else {
             hide(fc_rain[i]);
         }
-        int g = o.layer != LAYER_NONE ? layer_garment(o.layer) : top_garment(o.top);
         show_obj(fc_garment[i]);
         /* Mini Pippa in the day's look, beside the day's outfit stack.
          * The minis are separate build-time downscales (see
@@ -1853,18 +1906,15 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
          * cannot be shrunk here. Drawn unscaled, like every Pippa. */
         int var = pippa_variant_for(o.look, o.year, o.month, o.day);
         lv_image_set_src(fc_pippa[i], WB_PIPPA_MINIS[var]);
-        if (g >= 0) {
-            show_obj(fc_glabel[i]);
-            lv_label_set_text(fc_glabel[i], garment_label(g));
-        } else {
-            hide(fc_glabel[i]);
-        }
-        /* iter-09: the stack beside her carries the day's FULL
-         * prescription, the same tile list the outfit page would
-         * show for this date (top, bottom, layer when any,
-         * footwear), so the card can be copied like an outfit page.
-         * The two dress-detail garments use their pink-colourway
-         * crops on pink days, exactly as on the tiles. */
+        /* The stack beside her carries the day's FULL prescription,
+         * the same tile list the outfit page would show for this
+         * date (top, bottom, layer when any, footwear), so the card
+         * can be copied like an outfit page. Iter-10: every icon
+         * carries its short kid word under it (fc_short_label), so
+         * the whole outfit can be read off the card; there is no
+         * separate key-garment label any more. The two dress-detail
+         * garments use their pink-colourway crops on pink days,
+         * exactly as on the tiles. */
         s_fc_n[i] = o.ntiles;
         for (int k = 0; k < 4; k++) {
             if (k < o.ntiles) {
@@ -1876,9 +1926,15 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
                 }
                 lv_image_set_src(fc_oimg[i][k], ic);
                 show_obj(fc_oimg[i][k]);
+                const char *word = fc_short_label(kind);
+                snprintf(s_fc_labels[i][k], sizeof(s_fc_labels[i][k]), "%s", word);
+                lv_label_set_text(fc_olabel[i][k], word);
+                show_obj(fc_olabel[i][k]);
             } else {
                 s_fc_tiles[i][k] = -1;
+                s_fc_labels[i][k][0] = 0;
                 hide(fc_oimg[i][k]);
+                hide(fc_olabel[i][k]);
             }
         }
     }
@@ -1922,7 +1978,15 @@ static void render(void)
     s_force = false;
 
     bool evening = page == 1;
-    solid_bg(scr_main, page == 2 ? COL_BG_FORECAST : evening ? COL_BG_EVENING : COL_BG_MORNING);
+    /* Iter-10: the forecast page follows the SAME background rule as
+     * the outfit pages (cream morning / lavender evening); its old
+     * pale blue-grey was a third tint found nowhere else in the app.
+     * The split is the clock's, matching the at-rest page choice
+     * above (before 17:00 the app rests on Today, from 17:00 on
+     * Tomorrow), so the forecast page always matches the outfit page
+     * it was swiped from. */
+    solid_bg(scr_main, page == 2 ? (now.tm_hour >= 17 ? COL_BG_EVENING : COL_BG_MORNING)
+                                 : evening ? COL_BG_EVENING : COL_BG_MORNING);
     if (page < 2) {
         show_obj(page_outfit);
         hide(page_forecast);
@@ -1932,7 +1996,12 @@ static void render(void)
     }
     style_tabs();
 
-    /* Stale / offline chip (plan 4.6). */
+    /* Stale / offline status pill (plan 4.6; placement iter-10).
+     * The pill is status, not navigation, so it never sits in the
+     * tab row: on the outfit pages it floats as a small toast at the
+     * stage's bottom right, above the tab bar with clear air under
+     * the advice line; on the forecast page it takes the header band
+     * above the cards instead (the cards own the bottom there). */
     if (bucket == 1) {
         char tbuf[24], buf[64];
         fmt_time12(s_wx.hour, s_wx.minute, tbuf, sizeof(tbuf));
@@ -1942,8 +2011,8 @@ static void render(void)
             snprintf(buf, sizeof(buf), "Weather from %s", tbuf);
         }
         lv_label_set_text(lbl_stale, buf);
-        lv_obj_set_size(stale_chip, text_w(buf, &font_small) + 32, 40);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
+        lv_obj_set_size(stale_chip, text_w(buf, &font_tiny) + 28, 28);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page == 2 ? 44 : 392);
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -1956,8 +2025,8 @@ static void render(void)
         } else {
             lv_label_set_text(lbl_stale, "No weather yet");
         }
-        lv_obj_set_size(stale_chip, text_w(lv_label_get_text(lbl_stale), &font_small) + 32, 40);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, 428);
+        lv_obj_set_size(stale_chip, text_w(lv_label_get_text(lbl_stale), &font_tiny) + 28, 28);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page == 2 ? 44 : 392);
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -1966,6 +2035,7 @@ static void render(void)
     }
 
     if (page == 2) {
+        hide(prog_chip);   /* no status pill floats over the cards */
         if (s_have_wx) {
             render_forecast(&s_wx, &now);
         } else {
@@ -2029,6 +2099,12 @@ static void render(void)
     const char *title;
     if (all_done) {
         title = page == 0 ? "All dressed. Have a great day!" : "All ready for tomorrow!";
+    } else if (!avail) {
+        /* Iter-10 (panel round 8): when no outfit can be offered the
+         * headline carries the state, on both pages. "Let's get
+         * dressed!" over a screen that refuses to dress anyone was
+         * the biggest text on the unavailable screen and it lied. */
+        title = "No weather yet";
     } else if (page == 0) {
         title = now.tm_hour < 12 ? "Let's get dressed!" : "What to wear today";
     } else {
@@ -2255,16 +2331,21 @@ static void render(void)
              * icons' scale (iter-07, panel round 5): the heart
              * sunglasses are 2:1 in a square canvas, so at the standard
              * chip scale the glyph was a ~24x12 px smudge. At 200 the
-             * glyph is ~41x21, nudged up so it centres in the chip, and
+             * glyph was ~41x21, nudged up so it centres in the chip, and
              * the label (and chip) widen to make room for it. Since
              * iter-08 the icon itself is Pippa's own heart sunglasses
              * masked out of her hot sprite (tools/crop_garment_sheet.py),
-             * not the sheet's thin-framed drawing. */
+             * not the sheet's thin-framed drawing. Iter-10 zoom check:
+             * at 200 the glyph's pixel profile in the chip zone still
+             * measured only 44 frame-pink + 43 lens-purple px, marginal
+             * against the panel's "reads as a smudge" complaint, so the
+             * presentation grows again: scale 248 (~51x26 glyph), the
+             * label shifted right and the chip widened to match. */
             bool wide = s_xgar[j] == SUNGLASSES;
-            lv_image_set_scale(xchip_icon[j], wide ? 200 : 118);
-            lv_obj_set_pos(xchip_icon[j], 7, wide ? -2 : 4);
-            lv_obj_set_pos(xchip_label[j], wide ? 52 : 40, 5);
-            int w = text_w(txt, &font_small) + 75 + (wide ? 12 : 0);
+            lv_image_set_scale(xchip_icon[j], wide ? 248 : 118);
+            lv_obj_set_pos(xchip_icon[j], wide ? 5 : 7, wide ? -5 : 4);
+            lv_obj_set_pos(xchip_label[j], wide ? 62 : 40, 5);
+            int w = text_w(txt, &font_small) + 75 + (wide ? 24 : 0);
             lv_obj_set_size(xchip[j], w, 34);
             lv_obj_set_pos(xchip[j], xx, X_STRIP_Y);
             lv_obj_set_pos(xchip_check[j], w - 29, 6);
@@ -2325,7 +2406,12 @@ static void render(void)
             char pbuf[32];
             snprintf(pbuf, sizeof(pbuf), "%d of %d ready", checked_n, o.ntiles + s_xn);
             lv_label_set_text(lbl_prog, pbuf);
-            lv_obj_set_size(prog_chip, text_w(pbuf, &font_small) + 32, 40);
+            lv_obj_set_size(prog_chip, text_w(pbuf, &font_tiny) + 28, 28);
+            /* Iter-10: the header zone, right of the day chip (whose
+             * width this render just set), clear of the weather
+             * block on the right and the tile grid below. */
+            lv_obj_set_align(prog_chip, LV_ALIGN_TOP_LEFT);
+            lv_obj_set_pos(prog_chip, 28 + lv_obj_get_width(chip) + 12, 74);
             lv_obj_set_width(lbl_prog, LV_SIZE_CONTENT);
             lv_obj_center(lbl_prog);
             show_obj(prog_chip);
@@ -2386,6 +2472,7 @@ static void render(void)
     snprintf(s_dump.advice, sizeof(s_dump.advice), "%s", avail ? o.advice : "");
     snprintf(s_dump.shown, sizeof(s_dump.shown), "%s", avail ? lv_label_get_text(lbl_advice) : "");
     snprintf(s_dump.wx1, sizeof(s_dump.wx1), "%s", lv_label_get_text(lbl_wx1));
+    snprintf(s_dump.title, sizeof(s_dump.title), "%s", lv_label_get_text(lbl_title));
 #endif
 }
 
@@ -2544,10 +2631,16 @@ void ui_test_dump(const char *path)
     }
     fprintf(f, "\nadvice=%s\nadvice_shown=%s\nwx1=%s\nwx_icon=%d\nstale_banner=%d\n",
             s_dump.advice, s_dump.shown, s_dump.wx1, s_dump.wx_icon, s_dump.stale_banner ? 1 : 0);
+    fprintf(f, "title=%s\n", s_dump.title);
     for (int i = 0; i < 3; i++) {
         fprintf(f, "fc%d_tiles=", i);
         for (int k = 0; k < s_fc_n[i]; k++) {
             fprintf(f, "%s%s", k ? "|" : "", garment_label(s_fc_tiles[i][k]));
+        }
+        fprintf(f, "\n");
+        fprintf(f, "fc%d_labels=", i);
+        for (int k = 0; k < s_fc_n[i]; k++) {
+            fprintf(f, "%s%s", k ? "|" : "", s_fc_labels[i][k]);
         }
         fprintf(f, "\n");
     }

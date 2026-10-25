@@ -10,9 +10,13 @@ advice_shown=Rain later in the morning. Keep your rain jacket handy. Don't forge
 wx1=High 55°
 wx_icon=7
 stale_banner=0
+title=Ready for tomorrow?
 fc0_tiles=
+fc0_labels=
 fc1_tiles=
+fc1_labels=
 fc2_tiles=
+fc2_labels=
 info_begin
 WiFi: HomeWiFi
 Town: Upper Montclair, New Jersey

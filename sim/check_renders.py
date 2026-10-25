@@ -298,7 +298,13 @@ def main():
     # BOTH halves of that glyph: the bright-pink heart frames AND the
     # dark saturated-purple lens fill (the sheet icon's lenses were
     # empty, so purple there is what proves the new source). Measured
-    # on the iter-08 render: 44 frame px + 43 lens px.
+    # on the iter-08 render: 44 frame px + 43 lens px. Iter-10 zoom
+    # check: at the iter-08/09 presentation (scale 200) the profile
+    # still measured only that same 44 + 43, marginal against the
+    # "smudge" complaint, so the presentation grew to scale 248
+    # (~51x26 glyph, label shifted, chip widened): the same zone now
+    # measures 53 frame px + 70 lens px, and both halves must stay
+    # clearly above the old profile.
     def is_frame_pink(r, g, b):
         return r > 200 and 90 < g < 170 and b > 140
 
@@ -307,8 +313,8 @@ def main():
 
     fpink = count_where(img, (284, 322, 340, 356), is_frame_pink)
     flens = count_where(img, (284, 322, 340, 356), is_lens_purple)
-    check(fpink > 30, f"29_hot: sunglasses chip has Pippa's pink heart frames ({fpink} px, need > 30)")
-    check(flens > 25, f"29_hot: sunglasses chip has the filled purple lenses ({flens} px, need > 25)")
+    check(fpink > 48, f"29_hot: sunglasses chip has Pippa's pink heart frames ({fpink} px, need > 48; was 44)")
+    check(flens > 60, f"29_hot: sunglasses chip has the filled purple lenses ({flens} px, need > 60; was 43)")
 
     # Pink colourway: scenario 32 resolves the Settings choice to
     # pink, so the stage must show Pippa's pink fur and golden eyes.
@@ -638,6 +644,23 @@ def main():
                           lambda r, g, b: not is_card_white(r, g, b))
         check(ink > 1000, f"24_next_days card {i + 1}: full-outfit stack ink beside mini Pippa ({ink} px, need > 1000)")
 
+    # Forecast ground (iter-10): the page's pale blue-grey third
+    # tint is gone; the forecast page follows the outfit pages'
+    # background rule. This set renders at 08:05 (morning), so the
+    # ground is the morning cream, pixel-equal to the outfit page's
+    # own corner in the same bucket; the stale set's forecast page
+    # (25b, 13:12, also morning) matches its outfit page (25) too.
+    img = Image.open(os.path.join(OUT, "24_next_days.png")).convert("RGB")
+    img20 = Image.open(os.path.join(OUT, "20_morning.png")).convert("RGB")
+    c24, c20 = img.getpixel((4, 4)), img20.getpixel((4, 4))
+    check(all(abs(c24[k] - (251, 246, 238)[k]) <= 14 for k in range(3)),
+          f"24_next_days: forecast ground is the morning cream {c24} (need ~ (251,246,238))")
+    check(c24 == c20, f"24_next_days: forecast ground equals the outfit page's ground ({c24} vs {c20})")
+    img25 = Image.open(os.path.join(OUT, "25_stale.png")).convert("RGB")
+    img25b = Image.open(os.path.join(OUT, "25b_stale_next_days.png")).convert("RGB")
+    check(img25b.getpixel((4, 4)) == img25.getpixel((4, 4)),
+          f"25b_stale_next_days: stale forecast ground equals its outfit page's ({img25b.getpixel((4, 4))} vs {img25.getpixel((4, 4))})")
+
     # Settings bands (iter-07; geometry iter-09): the speed test
     # pill and the bottom button row must not overlap. The button
     # row's ink fill (24,32,65) forms rows at least 200 px wide in
@@ -666,6 +689,83 @@ def main():
             gap = button_top - max(light_rows) - 1
             check(gap >= 3, f"33_settings: speed pill and button row do not overlap ({gap} clear px, need >= 3)")
 
+    # Settings measure (iter-10): the content spans the page (the
+    # old layout hugged the left ~70% and left a dead right column).
+    # Non-cream ink/fill must start at the left measure (x <= 60;
+    # measured 56, the title's gear) and reach the right measure
+    # (x >= 740; measured 743, the Close button's right edge). The
+    # tolerance is looser than the corner check's because the light
+    # pill fill (238,241,247) sits only 27 from the cream.
+    def is_non_cream(r, g, b):
+        return abs(r - 251) + abs(g - 246) + abs(b - 238) > 20
+
+    img33 = img
+    occ_cols = [x for x in range(800) for y in range(480) if is_non_cream(*img33.getpixel((x, y)))]
+    check(min(occ_cols) <= 60, f"33_settings: content starts at the left measure (min ink x {min(occ_cols)}, need <= 60)")
+    check(max(occ_cols) >= 740, f"33_settings: content reaches the right measure (max ink x {max(occ_cols)}, need >= 740)")
+
+    # Cat pill gaps (iter-10): the three pills ride a space-between
+    # row, so the two gaps are equal by construction. At the pills'
+    # mid-row (y 85) the fill colours are the pill light (238,241,
+    # 247) and the ink of the selected pill (30,35,64); each pill's
+    # own label text breaks its fill into runs, so runs are
+    # clustered (breaks up to 24 px belong to the same pill; the
+    # inter-pill gaps measure ~87).
+    def is_pill_fill(r, g, b):
+        return (abs(r - 238) <= 10 and abs(g - 241) <= 10 and abs(b - 247) <= 10) or \
+               (abs(r - 30) <= 12 and abs(g - 35) <= 12 and abs(b - 64) <= 14)
+
+    fill_xs = [x for x in range(140, 745) if is_pill_fill(*img33.getpixel((x, 85)))]
+    clusters = []
+    for x in fill_xs:
+        if clusters and x - clusters[-1][1] <= 24:
+            clusters[-1][1] = x
+        else:
+            clusters.append([x, x])
+    check(len(clusters) == 3, f"33_settings: three Cat pills found in their row ({clusters})")
+    if len(clusters) == 3:
+        gap1 = clusters[1][0] - clusters[0][1] - 1
+        gap2 = clusters[2][0] - clusters[1][1] - 1
+        check(abs(gap1 - gap2) <= 2, f"33_settings: Cat pill gaps are equal ({gap1} px and {gap2} px, need within 2)")
+        check(clusters[0][0] <= 145 and clusters[2][1] >= 738,
+              f"33_settings: Cat pill row spans the measure ({clusters[0][0]}..{clusters[2][1]}, need ~140..744)")
+
+    # Status pills out of the tab bar (iter-10): the stale/offline
+    # pill (COL_WARN_BG) and the progress pill (COL_OK_BG) are
+    # status, not tabs: neither fill may appear in the tab row zone
+    # (y 424..480) on their screens, and each pill must be findable
+    # in its new home: the stale pill as a toast above the tab bar
+    # (25, 26) or in the forecast header band (25b), the progress
+    # pill in the header band right of the day chip (22). A pill is
+    # ~3000+ fill px; stray anti-aliasing is tens, so the tab-zone
+    # bound is < 100, not 0 (the evening ground shows through the
+    # transparent tabs and sits near COL_OK_BG at loose tolerance;
+    # the tight +-8 predicate below is what keeps it out).
+    def is_ok_bg_tight(r, g, b):
+        return abs(r - 232) <= 8 and abs(g - 246) <= 8 and abs(b - 238) <= 8
+
+    img = Image.open(os.path.join(OUT, "25_stale.png"))
+    n = count_where(img, (0, 424, 800, 480), is_warn_bg)
+    check(n < 100, f"25_stale: no status pill fill in the tab row ({n} px, need < 100)")
+    n = count_where(img, (500, 388, 772, 424), is_warn_bg)
+    check(n > 3000, f"25_stale: 'Weather from' pill is a toast above the tab bar ({n} px, need > 3000)")
+    img = Image.open(os.path.join(OUT, "26_unavailable.png"))
+    n = count_where(img, (0, 424, 800, 480), is_warn_bg)
+    check(n < 100, f"26_unavailable: no status pill fill in the tab row ({n} px, need < 100)")
+    n = count_where(img, (500, 388, 772, 424), is_warn_bg)
+    check(n > 3000, f"26_unavailable: 'Offline since' pill is a toast above the tab bar ({n} px, need > 3000)")
+    img = Image.open(os.path.join(OUT, "25b_stale_next_days.png"))
+    n = count_where(img, (500, 40, 772, 76), is_warn_bg)
+    check(n > 3000, f"25b_stale_next_days: stale pill sits in the forecast header band ({n} px, need > 3000)")
+    img = Image.open(os.path.join(OUT, "22_evening_2_checked.png"))
+    n = count_where(img, (270, 60, 486, 108), is_ok_bg_tight)
+    check(n > 2000, f"22_evening_2_checked: progress pill sits in the header beside the day chip ({n} px, need > 2000)")
+    n = count_where(img, (0, 424, 800, 480), is_ok_bg_tight)
+    check(n < 100, f"22_evening_2_checked: no progress pill fill in the tab row ({n} px, need < 100)")
+    img = Image.open(os.path.join(OUT, "21_evening.png"))
+    n = count_where(img, (270, 60, 486, 108), is_ok_bg_tight)
+    check(n < 100, f"21_evening: no progress pill before anything is checked ({n} px, need < 100)")
+
     # ------------------------------------------------------------ text
     # dumps (iter-08). The sim writes <name>.txt beside each PNG
     # (ui_test_dump): the outfit state the render actually produced.
@@ -693,7 +793,8 @@ def main():
         with open(path) as f:
             return _json.load(f)["current"]["temperature_2m"]
 
-    DUMPED = ("20_morning", "21_evening", "25_stale", "26_unavailable", "27_rollover",
+    DUMPED = ("20_morning", "21_evening", "22_evening_2_checked", "25_stale", "26_unavailable",
+              "26b_unavailable_tomorrow", "27_rollover",
               "28_snow", "29_hot", "30_storm", "31_halloween", "32_pink_cat",
               "34_long_text", "35_hanukkah", "36_bike_bus", "37_dress_day", "38_warm_day")
     dumps = {n: dump(n) for n in DUMPED}
@@ -806,6 +907,100 @@ def main():
     for k in ("fc0_tiles", "fc1_tiles", "fc2_tiles"):
         check(len([t for t in fc[k].split("|") if t]) >= 3,
               f"24_next_days {k}: at least a top, a bottom/layer and footwear ({fc[k]})")
+
+    # Forecast stack words (iter-10): every stack icon carries its
+    # short kid word (fc*_labels in the dump, set from the same tile
+    # list), one word per icon, so the card's outfit can be read
+    # aloud whole; the old single key-garment label (which wrapped:
+    # "Light / jacket" on two lines against "Rain jacket" on one)
+    # is gone, replaced by a word under every icon. The words are
+    # asserted as words here and as pixels (present, one line,
+    # inside the card) in the block after next.
+    check(fc["fc0_labels"] == "Sleeves|Pants|Raincoat|Boots",
+          f"24_next_days card 1: rain outfit's words ({fc['fc0_labels']})")
+    for k in ("fc1_labels", "fc2_labels"):
+        check(fc[k] == "Dress|Jacket|Tights|Shoes",
+              f"24_next_days {k}: dress outfit's words, the layer named like every garment ({fc[k]})")
+    for k in ("fc0_labels", "fc1_labels", "fc2_labels"):
+        words = [w for w in fc[k].split("|") if w]
+        check(len(words) == len([t for t in fc[k.replace('labels', 'tiles')].split("|") if t])
+              and all(" " not in w for w in words),
+              f"24_next_days {k}: one single-line word per icon ({fc[k]})")
+    img = Image.open(os.path.join(OUT, "24_next_days.png")).convert("RGB")
+    MINI_W = {"Raincoat": 103, "Dress": 63, "Coat": 69, "Hoodie": 71}
+    for i in range(3):
+        labels = [t for t in fc[f"fc{i}_labels"].split("|") if t]
+        key = next((k for k in MINI_W if k in labels), None)
+        stack_x = 28 + i * 252 + 13 + MINI_W.get(key, 70)
+        cardx = 28 + i * 252
+        for k, word in enumerate(labels):
+            bx = stack_x + (k % 2) * 58
+            by = 307 + (k // 2) * 52 + 32
+            w_ink = count_where(img, (bx + 3, by, bx + 55, by + 20), is_label_ink)
+            check(w_ink > 100, f"24_next_days card {i + 1} cell {k + 1}: word '{word}' renders under its icon ({w_ink} ink px, need > 100)")
+            rows = [y for y in range(by, by + 20)
+                    if count_where(img, (bx + 3, y, bx + 55, y + 1), is_label_ink) > 0]
+            extent = (max(rows) - min(rows) + 1) if rows else 0
+            check(0 < extent <= 18, f"24_next_days card {i + 1} cell {k + 1}: word '{word}' sits on one line ({extent} ink rows, need 1..18)")
+        ink_cols = [x for x in range(cardx, cardx + 236) for y in range(307, 412)
+                    if is_label_ink(*img.getpixel((x, y)))]
+        check(ink_cols and max(ink_cols) <= cardx + 232,
+              f"24_next_days card {i + 1}: stack ink stays inside the card (rightmost {max(ink_cols) if ink_cols else -1}, limit {cardx + 232})")
+
+    # Hot storm drops the sunglasses chip (iter-10): the checklist
+    # must not demand the one item the day's own safety sentence
+    # ("Storms later. Stay inside if it thunders.") contradicts.
+    # The water bottle stays chipped and named; the sunglasses stay
+    # on her face in the picture (the stage assertions above) but
+    # leave the chip list and the sentence. The plain hot day is
+    # unchanged: both chips, both named.
+    d30 = dumps["30_storm"]
+    check(d30["chips"] == "Water bottle",
+          f"30_storm: hot storm chips are the water bottle alone (chips={d30['chips']})")
+    check("sunglasses" not in d30["advice"].lower() and "sunglasses" not in d30["advice_shown"].lower(),
+          f"30_storm: the sentence does not name the unchipped sunglasses ({d30['advice']})")
+    check(dumps["29_hot"]["chips"] == "Sunglasses|Water bottle",
+          f"29_hot: plain hot day keeps both chips (chips={dumps['29_hot']['chips']})")
+
+    # Winter kit afternoon story (iter-10): a kit day with a real
+    # warm-up (Halloween: near-freezing departure, much warmer
+    # afternoon) gains the coat-off clause and the "Bring" verb,
+    # through the same warm-up sentence the other layers use; the
+    # kit stays the prescription whole. Days whose own sentence
+    # owns the story keep it: the bike-bus Friday, the snow day,
+    # the still-cold evening. The dress day (not a kit) is
+    # untouched by the kit rule.
+    d31 = dumps["31_halloween"]
+    check("warm after lunch" in d31["advice"] and "winter coat off later" in d31["advice"],
+          f"31_halloween: kit day gains the afternoon clause ({d31['advice']})")
+    check(d31["advice"].startswith("Wear long sleeves. Bring your winter coat."),
+          f"31_halloween: warm-up verb is Bring for the coat ({d31['advice']})")
+    check("warm after lunch" in d31["advice_shown"],
+          f"31_halloween: the shown sentence carries the clause too ({d31['advice_shown']})")
+    check("warm after lunch" not in dumps["36_bike_bus"]["advice"] and "Bike bus today" in dumps["36_bike_bus"]["advice"],
+          f"36_bike_bus: the bike-bus sentence still owns its day ({dumps['36_bike_bus']['advice']})")
+    check("warm after lunch" not in dumps["28_snow"]["advice"],
+          f"28_snow: the snow sentence still owns its day ({dumps['28_snow']['advice']})")
+    check("warm after lunch" not in dumps["35_hanukkah"]["advice"],
+          f"35_hanukkah: a kit evening with no warm-up gets no clause ({dumps['35_hanukkah']['advice']})")
+    check("warm after lunch" not in dumps["37_dress_day"]["advice"],
+          f"37_dress_day: the kit rule does not leak onto dress days ({dumps['37_dress_day']['advice']})")
+    check("warm after lunch" in dumps["34_long_text"]["advice"],
+          f"34_long_text: the general 15F warm-up clause still fires ({dumps['34_long_text']['advice']})")
+
+    # Unavailable headline (iter-10): when no outfit is offered the
+    # headline carries the state, on the Today AND Tomorrow
+    # variants; fresh and stale screens keep their headlines.
+    check(dumps["26_unavailable"]["title"] == "No weather yet",
+          f"26_unavailable: headline is the state (title={dumps['26_unavailable']['title']})")
+    check(dumps["26b_unavailable_tomorrow"]["title"] == "No weather yet",
+          f"26b_unavailable_tomorrow: headline is the state on Tomorrow too (title={dumps['26b_unavailable_tomorrow']['title']})")
+    check(dumps["20_morning"]["title"] == "Let's get dressed!",
+          f"20_morning: fresh headline unchanged (title={dumps['20_morning']['title']})")
+    check(dumps["25_stale"]["title"] == "What to wear today",
+          f"25_stale: stale headline unchanged (title={dumps['25_stale']['title']})")
+    check(dumps["21_evening"]["title"] == "Ready for tomorrow?",
+          f"21_evening: tomorrow headline unchanged (title={dumps['21_evening']['title']})")
 
     # Settings info rows (iter-08 fix 4a; rows iter-09 fix 7): five
     # label/value lines, none of them a lone orphan word (the old

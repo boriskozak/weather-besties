@@ -308,6 +308,9 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      *   RAIN: long sleeves, long pants, rain jacket, rain boots,
      *         umbrella in hand. Storms use rain logic end to end.
      *   HOT:  short sleeves, shorts, sneakers, sunglasses, water bottle.
+     *         (Hot STORM days chip the water bottle only: the
+     *         sunglasses stay on her face in the picture but come off
+     *         the checklist; see the hot-storms note below.)
      *   FALL: the engine's top/bottom/feet (sneakers), the layer said as
      *         a hoodie (the fall sprite wears a hoodie, not a light
      *         jacket), and the light scarf she wears as the only extra.
@@ -366,6 +369,22 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      *     and a rain jacket would be the unsafe prescription; the
      *     hot sprite holds no umbrella, so none is chipped. Cool and
      *     warm storms keep full rain logic.
+     *
+     * Iter-10 (panel round 8): a hot storm day drops the SUNGLASSES
+     * chip. The checklist used to require the sunglasses on the very
+     * screen whose advice says "Storms later. Stay inside if it
+     * thunders.": a child laying out by the list was told to fetch
+     * the one item the day's own safety message makes pointless (the
+     * storm plan is indoors, in the dark of a storm, not out in the
+     * sun the glasses are for). So the hot+storm canonical extras are
+     * the water bottle alone. She still WEARS the sunglasses in the
+     * picture, as part of the hot sprite, exactly like other
+     * pictured-but-not-chipped details; the checklist simply must not
+     * demand an item the same screen's safety sentence contradicts.
+     * The plain hot day is unchanged: sun is its story, and both
+     * chips stay. The sentence-names-every-chip pass below reads the
+     * same extras, so on a storm day it requires the water bottle to
+     * be named and does not ask for the sunglasses.
      */
     int look;
     if (out->feet == FEET_SNOW_BOOTS || out->layer == LAYER_WINTER_COAT) {
@@ -415,7 +434,11 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         out->bottom = BOTTOM_SHORTS;
         out->layer = LAYER_NONE;
         out->feet = FEET_SNEAKERS;
-        extras = EX_SUNGLASSES | EX_WATER;   /* both are on the sprite */
+        /* Both are on the sprite, but on a storm day only the water
+         * bottle is chipped (iter-10, see the hot-storms note above):
+         * the checklist must not demand the sunglasses the day's own
+         * "stay inside" sentence contradicts. */
+        extras = (change & CH_STORM) ? EX_WATER : (EX_SUNGLASSES | EX_WATER);
         break;
     case LOOK_FALL:
         out->layer = LAYER_HOODIE;   /* the fall sprite wears a hoodie */
@@ -479,6 +502,22 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      * clutter, so the advice row is text only now.) */
 
     /* ---- 4.5 advice sentences (no numbers) ---- */
+    /* Iter-10 (panel round 8): the winter kit earns the afternoon
+     * story at a lower swing than the general warm-up rule. CH_WARMUP
+     * asks for 15F, tuned for ordinary layers; the kit is the
+     * heaviest outfit she owns, so on a kit day a 10F+ rise (the
+     * Halloween pattern: near-freezing departure, much warmer
+     * afternoon) already makes "take your winter coat off later" the
+     * day's second beat, and kit days used to be the only warm-up
+     * days with no take-it-off-later guidance at all. The kit stays
+     * the departure prescription whole; only the words gain the
+     * clause, through the same warm-up sentence the dress days use
+     * (and sentence A's verb flips to "Bring", like any warm-up).
+     * Storm, snow and bike-bus days are excluded: their own sentence
+     * B already owns the day's story and must keep winning. */
+    bool kit_warmup = look == LOOK_SNOW && (f_max - f_dep) >= 10.0f &&
+                      !(change & (CH_STORM | CH_SNOW | CH_BIKE_BUS));
+    bool warmup_words = (change & CH_WARMUP) || kit_warmup;
     char a[64], b[80];   /* longest A is 43 chars, longest B is 70, both fit advice_short */
     b[0] = 0;
     if (look == LOOK_DRESS) {
@@ -488,7 +527,7 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     } else if (out->layer == LAYER_NONE) {
         snprintf(a, sizeof(a), "Wear %s and %s.", top_phrase(out->top), bottom_phrase(out->bottom));
     } else {
-        snprintf(a, sizeof(a), "Wear %s. %s %s.", top_phrase(out->top), (change & CH_WARMUP) ? "Bring" : "Wear",
+        snprintf(a, sizeof(a), "Wear %s. %s %s.", top_phrase(out->top), warmup_words ? "Bring" : "Wear",
                  layer_phrase(out->layer));
     }
     if (change & CH_STORM) {
@@ -504,7 +543,7 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         } else {
             snprintf(b, sizeof(b), "Rain later %s. Keep your rain jacket handy.", tomorrow ? "in the morning" : "this morning");
         }
-    } else if (change & CH_WARMUP) {
+    } else if (warmup_words) {
         snprintf(b, sizeof(b), "%s %s, warm after lunch. Take your %s off later.", f_dep <= 45 ? "Cold" : "Cool",
                  tomorrow ? "in the morning" : "this morning", layer_noun(out->layer));
     } else if (change & CH_COOLDOWN) {

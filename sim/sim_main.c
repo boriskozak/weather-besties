@@ -191,6 +191,7 @@ int main(int argc, char **argv)
                               * umbrella extra is a checkable chip too) */
     pump(10);
     save(out, "22_evening_2_checked");
+    dump(out, "22_evening_2_checked");   /* iter-10: the progress pill's screen */
 
     ui_test_set_checks(0x1F); /* everything laid out: 4 tiles + the
                                * umbrella chip (bit 4). All-done must not
@@ -236,10 +237,27 @@ int main(int argc, char **argv)
     save(out, "25_stale");
     dump(out, "25_stale");
 
+    /* iter-10: the same stale data on the forecast page: the status
+     * pill's header-band placement there, and the forecast ground
+     * following the outfit pages' tint rule. */
+    ui_test_set_page(2);
+    pump(10);
+    save(out, "25b_stale_next_days");
+    dump(out, "25b_stale_next_days");
+    ui_test_set_page(0);
+
     load(sc, "too_old");
     show();
     save(out, "26_unavailable");
     dump(out, "26_unavailable");
+
+    /* iter-10: the unavailable state's Tomorrow variant: the
+     * headline must carry the state on this page too. */
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "26b_unavailable_tomorrow");
+    dump(out, "26b_unavailable_tomorrow");
+    ui_test_set_page(0);
 
     load(sc, "rollover");
     show();

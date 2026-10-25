@@ -10,9 +10,13 @@ advice_shown=Cold this morning, warm after lunch. Take your winter coat off late
 wx1=33° now
 wx_icon=0
 stale_banner=0
+title=Let's get dressed!
 fc0_tiles=
+fc0_labels=
 fc1_tiles=
+fc1_labels=
 fc2_tiles=
+fc2_labels=
 info_begin
 WiFi: HomeWiFi
 Town: Upper Montclair, New Jersey

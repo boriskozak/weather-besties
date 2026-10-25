@@ -10,9 +10,13 @@ advice_shown=
 wx1=--
 wx_icon=-1
 stale_banner=0
+title=No weather yet
 fc0_tiles=Long sleeves|Long pants|Rain jacket|Rain boots
+fc0_labels=Sleeves|Pants|Raincoat|Boots
 fc1_tiles=Dress|Light jacket|Tights|Dress shoes
+fc1_labels=Dress|Jacket|Tights|Shoes
 fc2_tiles=Dress|Light jacket|Tights|Dress shoes
+fc2_labels=Dress|Jacket|Tights|Shoes
 info_begin
 WiFi: HomeWiFi
 Town: Upper Montclair, New Jersey

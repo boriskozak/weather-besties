@@ -5,14 +5,18 @@ look_name=snow
 ntiles=4
 tiles=Long sleeves|Long pants|Winter coat|Warm boots
 chips=Warm hat|Gloves
-advice=Wear long sleeves. Wear your winter coat. Don't forget your warm hat and gloves.
-advice_shown=Wear long sleeves. Wear your winter coat. Don't forget your warm hat and gloves.
+advice=Wear long sleeves. Bring your winter coat. Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
+advice_shown=Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
 wx1=40° now
 wx_icon=2
 stale_banner=0
+title=Let's get dressed!
 fc0_tiles=Long sleeves|Long pants|Rain jacket|Rain boots
+fc0_labels=Sleeves|Pants|Raincoat|Boots
 fc1_tiles=Dress|Light jacket|Tights|Dress shoes
+fc1_labels=Dress|Jacket|Tights|Shoes
 fc2_tiles=Dress|Light jacket|Tights|Dress shoes
+fc2_labels=Dress|Jacket|Tights|Shoes
 info_begin
 WiFi: HomeWiFi
 Town: Upper Montclair, New Jersey
