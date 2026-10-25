@@ -9,6 +9,13 @@ asserts, on the actual PNGs, that the cat is visibly present on the outfit
 pages, that the garment tiles carry icon pixels, and that scenarios which
 must differ do differ.
 
+Since iter-08 it also reads the sim's per-scenario text dumps
+(<name>.txt, written by ui_test_dump): words are asserted as words
+(the tier a scenario landed in, the tiles and chips it prescribed,
+whether the advice sentence names every chip, the stale header's
+wording, the Settings info lines), because pixels alone cannot prove
+a sentence kept its promise.
+
 Usage: python3 check_renders.py [outdir]   (default: out)
 Exit code 0 = all assertions passed.
 """
@@ -138,15 +145,18 @@ def main():
     # these.
     #
     # Snow family: the snow day and the genuinely cold dry days
-    # (halloween, hanukkah, bike bus) wear the puffer sprite: green
-    # striped shirt under the coat, golden eyes, no denim (her pants
-    # there are dark navy, outside the denim range). Since iter-07
-    # the coat-off-later warm-up days (the brief morning, the long
-    # text day) are NOT in this family any more: they wear the dress
-    # (next block), and days in this family name their boots "Warm
-    # boots" unless snow is forecast (boots-naming block below).
-    for name in ("28_snow.png", "31_halloween.png",
-                 "35_hanukkah.png", "36_bike_bus.png"):
+    # (halloween, hanukkah: departure feels-like in the low 30s or
+    # below) wear the puffer sprite: green striped shirt under the
+    # coat, golden eyes, no denim (her pants there are dark navy,
+    # outside the denim range). Since iter-07 the coat-off-later
+    # warm-up days (the brief morning, the long text day) are NOT in
+    # this family any more: they wear the dress (next block), and
+    # days in this family name their boots "Warm boots" unless snow
+    # is forecast (boots-naming block below). Since iter-08 the bike
+    # bus is not in this family either: at a 44F "now" (39F at the
+    # bus stop) it is a warm-coat day, and its gloves live in the
+    # advice sentence, not in the winter kit (tier block below).
+    for name in ("28_snow.png", "31_halloween.png", "35_hanukkah.png"):
         img = Image.open(os.path.join(OUT, name))
         green = count_where(img, STAGE, is_snow_green)
         eyes = count_where(img, EYE_BOX, is_eye_yellow)
@@ -163,14 +173,16 @@ def main():
     fur = count_where(img, HEAD_BOX, is_pink_fur)
     check(fur < 600, f"20_morning: black fur on the head, not the pink colourway ({fur} px, need < 600)")
 
-    # Dress family (iter-06, widened iter-07): a warm-coat day with no
-    # hat/gloves need wears the dress, and so do warm-coat days whose
-    # hat/gloves need comes with a big warm-up and no snow (the brief
-    # morning and the long-text day: cold at the bus stop, 60s by
-    # lunch, so the dress + warm coat is the honest outfit and the
-    # winter kit stays home). Pink garment, golden eyes, no denim
-    # (tights, not jeans).
-    for name in ("20_morning.png", "34_long_text.png", "37_dress_day.png"):
+    # Dress family (iter-06, widened iter-07 and iter-08): a warm-coat
+    # day with no hat/gloves need wears the dress, and so do warm-coat
+    # days whose hat/gloves need comes with a big warm-up and no snow
+    # (the brief morning and the long-text day: cold at the bus stop,
+    # 60s by lunch, so the dress + warm coat is the honest outfit and
+    # the winter kit stays home). Since iter-08 the bike-bus Friday
+    # (44F now, warm-coat band at departure) is here too: the full
+    # winter kit is reserved for departure feels-like <= 38F or real
+    # snow/ice. Pink garment, golden eyes, no denim (tights, not jeans).
+    for name in ("20_morning.png", "34_long_text.png", "37_dress_day.png", "36_bike_bus.png"):
         img = Image.open(os.path.join(OUT, name))
         pink = count_where(img, STAGE, is_garment_pink)
         eyes = count_where(img, EYE_BOX, is_eye_yellow)
@@ -252,16 +264,24 @@ def main():
     check(stage_sha("29_hot.png") != stage_sha("20_morning.png"),
           "stage crops differ: hot variant is not the dress variant")
 
-    # Sunglasses chip icon (iter-07): the chip in the strip must read
-    # as sunglasses, not a dark smudge. The wide-aspect icon is fitted
-    # by height now, so its pink frames actually land in the chip's
-    # icon zone (284,322)-(340,356): frame pink there (the iter-06
-    # square-fit rendering left 18 px; the fitted one leaves ~60).
+    # Sunglasses chip icon (iter-08, third attempt): the icon is now
+    # Pippa's own heart sunglasses masked out of her hot sprite, not
+    # the sheet's thin-framed drawing (which read as a smudge in two
+    # rounds). The chip's icon zone (284,322)-(340,356) must carry
+    # BOTH halves of that glyph: the bright-pink heart frames AND the
+    # dark saturated-purple lens fill (the sheet icon's lenses were
+    # empty, so purple there is what proves the new source). Measured
+    # on the iter-08 render: 44 frame px + 43 lens px.
     def is_frame_pink(r, g, b):
         return r > 200 and 90 < g < 170 and b > 140
 
+    def is_lens_purple(r, g, b):
+        return 55 < r < 150 and 55 < b < 160 and max(r, b) - g > 30
+
     fpink = count_where(img, (284, 322, 340, 356), is_frame_pink)
-    check(fpink > 30, f"29_hot: sunglasses chip icon reads (frame pink {fpink} px, need > 30)")
+    flens = count_where(img, (284, 322, 340, 356), is_lens_purple)
+    check(fpink > 30, f"29_hot: sunglasses chip has Pippa's pink heart frames ({fpink} px, need > 30)")
+    check(flens > 25, f"29_hot: sunglasses chip has the filled purple lenses ({flens} px, need > 25)")
 
     # Pink colourway: scenario 32 resolves the Settings choice to
     # pink, so the stage must show Pippa's pink fur and golden eyes.
@@ -431,12 +451,12 @@ def main():
         return inside, outside
 
     TILE_CELLS = [(284, 104), (534, 104), (284, 216), (534, 216)]
-    BADGED = {"20_morning.png": 2, "21_evening.png": 4, "22_evening_2_checked.png": 4,
-              "23_evening_all_done.png": 4, "23b_morning_all_done_heart.png": 2,
+    BADGED = {"20_morning.png": 4, "21_evening.png": 4, "22_evening_2_checked.png": 4,
+              "23_evening_all_done.png": 4, "23b_morning_all_done_heart.png": 4,
               "25_stale.png": 4, "27_rollover.png": 4, "28_snow.png": 4,
               "29_hot.png": 3, "30_storm.png": 3, "31_halloween.png": 4,
-              "32_pink_cat.png": 2, "34_long_text.png": 2, "35_hanukkah.png": 4,
-              "36_bike_bus.png": 4, "37_dress_day.png": 2, "38_warm_day.png": 4}
+              "32_pink_cat.png": 4, "34_long_text.png": 4, "35_hanukkah.png": 4,
+              "36_bike_bus.png": 4, "37_dress_day.png": 4, "38_warm_day.png": 4}
     for name, ntiles in BADGED.items():
         img = Image.open(os.path.join(OUT, name))
         for i in range(ntiles):
@@ -451,12 +471,18 @@ def main():
                   f"{name} tile {i + 1}: badge lives on the icon "
                   f"({inside} disc px at home, {outside} outside, need >= 20 and < 60)")
 
-    # Settings (iter-06): the sheet sits in the app system now. The
-    # backdrop dim is warm (red >= blue), not the old debug navy, and
-    # the panel itself is the morning cream.
+    # Settings (iter-08): a full opaque page in the app palette, not
+    # a dimmed overlay. Both a top corner and the bottom-right corner
+    # OUTSIDE the panel (panel spans x 80..720, y 12..468) must be
+    # the morning cream itself: the iter-06/07 translucent charcoal
+    # dim (58,50,42 at 150/255 over the pink page) fails this, and so
+    # would any return of a see-through backdrop. The panel pixel
+    # check stays as the panel's own identity.
     img = Image.open(os.path.join(OUT, "33_settings.png")).convert("RGB")
-    bd = img.getpixel((10, 10))
-    check(bd[0] >= bd[2], f"33_settings: backdrop dim is warm {bd} (need R >= B)")
+    for px_at in ((10, 10), (790, 470)):
+        bd = img.getpixel(px_at)
+        check(all(abs(bd[k] - (251, 246, 238)[k]) <= 14 for k in range(3)),
+              f"33_settings: page ground at {px_at} is opaque morning cream {bd} (need ~ (251,246,238))")
     pn = img.getpixel((100, 30))
     check(all(abs(pn[k] - (251, 246, 238)[k]) <= 14 for k in range(3)),
           f"33_settings: panel is morning cream {pn} (need ~ (251,246,238))")
@@ -477,11 +503,13 @@ def main():
     # Boots naming (iter-07): the winter boots tile (tile 4, bottom-
     # right cell; its label sits in the crop (648,242)-(768,294)) is
     # "Snow boots" only when snow is forecast. 28_snow has real snow;
-    # 31/35/36 are dry cold days and must all carry the SAME other
-    # label ("Warm boots"): their label ink patterns are identical to
-    # each other and different from the snow day's. (Ink only: the
-    # morning/evening tile border colours differ, so the crop keeps
-    # to the label's text rows and the ink predicate ignores borders.)
+    # 31/35 are dry cold days and must all carry the SAME other label
+    # ("Warm boots"): their label ink patterns are identical to each
+    # other and different from the snow day's. (36_bike_bus left this
+    # family in iter-08: its fourth tile is Dress shoes now, asserted
+    # in the dump block below.) (Ink only: the morning/evening tile
+    # border colours differ, so the crop keeps to the label's text
+    # rows and the ink predicate ignores borders.)
     def is_label_ink(r, g, b):
         return r < 95 and g < 105 and b < 130
 
@@ -497,8 +525,8 @@ def main():
           f"boots labels render (snow {len(snow_ink)} ink px, warm {len(warm_ink)}, need > 200)")
     check(snow_ink != warm_ink,
           "boots tile label differs: snow day says Snow boots, dry day says Warm boots")
-    check(label_ink("35_hanukkah.png") == warm_ink and label_ink("36_bike_bus.png") == warm_ink,
-          "dry cold days (35_hanukkah, 36_bike_bus) share the Warm boots label")
+    check(label_ink("35_hanukkah.png") == warm_ink,
+          "dry cold days (31_halloween, 35_hanukkah) share the Warm boots label")
 
     # Prop restraint (iter-07): the seasonal ground prop belongs to
     # the outfit pages only. Pumpkin orange (saturated, b < 70 so the
@@ -518,21 +546,32 @@ def main():
         n = count_where(img, (190, 260, 280, 380), is_pumpkin)
         check(n < 40, f"{name}: no seasonal prop off the outfit pages ({n} px, need < 40)")
 
-    # Next days (iter-07): every forecast card carries a mini Pippa
-    # in that day's look, at the left of the garment row. Her dark
-    # fur fills the left of the card's bottom band (nothing else dark
-    # sits there: the garment icon starts further right), and her
-    # golden eyes land somewhere in the band.
+    # Next days (iter-07, enlarged iter-08): every forecast card
+    # carries a mini Pippa in that day's look at the left of the
+    # garment zone. At ~104 px tall (was ~50) she is the card's star,
+    # not a logo: her dark fur fills the mini zone (the garment column
+    # starts further right), her golden eyes land in it, and her
+    # silhouette spans at least 85 rows there (the iter-07 minis
+    # spanned ~45 and would fail this). The extent band stops above
+    # the card's bottom border and below the rain row.
     def is_dark_fur(r, g, b):
         return r < 70 and g < 70 and b < 90
+
+    def is_card_white(r, g, b):
+        return r > 245 and g > 245 and b > 245
 
     img = Image.open(os.path.join(OUT, "24_next_days.png"))
     for i in range(3):
         cx = 28 + i * 252
-        fur = count_where(img, (cx + 6, 348, cx + 96, 420), is_dark_fur)
-        eyes = count_where(img, (cx, 348, cx + 236, 420), is_eye_yellow)
-        check(fur > 150, f"24_next_days card {i + 1}: mini Pippa's dark fur in the garment row ({fur} px, need > 150)")
-        check(eyes > 5, f"24_next_days card {i + 1}: mini Pippa's golden eyes in the garment row ({eyes} px, need > 5)")
+        fur = count_where(img, (cx + 4, 306, cx + 112, 414), is_dark_fur)
+        eyes = count_where(img, (cx + 4, 306, cx + 112, 414), is_eye_yellow)
+        check(fur > 800, f"24_next_days card {i + 1}: big mini Pippa's dark fur in the garment zone ({fur} px, need > 800)")
+        check(eyes > 20, f"24_next_days card {i + 1}: big mini Pippa's golden eyes in the garment zone ({eyes} px, need > 20)")
+        rows = [y for y in range(306, 414)
+                if count_where(img, (cx + 4, y, cx + 112, y + 1),
+                                lambda r, g, b: not is_card_white(r, g, b)) > 8]
+        extent = (max(rows) - min(rows) + 1) if rows else 0
+        check(extent >= 85, f"24_next_days card {i + 1}: mini Pippa spans {extent} rows (need >= 85; the 50 px minis spanned ~45)")
 
     # Settings bands (iter-07): the Speed test pill and the bottom
     # button row must not overlap. Geometry read off this render: the
@@ -561,6 +600,129 @@ def main():
         if light_rows:
             gap = button_top - max(light_rows) - 1
             check(gap >= 3, f"33_settings: speed pill and button row do not overlap ({gap} clear px, need >= 3)")
+
+    # ------------------------------------------------------------ text
+    # dumps (iter-08). The sim writes <name>.txt beside each PNG
+    # (ui_test_dump): the outfit state the render actually produced.
+    # Words are checked as words here, tiers as tiers.
+    import json as _json
+
+    def dump(name):
+        d = {"info_lines": []}
+        in_info = False
+        with open(os.path.join(OUT, name + ".txt")) as f:
+            for line in f.read().splitlines():
+                if line == "info_begin":
+                    in_info = True
+                elif line == "info_end":
+                    in_info = False
+                elif in_info:
+                    d["info_lines"].append(line)
+                elif "=" in line:
+                    k, v = line.split("=", 1)
+                    d[k] = v
+        return d
+
+    def scenario_now_temp(fname):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scenarios", fname)
+        with open(path) as f:
+            return _json.load(f)["current"]["temperature_2m"]
+
+    DUMPED = ("20_morning", "21_evening", "25_stale", "26_unavailable", "27_rollover",
+              "28_snow", "29_hot", "30_storm", "31_halloween", "32_pink_cat",
+              "34_long_text", "35_hanukkah", "36_bike_bus", "37_dress_day", "38_warm_day")
+    dumps = {n: dump(n) for n in DUMPED}
+
+    # Tier boundary (iter-08 fix 1): the full winter kit is reserved
+    # for departure feels-like <= ~38F or actual snow/ice; the 39-46F
+    # band is the warm-coat tier. The round-6 cliff, pinned as data:
+    # the bike-bus scenario's "now" is 44F, the same as the dress
+    # morning's, and the two must land in the SAME tier. The snow day
+    # (27F, real snow) keeps the kit, and halloween keeps it too:
+    # its "now" is 40F but its departure feels-like is 30F, which is
+    # what the tier keys on (documented in outfit.c).
+    check(scenario_now_temp("bike_bus_cold_friday.json") == 44.0
+          and scenario_now_temp("dress_morning.json") == 44.0,
+          "tier fixtures: bike-bus and dress mornings share the same 44F now")
+    d36 = dumps["36_bike_bus"]
+    check(d36["look_name"] != "snow" and "Winter coat" not in d36["tiles"],
+          f"36_bike_bus: 44F day is NOT the winter kit (look={d36['look_name']}, tiles={d36['tiles']})")
+    check("Warm coat" in d36["tiles"] and d36["chips"] == "",
+          f"36_bike_bus: warm-coat tier, gloves reminder in the sentence only, no chip "
+          f"(tiles={d36['tiles']}, chips={d36['chips']})")
+    check("gloves" not in d36["advice"].lower() or "Dress warm" in d36["advice"],
+          f"36_bike_bus: sentence carries the bike-bus reminder ({d36['advice']})")
+    check(dumps["28_snow"]["look_name"] == "snow",
+          f"28_snow: the snow day IS the winter kit (look={dumps['28_snow']['look_name']})")
+    check(dumps["31_halloween"]["look_name"] == "snow",
+          f"31_halloween: 30F departure feels-like IS the winter kit (look={dumps['31_halloween']['look_name']})")
+    check(dumps["37_dress_day"]["look_name"] == "dress",
+          f"37_dress_day: the 44F dress morning is the warm-coat tier (look={dumps['37_dress_day']['look_name']})")
+
+    # The sentence names every chip (iter-08 fix 2): for every dumped
+    # scenario, each chip's word must appear in BOTH the full advice
+    # and the sentence actually shown (the UI may swap to the short
+    # fallback; the promise has to hold for what is on screen).
+    CHIP_WORD = {"Warm hat": "hat", "Gloves": "glove", "Scarf": "scarf", "Umbrella": "umbrella",
+                 "Sunglasses": "sunglasses", "Water bottle": "water bottle"}
+    for name, d in dumps.items():
+        chips = [c for c in d["chips"].split("|") if c]
+        for chip in chips:
+            word = CHIP_WORD[chip]
+            check(word in d["advice"].lower(),
+                  f"{name}: advice names the {chip} chip ({d['advice']})")
+            check(word in d["advice_shown"].lower(),
+                  f"{name}: shown sentence names the {chip} chip ({d['advice_shown']})")
+
+    # Dress days itemise fully (iter-08 fix 3): exactly four tiles,
+    # the dress, its layer, the tights and the dress shoes she wears.
+    for name in ("20_morning", "32_pink_cat", "34_long_text", "36_bike_bus", "37_dress_day"):
+        check(dumps[name]["tiles"] == "Dress|Warm coat|Tights|Dress shoes",
+              f"{name}: dress look has 4 tiles incl. Tights and Dress shoes ({dumps[name]['tiles']})")
+
+    # Stale header honesty (iter-08 fix 8): stale data (bucket 1)
+    # must not say "now"; fresh data still may; the unavailable
+    # screen keeps its "--".
+    check(dumps["25_stale"]["bucket"] == "1" and "now" not in dumps["25_stale"]["wx1"],
+          f"25_stale: stale header shows the temperature plainly ({dumps['25_stale']['wx1']})")
+    check("now" in dumps["20_morning"]["wx1"],
+          f"20_morning: fresh header still says now ({dumps['20_morning']['wx1']})")
+    check(dumps["26_unavailable"]["wx1"] == "--",
+          f"26_unavailable: header unchanged ({dumps['26_unavailable']['wx1']})")
+
+    # Settings info card (iter-08 fix 4a): five lines, none of them a
+    # lone orphan word (the old layout wrapped "AM" onto line 6 by
+    # itself), and the time stays whole on the Updated line.
+    info = dump("33_settings")["info_lines"]
+    check(len(info) == 5, f"33_settings: info card has 5 lines ({len(info)}: {info})")
+    check(all(len(line.split()) > 1 for line in info),
+          f"33_settings: no orphan single-word line in the info card ({info})")
+    check(any("Updated" in line and "7:30 AM" in line for line in info),
+          f"33_settings: 'Updated 7:30 AM' stays on one line ({info})")
+
+    # Advice glyph in frame (iter-08 fix 5): the decorative glyph at
+    # the advice row (48 px canvas at (28,358)) must sit INSIDE its
+    # canvas: no ink in the canvas's outer 3 columns on either side
+    # (at the old 1.10 render zoom the art was clipped by the canvas
+    # and bled to both edges). And no outfit screen puts anything in
+    # the screen's outermost 4 columns at all.
+    for name, d in dumps.items():
+        if int(d["extra_icon"]) < 0:
+            continue
+        img = Image.open(os.path.join(OUT, name + ".png"))
+        bg = (242, 239, 248) if name == "21_evening" else (251, 246, 238)
+        edge = 0
+        for box in ((28, 356, 31, 412), (73, 356, 76, 412)):
+            edge += count_where(img, box,
+                                lambda r, g, b: abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2]) > 40)
+        check(edge == 0, f"{name}: advice glyph sits inside its canvas ({edge} edge px, need 0)")
+    for name in ("20_morning", "28_snow", "36_bike_bus", "37_dress_day"):
+        img = Image.open(os.path.join(OUT, name + ".png"))
+        n = 0
+        for box in ((0, 0, 4, 480), (796, 0, 800, 480)):
+            n += count_where(img, box,
+                             lambda r, g, b: abs(r - 251) + abs(g - 246) + abs(b - 238) > 24)
+        check(n == 0, f"{name}: nothing drawn in the outermost 4 screen columns ({n} px, need 0)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

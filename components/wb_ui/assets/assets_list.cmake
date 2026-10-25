@@ -64,6 +64,14 @@ set(WB_ASSET_SRCS
     assets/img_g_scarf_56.c
     assets/img_g_dress_96.c
     assets/img_g_dress_56.c
+    assets/img_g_tights_96.c
+    assets/img_g_tights_56.c
+    assets/img_g_dress_shoes_96.c
+    assets/img_g_dress_shoes_56.c
+    assets/img_g_tights_pink_96.c
+    assets/img_g_tights_pink_56.c
+    assets/img_g_dress_shoes_pink_96.c
+    assets/img_g_dress_shoes_pink_56.c
     assets/img_x_bolt.c
     assets/img_x_umbrella.c
     assets/img_x_hat_gloves.c

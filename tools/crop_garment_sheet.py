@@ -21,6 +21,19 @@ small pad. tools/make_assets.py picks these up and produces the usual
 img_g_<key>_96 / _56 LVGL images from them. Rerun this script only when
 the sheet itself changes.
 
+Iter-08 additions, cropped from the Pippa sprites themselves (same
+package, sprites/<colourway>/), because the sheet has no icons for
+them and one sheet icon failed twice:
+  tights / dress_shoes (+ _pink variants): the dress sprite's legs and
+    Mary Janes, so a dress day's lay-out tiles show the actual garments
+    she wears. The two colourways are pixel-registered, so one window
+    pair serves both.
+  sunglasses: REPLACED. The sheet's sunglasses read as a smudge at
+    chip size in two panel rounds; the new source is Pippa's own heart
+    sunglasses, masked out of the hot sprite's face (bright-pink frames
+    plus the saturated-purple lenses; the fur is near-neutral and the
+    whisker/nose fragments fall to the component-size filter).
+
 Run:  python3 tools/crop_garment_sheet.py   (needs pillow, numpy, scipy)
 """
 import json
@@ -116,7 +129,63 @@ def main():
               f"at ({bb[0]}, {bb[1]}), {len(pids)} part(s), {int(mine.sum())} opaque px")
         if key:
             crop.save(os.path.join(OUT, key + ".png"))
+    sprite_detail_crops()
     print(f"garment icons -> {OUT}")
+
+
+# ------------------------------------------------------------ iter-08:
+# garment details cropped from the sprites (see the module docstring).
+TIGHTS_WINDOW = (78, 164, 164, 220)   # skirt hem + both tight legs
+SHOES_WINDOW = (76, 208, 166, 248)    # both Mary Janes
+SUN_WINDOW = (58, 56, 202, 116)       # the hot sprite's face
+SUN_MIN_PART = 120                    # smaller mask fragments are nose /
+                                      # flower / whisker specks, not glasses
+
+
+def _trim_to_alpha(im, pad):
+    a = np.asarray(im)[:, :, 3] > 40
+    ys, xs = np.nonzero(a)
+    bb = (max(xs.min() - pad, 0), max(ys.min() - pad, 0),
+          min(xs.max() + 1 + pad, im.width), min(ys.max() + 1 + pad, im.height))
+    return im.crop(bb)
+
+
+def sprite_detail_crops():
+    sprites = os.path.join(PKG, "sprites")
+    for color, suffix in (("black", ""), ("pink", "_pink")):
+        dress = Image.open(os.path.join(sprites, color, "pippa-dress.png")).convert("RGBA")
+        for key, win in (("tights", TIGHTS_WINDOW), ("dress_shoes", SHOES_WINDOW)):
+            crop = _trim_to_alpha(dress.crop(win), PAD)
+            crop.save(os.path.join(OUT, key + suffix + ".png"))
+            print(f"sprite {color} dress {win} -> {key + suffix:16s} crop {crop.width}x{crop.height}")
+
+    hot = Image.open(os.path.join(sprites, "black", "pippa-hot.png")).convert("RGBA")
+    x0, y0, x1, y1 = SUN_WINDOW
+    sub = np.asarray(hot.crop(SUN_WINDOW)).astype(int)
+    r, g, b, al = sub[:, :, 0], sub[:, :, 1], sub[:, :, 2], sub[:, :, 3]
+    frame = (r > 200) & (g > 70) & (g < 175) & (b > 130) & (b < 215) & (al > 40)
+    lens = (np.maximum(r, b) - g > 30) & (r > 55) & (r < 150) & (b > 55) & (b < 160) & (g < 100) & (al > 40)
+    mask = frame | lens
+    parts, nparts = ndimage.label(mask, structure=np.ones((3, 3)))
+    sizes = ndimage.sum_labels(mask, parts, range(1, nparts + 1))
+    keep = [i + 1 for i, s in enumerate(sizes) if s >= SUN_MIN_PART]
+    if not keep:
+        raise SystemExit("sunglasses extraction found no glasses in the hot sprite")
+    mine = np.isin(parts, keep)
+    # Fill only holes the glasses enclose (the white lens glints); the
+    # rest of the face stays transparent.
+    inv = ~mine
+    inv_lab, _ = ndimage.label(inv)
+    border = set(np.unique(np.concatenate([inv_lab[0, :], inv_lab[-1, :],
+                                           inv_lab[:, 0], inv_lab[:, -1]])))
+    border.discard(0)
+    filled = mine | (inv & ~np.isin(inv_lab, list(border)))
+    rgba = np.dstack([sub[:, :, :3].astype(np.uint8),
+                      np.where(filled, 255, 0).astype(np.uint8)])
+    crop = _trim_to_alpha(Image.fromarray(rgba, "RGBA"), 2)
+    crop.save(os.path.join(OUT, "sunglasses.png"))
+    print(f"sprite hot face {SUN_WINDOW} -> sunglasses       crop {crop.width}x{crop.height} "
+          f"(replaces the sheet crop)")
 
 
 if __name__ == "__main__":

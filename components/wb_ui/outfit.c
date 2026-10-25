@@ -5,8 +5,25 @@
  */
 #include "outfit.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+/* Tier boundary (iter-08, panel round 6): the full winter kit
+ * (LOOK_SNOW: puffer, hat, gloves, boots) is reserved for a departure
+ * feels-like at or below this temperature, or for actual snow/ice in
+ * the school window (which reaches the kit through the winter-coat
+ * layer / snow-boots rules, not through this constant). The 39-46F
+ * band is the warm-coat tier: the dress or pants look with a warm
+ * coat. Round 6's cliff was that the kit upgrade keyed on the
+ * hat/gloves extras alone, whose thresholds (38F / 35F, and 50F for
+ * bike-bus gloves) straddle the coat bands invisibly: the same 44F
+ * "now" sent the bike-bus morning to the full kit (gloves extra via
+ * the bike rule) while the plain morning beside it wore a dress and
+ * warm coat. Inside the warm-coat band a hat/gloves need can now only
+ * arise from the bike-bus rule, and it is carried by the advice
+ * sentence ("Bike bus today! Dress warm."), never by an unworn chip. */
+#define WINTER_KIT_MAX_F 38.0f
 
 /* Days since 1970-01-01 (Howard Hinnant's days_from_civil). A static copy
  * already exists in cat.c; it is static there, so this file keeps its own. */
@@ -47,7 +64,7 @@ const char *garment_label(int garment)
     static const char *n[] = {"Short sleeves", "Long sleeves", "Shorts",     "Long pants",   "Hoodie",      "Light jacket",
                               "Rain jacket",   "Warm coat",     "Winter coat", "Sneakers",     "Rain boots",  "Snow boots",
                               "Warm hat",      "Gloves",        "Umbrella",    "Sunglasses",   "Water bottle", "Scarf",
-                              "Dress",         "Warm boots"};
+                              "Dress",         "Warm boots",    "Tights",      "Dress shoes"};
     return (garment >= 0 && garment < (int)(sizeof(n) / sizeof(n[0]))) ? n[garment] : "";
 }
 
@@ -72,6 +89,36 @@ static const char *layer_phrase(layer_t l)
     case LAYER_WINTER_COAT: return "your winter coat";
     default: return "";
     }
+}
+
+/* Case-insensitive substring test (the advice sentences are mixed
+ * case: "Hat, gloves and boots." must count as naming the hat). */
+static bool contains_ci(const char *hay, const char *needle)
+{
+    size_t nl = strlen(needle);
+    for (const char *p = hay; *p; p++) {
+        size_t k = 0;
+        while (k < nl && p[k] && (p[k] | 32) == (needle[k] | 32)) {
+            k++;
+        }
+        if (k == nl) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* snprintf-append: writes at the end of the string in dst[0..cap). */
+static void appendf(char *dst, size_t cap, const char *fmt, ...)
+{
+    size_t used = strlen(dst);
+    if (used >= cap) {
+        return;
+    }
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(dst + used, cap - used, fmt, ap);
+    va_end(ap);
 }
 
 /* Bare noun ("light jacket") for the WARMUP / WINDY sentences. */
@@ -257,8 +304,11 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      *         jacket), and the light scarf she wears as the only extra.
      *   DRESS: the dress itself replaces top+bottom as a tile; the blue
      *         jacket she wears is the warm coat. Tights and Mary Janes
-     *         are part of the dress outfit, not separate tiles (the
-     *         sheet has no icons for them). No extras: she wears none.
+     *         are tiles too (iter-08, panel round 6: with only dress +
+     *         coat the 2x2 grid had a dead quadrant and two garments
+     *         she wears were never lay-out items; their icons are
+     *         crops of the dress sprite itself). No extras: she wears
+     *         none.
      *   PANTS: the engine's top/bottom/feet (sneakers), no extras, and
      *         (iter-07) the open blue jacket the sprite wears over her
      *         tee, prescribed as the light-jacket tile: no garment on
@@ -321,11 +371,17 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         look = LOOK_FALL;
     } else if (out->layer == LAYER_WARM_COAT) {
         /* A hat/gloves need upgrades a warm-coat day to the winter kit,
-         * the only sprite that wears them, UNLESS the day warms up
-         * substantially with no snow or ice (iter-07): then the dress
-         * and its warm coat are the honest outfit, and the hat/gloves
-         * are dropped with the kit they belonged to. */
-        bool kit = (extras & (EX_HAT | EX_GLOVES)) && !((change & CH_WARMUP) && !has_snow && !ice);
+         * the only sprite that wears them, but only at the winter tier
+         * (iter-08: departure feels-like at or below WINTER_KIT_MAX_F;
+         * see the boundary note at the top of this file) and UNLESS
+         * the day warms up substantially with no snow or ice (iter-07):
+         * then the dress and its warm coat are the honest outfit, and
+         * the hat/gloves are dropped with the kit they belonged to.
+         * In the 39-46F band the only possible hat/gloves need is the
+         * bike-bus gloves reminder, which the advice sentence carries
+         * on its own (the CH_BIKE_BUS sentences below). */
+        bool kit = (extras & (EX_HAT | EX_GLOVES)) && f_dep <= WINTER_KIT_MAX_F &&
+                   !((change & CH_WARMUP) && !has_snow && !ice);
         look = kit ? LOOK_SNOW : LOOK_DRESS;
     } else {
         look = (change & CH_HOT) ? LOOK_HOT : LOOK_PANTS;
@@ -373,8 +429,9 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
 
     /* ---- tiles: top, bottom, layer if any, feet (plan 3.1 / 4.1).
      * A dress day is the exception: the dress is one garment that
-     * replaces top and bottom, and her shoes are part of the outfit,
-     * so the tiles are the dress and its layer, nothing else. ---- */
+     * replaces top and bottom, and the rest of the outfit is itemised
+     * the same way as any other day (iter-08): the dress, its layer,
+     * her tights and her dress shoes, four tiles filling the grid. ---- */
     int n = 0;
     if (look == LOOK_DRESS) {
         out->tile_kind[n++] = DRESS;
@@ -382,6 +439,8 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
             static const int layer_garment[] = {0, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT, WINTER_COAT};
             out->tile_kind[n++] = layer_garment[out->layer];
         }
+        out->tile_kind[n++] = TIGHTS;
+        out->tile_kind[n++] = DRESS_SHOES;
     } else {
         out->tile_kind[n++] = out->top == TOP_SHORT_SLEEVES ? SHORT_SLEEVES : LONG_SLEEVES;
         out->tile_kind[n++] = out->bottom == BOTTOM_SHORTS ? SHORTS : LONG_PANTS;
@@ -476,6 +535,56 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     } else {
         snprintf(out->advice, sizeof(out->advice), "%s", a);
         snprintf(out->advice_short, sizeof(out->advice_short), "%s", a);
+    }
+
+    /* ---- the sentence names every chip (iter-08, panel round 6) ----
+     * The chips on screen are the canonical extras above; the words
+     * must not silently drop one. Round 6 caught the cold days'
+     * Warm hat and Gloves chips and the stale day's Scarf chip
+     * prescribed on screen while the sentence talked only about the
+     * coat, so a kid laying out by ear never heard them. After
+     * canonicalisation, any required chip item the composed text does
+     * not already name gets one "Don't forget ..." clause, appended
+     * to the full advice and to the short fallback alike (the UI
+     * swaps to the short text exactly when space is tight, so the
+     * guarantee has to hold for both). */
+    {
+        static const struct {
+            uint32_t bit;
+            const char *word;   /* substring proving the item is named */
+            const char *item;   /* how the clause names it */
+        } chip_words[] = {
+            {EX_HAT, "hat", "warm hat"},           {EX_GLOVES, "glove", "gloves"},
+            {EX_UMBRELLA, "umbrella", "umbrella"}, {EX_SUNGLASSES, "sunglasses", "sunglasses"},
+            {EX_WATER, "water bottle", "water bottle"}, {EX_SCARF, "scarf", "scarf"},
+        };
+        for (int v = 0; v < 2; v++) {
+            char *dst = v == 0 ? out->advice : out->advice_short;
+            size_t cap = v == 0 ? sizeof(out->advice) : sizeof(out->advice_short);
+            const char *missing[6];
+            int nm = 0;
+            for (unsigned k = 0; k < sizeof(chip_words) / sizeof(chip_words[0]); k++) {
+                if ((extras & chip_words[k].bit) && !contains_ci(dst, chip_words[k].word)) {
+                    missing[nm++] = chip_words[k].item;
+                }
+            }
+            if (nm == 1) {
+                appendf(dst, cap, " Don't forget your %s.", missing[0]);
+            } else if (nm == 2) {
+                appendf(dst, cap, " Don't forget your %s and %s.", missing[0], missing[1]);
+            } else if (nm > 2) {
+                /* Unreachable with the canonical looks (at most two
+                 * chips each), but stay grammatical if that changes. */
+                char clause[160] = " Don't forget your ";
+                for (int k = 0; k < nm; k++) {
+                    strncat(clause, k == 0 ? "" : (k == nm - 1 ? " and " : ", "),
+                            sizeof(clause) - strlen(clause) - 1);
+                    strncat(clause, missing[k], sizeof(clause) - strlen(clause) - 1);
+                }
+                strncat(clause, ".", sizeof(clause) - strlen(clause) - 1);
+                appendf(dst, cap, "%s", clause);
+            }
+        }
     }
 
     /* ---- weather-block fields, from the target day ---- */

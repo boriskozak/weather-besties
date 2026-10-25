@@ -30,11 +30,14 @@ enum { CH_WARMUP = 1, CH_COOLDOWN = 2, CH_RAIN_LATER = 4, CH_RAIN_ALL_DAY = 8, C
  * WARM_BOOTS (iter-07) is appended at the end so the existing ids keep their
  * values: it is the winter-kit boots tile on a day with no snow or ice in
  * the forecast, labelled "Warm boots" (the icon is the same boot art; the
- * word "Snow" is reserved for days that actually have snow). */
+ * word "Snow" is reserved for days that actually have snow).
+ * TIGHTS and DRESS_SHOES (iter-08) are appended the same way: the dress
+ * look's remaining garments, itemised as lay-out tiles since panel
+ * round 6. Their icons are crops of the dress sprite itself. */
 typedef enum {
     SHORT_SLEEVES, LONG_SLEEVES, SHORTS, LONG_PANTS, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT,
     WINTER_COAT, SNEAKERS, RAIN_BOOTS, SNOW_BOOTS, WARM_HAT, GLOVES, UMBRELLA, SUNGLASSES,
-    WATER_BOTTLE, SCARF, DRESS, WARM_BOOTS
+    WATER_BOTTLE, SCARF, DRESS, WARM_BOOTS, TIGHTS, DRESS_SHOES
 } garment_t;
 
 /* The resolved "look": which flattened Pippa sprite family shows this
@@ -77,8 +80,8 @@ typedef struct {
     int look;                /* look_t: the sprite family that wears this outfit */
     uint32_t extras, change;
     int ntiles; int tile_kind[4];  /* garment ids in display order, see garment_t */
-    char advice[160];        /* sentence A + " " + sentence B */
-    char advice_short[96];   /* sentence B only (fallback) */
+    char advice[192];        /* A + B + the chip-naming clause (iter-08) */
+    char advice_short[128];  /* sentence B only (fallback), same clause */
     int extra_icon;          /* extra_icon_t or -1 */
     float t_now, hi, lo; int pop_day; int wx_code; bool is_day;  /* for the weather block */
 } outfit_t;

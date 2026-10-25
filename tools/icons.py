@@ -1205,6 +1205,25 @@ def g_dress():
     return svg(out)
 
 
+def g_tights():
+    # Fallback only: the real icon is a crop of the dress sprite's legs
+    # (tools/crop_garment_sheet.py). Two dark tight legs under a hem.
+    shapes = ['<path d="M24,26 L76,26 L80,90 L66,90 L50,50 L34,90 L20,90 Z"/>']
+    out = stick(shapes, "#2E3242")
+    out += '<path d="M22,26 L78,26" stroke="#F49AC1" stroke-width="7" stroke-linecap="round"/>'
+    return svg(out)
+
+
+def g_dress_shoes():
+    # Fallback only: the real icon is a crop of the dress sprite's feet
+    # (tools/crop_garment_sheet.py). Two pink Mary Janes with straps.
+    shapes = ['<path d="M8,58 Q8,38 26,38 Q44,38 44,58 L44,72 Q26,80 8,72 Z"/>',
+              '<path d="M56,58 Q56,38 74,38 Q92,38 92,58 L92,72 Q74,80 56,72 Z"/>']
+    out = stick(shapes, "#F06292")
+    out += ('<path d="M10,54 L42,54 M58,54 L90,54" stroke="#2B3450" stroke-width="3.4" stroke-linecap="round"/>')
+    return svg(out)
+
+
 GARMENTS = {
     "short_sleeves": c_tshirt, "long_sleeves": g_long_sleeves,
     "shorts": g_shorts, "long_pants": g_long_pants,
@@ -1213,7 +1232,7 @@ GARMENTS = {
     "sneakers": g_sneakers, "rain_boots": g_rain_boots, "snow_boots": g_snow_boots,
     "warm_hat": g_warm_hat, "gloves": c_mittens, "umbrella": c_umbrella,
     "sunglasses": g_sunglasses, "water_bottle": c_water, "scarf": g_scarf,
-    "dress": g_dress,
+    "dress": g_dress, "tights": g_tights, "dress_shoes": g_dress_shoes,
 }
 
 
@@ -1223,10 +1242,14 @@ def x_bolt():
 
 def x_hat_gloves():
     # ONE icon, two items side by side at full size (the old version stacked
-    # a small hat over a smaller mitten and neither could be read).
+    # a small hat over a smaller mitten and neither could be read). The pair
+    # is wider than the 100 box at full size, so the composition is scaled
+    # to fit inside it (iter-08): drawn past the box edge, the beanie's brim
+    # and the mitten's edge were clipped by the canvas and the glyph read
+    # as sliding out of the advice row's frame.
     out = f'<g transform="translate(-8,14) scale(0.68)">{_beanie100("#6C4BD8", "#8F74E8", "#FFFFFF")}</g>'
     out += f'<g transform="translate(52,28) scale(0.62)">{mitten(0, -8, "#9C8CFF")}</g>'
-    return svg(out)
+    return svg(f'<g transform="translate(50 50) scale(0.84) translate(-50 -50)">{out}</g>')
 
 
 def x_sun_up():

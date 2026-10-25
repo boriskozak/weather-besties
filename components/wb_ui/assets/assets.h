@@ -68,6 +68,14 @@ LV_IMAGE_DECLARE(img_g_scarf_96);
 LV_IMAGE_DECLARE(img_g_scarf_56);
 LV_IMAGE_DECLARE(img_g_dress_96);
 LV_IMAGE_DECLARE(img_g_dress_56);
+LV_IMAGE_DECLARE(img_g_tights_96);
+LV_IMAGE_DECLARE(img_g_tights_56);
+LV_IMAGE_DECLARE(img_g_dress_shoes_96);
+LV_IMAGE_DECLARE(img_g_dress_shoes_56);
+LV_IMAGE_DECLARE(img_g_tights_pink_96);
+LV_IMAGE_DECLARE(img_g_tights_pink_56);
+LV_IMAGE_DECLARE(img_g_dress_shoes_pink_96);
+LV_IMAGE_DECLARE(img_g_dress_shoes_pink_56);
 LV_IMAGE_DECLARE(img_x_bolt);
 LV_IMAGE_DECLARE(img_x_umbrella);
 LV_IMAGE_DECLARE(img_x_hat_gloves);
@@ -124,5 +132,5 @@ LV_FONT_DECLARE(font_tiny);
 #define WB_WX_ICONS_S { &img_wx_clear_day_s, &img_wx_clear_night_s, &img_wx_partly_day_s, &img_wx_partly_night_s, &img_wx_cloudy_s, &img_wx_fog_s, &img_wx_drizzle_s, &img_wx_rain_s, &img_wx_heavy_rain_s, &img_wx_snow_s, &img_wx_sleet_s, &img_wx_thunder_s }
 
 /* Garment tile icons, in garment_t order (see outfit.h). */
-#define WB_GARMENT_ICONS_96 { &img_g_short_sleeves_96, &img_g_long_sleeves_96, &img_g_shorts_96, &img_g_long_pants_96, &img_g_hoodie_96, &img_g_light_jacket_96, &img_g_rain_jacket_96, &img_g_warm_coat_96, &img_g_winter_coat_96, &img_g_sneakers_96, &img_g_rain_boots_96, &img_g_snow_boots_96, &img_g_warm_hat_96, &img_g_gloves_96, &img_g_umbrella_96, &img_g_sunglasses_96, &img_g_water_bottle_96, &img_g_scarf_96, &img_g_dress_96 }
-#define WB_GARMENT_ICONS_56 { &img_g_short_sleeves_56, &img_g_long_sleeves_56, &img_g_shorts_56, &img_g_long_pants_56, &img_g_hoodie_56, &img_g_light_jacket_56, &img_g_rain_jacket_56, &img_g_warm_coat_56, &img_g_winter_coat_56, &img_g_sneakers_56, &img_g_rain_boots_56, &img_g_snow_boots_56, &img_g_warm_hat_56, &img_g_gloves_56, &img_g_umbrella_56, &img_g_sunglasses_56, &img_g_water_bottle_56, &img_g_scarf_56, &img_g_dress_56 }
+#define WB_GARMENT_ICONS_96 { &img_g_short_sleeves_96, &img_g_long_sleeves_96, &img_g_shorts_96, &img_g_long_pants_96, &img_g_hoodie_96, &img_g_light_jacket_96, &img_g_rain_jacket_96, &img_g_warm_coat_96, &img_g_winter_coat_96, &img_g_sneakers_96, &img_g_rain_boots_96, &img_g_snow_boots_96, &img_g_warm_hat_96, &img_g_gloves_96, &img_g_umbrella_96, &img_g_sunglasses_96, &img_g_water_bottle_96, &img_g_scarf_96, &img_g_dress_96, &img_g_tights_96, &img_g_dress_shoes_96 }
+#define WB_GARMENT_ICONS_56 { &img_g_short_sleeves_56, &img_g_long_sleeves_56, &img_g_shorts_56, &img_g_long_pants_56, &img_g_hoodie_56, &img_g_light_jacket_56, &img_g_rain_jacket_56, &img_g_warm_coat_56, &img_g_winter_coat_56, &img_g_sneakers_56, &img_g_rain_boots_56, &img_g_snow_boots_56, &img_g_warm_hat_56, &img_g_gloves_56, &img_g_umbrella_56, &img_g_sunglasses_56, &img_g_water_bottle_56, &img_g_scarf_56, &img_g_dress_56, &img_g_tights_56, &img_g_dress_shoes_56 }

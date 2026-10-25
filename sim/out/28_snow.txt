@@ -1,0 +1,18 @@
+avail=1
+bucket=0
+look=2
+look_name=snow
+ntiles=4
+tiles=Long sleeves|Long pants|Winter coat|Snow boots
+chips=Warm hat|Gloves
+advice=Wear long sleeves. Wear your winter coat. Snow day! Hat, gloves and boots.
+advice_shown=Wear long sleeves. Wear your winter coat. Snow day! Hat, gloves and boots.
+wx1=27° now
+extra_icon=2
+info_begin
+  WiFi: HomeWiFi
+  Town: Upper Montclair, New Jersey
+  Updated 7:30 AM
+Address: 192.168.1.42     Version 2.0.0
+Weather data by Open-Meteo.com
+info_end

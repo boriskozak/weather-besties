@@ -61,6 +61,17 @@ static void save(const char *dir, const char *name)
     printf("saved %s\n", path);
 }
 
+/* Text dump of the state just saved (ui_test_dump): check_renders.py
+ * asserts on the words (advice sentences, tile/chip labels, the stale
+ * header, the settings info lines) as well as the pixels. Call right
+ * after the save it belongs to, before any state changes. */
+static void dump(const char *dir, const char *name)
+{
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s.txt", dir, name);
+    ui_test_dump(path);
+}
+
 static char *slurp(const char *path, size_t *len)
 {
     FILE *f = fopen(path, "rb");
@@ -169,10 +180,12 @@ int main(int argc, char **argv)
     load(sc, "brief_morning");
     show();
     save(out, "20_morning");
+    dump(out, "20_morning");
 
     load(sc, "brief_evening");
     show();
     save(out, "21_evening");
+    dump(out, "21_evening");
 
     ui_test_set_checks(0x3); /* first two garments laid out (2 of 5: the
                               * umbrella extra is a checkable chip too) */
@@ -192,13 +205,14 @@ int main(int argc, char **argv)
 
     /* Pippa proof still: her all-done heart animation plays on its own
      * in the renderer, on the black dress sprite only. The dress
-     * scenario's outfit is the dress (2 tiles, no chips since iter-06
-     * canonicalised the prescription to what the sprite wears); lay
-     * everything out and pin frame 4 (the eyes-closed heart hold) so
-     * the screenshot set shows the gesture deterministically. (The
-     * brief morning used to double as this proof; its outfit changed
-     * with the panel rounds, most recently to a dress day in iter-07,
-     * and the heart frames were never any other sprite's.) */
+     * scenario's outfit is the dress (4 tiles since iter-08 itemised
+     * the tights and dress shoes, no chips since iter-06 canonicalised
+     * the prescription to what the sprite wears); lay everything out
+     * and pin frame 4 (the eyes-closed heart hold) so the screenshot
+     * set shows the gesture deterministically. (The brief morning used
+     * to double as this proof; its outfit changed with the panel
+     * rounds, most recently to a dress day in iter-07, and the heart
+     * frames were never any other sprite's.) */
     load(sc, "dress_morning");
     show();
     ui_test_set_checks(0x3F);
@@ -219,54 +233,66 @@ int main(int argc, char **argv)
     load(sc, "stale_2h");
     show();
     save(out, "25_stale");
+    dump(out, "25_stale");
 
     load(sc, "too_old");
     show();
     save(out, "26_unavailable");
+    dump(out, "26_unavailable");
 
     load(sc, "rollover");
     show();
     save(out, "27_rollover");
+    dump(out, "27_rollover");
 
     load(sc, "snow_day");
     show();
     save(out, "28_snow");
+    dump(out, "28_snow");
 
     load(sc, "hot_summer");
     show();
     save(out, "29_hot");
+    dump(out, "29_hot");
 
     load(sc, "storm_afternoon");
     show();
     save(out, "30_storm");
+    dump(out, "30_storm");
 
     load(sc, "halloween_cold");
     show();
     save(out, "31_halloween");
+    dump(out, "31_halloween");
 
     load(sc, "brief_morning");
     ui_set_cat_choice(1); /* pink cat */
     show();
     save(out, "32_pink_cat");
+    dump(out, "32_pink_cat");
     ui_set_cat_choice(0);
 
     ui_open_settings();
     save(out, "33_settings");
+    dump(out, "33_settings");
     ui_close_settings();
 
     ui_set_names("Cleo & Lila & Friends");
     load(sc, "long_text");
     show();
     save(out, "34_long_text");
+    dump(out, "34_long_text");
     ui_set_names("Cleo & Lila");
 
     load(sc, "hanukkah_night3");
     show();
     save(out, "35_hanukkah");
+    dump(out, "35_hanukkah");
 
     load(sc, "bike_bus_cold_friday");
     show();
     save(out, "36_bike_bus");
+    dump(out, "36_bike_bus");
 
     /* iter-06 outfit references: the dress day and the pants day,
      * unchecked. Round 4's fidelity failures lived on exactly these
@@ -274,10 +300,12 @@ int main(int argc, char **argv)
     load(sc, "dress_morning");
     show();
     save(out, "37_dress_day");
+    dump(out, "37_dress_day");
 
     load(sc, "warm_day");
     show();
     save(out, "38_warm_day");
+    dump(out, "38_warm_day");
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");

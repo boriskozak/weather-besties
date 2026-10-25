@@ -117,8 +117,8 @@ SHEET_ICONS = os.path.join(HERE, "garment_sheet")
 SHEET_FILL = 0.94
 
 
-def render_sheet_icon(key, px, path):
-    src = Image.open(os.path.join(SHEET_ICONS, key + ".png")).convert("RGBA")
+def render_sheet_icon(key, px, path, src_key=None):
+    src = Image.open(os.path.join(SHEET_ICONS, (src_key or key) + ".png")).convert("RGBA")
     scale = (px * SHEET_FILL) / max(src.width, src.height)
     im = src.resize((max(1, round(src.width * scale)), max(1, round(src.height * scale))),
                     Image.LANCZOS)
@@ -138,11 +138,30 @@ for key, fn in icons.GARMENTS.items():
         to_c(p, name)
         images.append(name)
 
+# Pink-colourway variants of the two dress-detail garments (iter-08):
+# the tights and Mary Janes are cropped from each colourway's own dress
+# sprite (tools/crop_garment_sheet.py), and the tile icon must match the
+# cat on stage, so these two garments get a pink set alongside the
+# default (black-sprite) set. ui.c picks per outfit date + cat choice.
+for key in ("tights", "dress_shoes"):
+    for px in GARMENT_SIZES:
+        name = f"img_g_{key}_pink_{px}"
+        p = os.path.join(PNG, name + ".png")
+        render_sheet_icon(key, px, p, src_key=key + "_pink")
+        to_c(p, name)
+        images.append(name)
+
 # ------------------------------------------------------- extra icons (48 px)
+# Zoom 0.86, not a fill zoom (iter-08, panel round 6): at 1.10 the art
+# was scaled PAST the canvas and clipped at its edges (the sun-up sun
+# lost its left rays, the hat + gloves pair bled off both sides), so
+# the advice-row glyph read as half out of frame. At 0.86 the whole
+# drawing sits inside the 48 px canvas with a few px of air around it,
+# like every other icon in the app.
 for key, fn in icons.EXTRA_ICONS.items():
     name = f"img_x_{key}"
     p = os.path.join(PNG, name + ".png")
-    render(fn(), EXTRA_SIZE, p, zoom=1.0 if key == "sparkle" else 1.10)
+    render(fn(), EXTRA_SIZE, p, zoom=1.0 if key == "sparkle" else 0.86)
     to_c(p, name)
     images.append(name)
 

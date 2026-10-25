@@ -95,9 +95,12 @@ HEAD_WINDOW = (48, 4, 198, 120)
 # Resized in stage space (252 -> MINI_H px tall) and cropped to the alpha
 # bbox like every other piece, so a card shows the whole cat, small.
 # PIPPA_BASE gets no mini: the forecast never shows the undressed sprite.
-MINI_H = 50   # card row budget: widest mini (rain, ~51) + icon 56 +
-              # longest label ("Rain jacket") + gaps must fit the
-              # 236 px card; 58 overflowed it and clipped both ends
+MINI_H = 104   # iter-08 (panel round 6): at 50 the minis read as a logo,
+               # not the star. The forecast cards were redesigned around
+               # the bigger cat (72 px weather icon, the garment icon +
+               # label stacked beside her instead of one row of three),
+               # so ~104 px tall fits the 236x344 card with the day,
+               # weather, temps and key garment all legible.
 MINIS = [(sym.replace("img_pippa_", "img_pippa_mini_"), src)
          for _, sym, src in VARIANTS if sym != "img_pippa_base"]
 
