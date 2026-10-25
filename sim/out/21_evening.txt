@@ -13,6 +13,7 @@ stale_banner=0
 stale_checks=enabled
 checks=0
 title=Ready for tomorrow?
+compare=Colder than today
 fc0_tiles=
 fc0_labels=
 fc1_tiles=

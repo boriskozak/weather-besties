@@ -338,6 +338,14 @@ int main(int argc, char **argv)
     save(out, "38_warm_day");
     dump(out, "38_warm_day");
 
+    /* Iter-12: a payload with no yesterday in it (first boot, partial
+     * fetch). The outfit still prescribes, but the compare pill must
+     * stay hidden: there is no honest comparison to show. */
+    load(sc, "mild_no_yday");
+    show();
+    save(out, "39_no_yesterday");
+    dump(out, "39_no_yesterday");
+
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");
 

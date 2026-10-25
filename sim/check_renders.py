@@ -880,7 +880,8 @@ def main():
               "25_stale", "25c_stale_tapped", "26_unavailable",
               "26b_unavailable_tomorrow", "27_rollover",
               "28_snow", "29_hot", "30_storm", "31_halloween", "32_pink_cat",
-              "34_long_text", "35_hanukkah", "36_bike_bus", "37_dress_day", "38_warm_day")
+              "34_long_text", "35_hanukkah", "36_bike_bus", "37_dress_day", "38_warm_day",
+              "39_no_yesterday")
     dumps = {n: dump(n) for n in DUMPED}
 
     # The dress bound (iter-09 fix 1, panel round 7's headline): the
@@ -971,6 +972,87 @@ def main():
           f"25_stale: stale banner shown (stale_banner={dumps['25_stale']['stale_banner']})")
     check(dumps["20_morning"]["stale_banner"] == "0" and dumps["26_unavailable"]["stale_banner"] == "0",
           "fresh and unavailable screens show no stale banner")
+
+    # Compare pill (iter-12): the shown day's high against the day
+    # before the SHOWN date, in the kid's own terms. A kid remembers
+    # whether yesterday was hot or cold; the numbers across days mean
+    # nothing to them, so the product speaks in the relative signal.
+    # Tiers: |delta| >= 12F "A lot ...", 4..11F plain, within +-3F
+    # "Same as ...". The Today page says "than yesterday", the
+    # Tomorrow page "than today". Every expectation below is the
+    # fixture's own daily highs, differenced by hand:
+    #   brief week: Mon 60, Tue 64, Wed 55 (yday is Monday)
+    #   snow 38->31, hot 78->92, storm 88->90, halloween 55->48,
+    #   hanukkah (renders today) 41 -> 39, bike-bus Thu 74 -> Fri 52,
+    #   dress 62->62, warm 70->73, long-text 55->66.
+    CMP = {
+        "20_morning": "Warmer than yesterday",        # 64 vs 60, +4
+        "21_evening": "Colder than today",            # 55 vs 64, -9
+        "22_evening_2_checked": "Colder than today",
+        "23_evening_all_done": "Colder than today",
+        "25_stale": "Warmer than yesterday",          # same fetch, faded
+        "25c_stale_tapped": "Warmer than yesterday",
+        "26_unavailable": "",                         # no data, no pill
+        "26b_unavailable_tomorrow": "",
+        "27_rollover": "Colder than yesterday",       # shown Wed 55 vs Tue 64
+        "28_snow": "Colder than yesterday",           # 31 vs 38, -7
+        "29_hot": "A lot warmer than yesterday",      # 92 vs 78, +14
+        "30_storm": "Same as yesterday",              # 90 vs 88, +2
+        "31_halloween": "Colder than yesterday",      # 48 vs 55, -7
+        "32_pink_cat": "Warmer than yesterday",
+        "34_long_text": "Warmer than yesterday",      # 66 vs 55, +11: plain tier
+        "35_hanukkah": "Same as yesterday",           # renders the today page: 39 vs 41, -2
+        "36_bike_bus": "A lot colder than yesterday", # 52 vs 74, -22
+        "37_dress_day": "Same as yesterday",          # 62 vs 62
+        "38_warm_day": "Same as yesterday",           # 73 vs 70, +3
+        "39_no_yesterday": "",                        # no yesterday in the payload
+    }
+    for name, want in CMP.items():
+        check(dumps[name]["compare"] == want,
+              f"{name}: compare pill says {want!r} (dump has {dumps[name]['compare']!r})")
+    check(dump("24_next_days")["compare"] == "Warmer than yesterday",
+          "24_next_days: the forecast page carries the morning's compare state")
+
+    # Pill tints by tier, counted in the pill's own band under the
+    # High/Low line (y78..103, right-aligned to x772; the widest pill
+    # starts at x488). Colder is cool blue, warmer is warm amber,
+    # same is quiet neutral; the stale pill wears the faded blend of
+    # its tint over the page ground, like the rest of the stage.
+    PILL_BAND = (480, 76, 772, 106)
+
+    def pill_img(name):
+        return Image.open(os.path.join(OUT, name + ".png"))
+
+    def is_cmp_cold(r, g, b):
+        return 205 < r < 230 and 225 < g < 245 and b > 238
+
+    def is_cmp_warm(r, g, b):
+        return r > 245 and 218 < g < 236 and 165 < b < 185
+
+    def is_cmp_same(r, g, b):
+        return 226 < r < 242 and 223 < g < 239 and 214 < b < 230
+
+    def is_cmp_warm_faded(r, g, b):
+        return r > 245 and 226 < g < 239 and 184 < b < 200
+
+    check(count_where(pill_img("36_bike_bus"), PILL_BAND, is_cmp_cold) > 3000,
+          "36_bike_bus: a-lot-colder pill wears the cool blue tint")
+    check(count_where(pill_img("27_rollover"), PILL_BAND, is_cmp_cold) > 3000,
+          "27_rollover: colder pill wears the cool blue tint")
+    check(count_where(pill_img("20_morning"), PILL_BAND, is_cmp_warm) > 2500,
+          "20_morning: warmer pill wears the warm amber tint")
+    check(count_where(pill_img("29_hot"), PILL_BAND, is_cmp_warm) > 3000,
+          "29_hot: a-lot-warmer pill wears the warm amber tint")
+    check(count_where(pill_img("30_storm"), PILL_BAND, is_cmp_same) > 2000,
+          "30_storm: same pill wears the neutral tint")
+    check(count_where(pill_img("25_stale"), (545, 76, 772, 106), is_cmp_warm_faded) > 2500
+          and count_where(pill_img("25_stale"), (545, 76, 772, 106), is_cmp_warm) < 300,
+          "25_stale: the compare pill takes the stale fade with the rest of the stage")
+    for name in ("26_unavailable", "39_no_yesterday"):
+        n_tint = sum(count_where(pill_img(name), PILL_BAND, p)
+                     for p in (is_cmp_cold, is_cmp_warm, is_cmp_same, is_cmp_warm_faded))
+        check(n_tint < 200,
+              f"{name}: no compare pill pixels (no data / no yesterday) [{n_tint}]")
 
     # Storm header icon (iter-09 fix 2): when the day's story
     # includes storms, the header icon is the icon set's thunder

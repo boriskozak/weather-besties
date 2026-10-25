@@ -41,6 +41,16 @@
 #define COL_WARN_TX 0x8A4B00
 #define COL_ACCENT 0xE0457B
 #define COL_TAB_LINE 0xD9D1C2
+/* Compare pill tints (iter-12): cool blue for colder, warm amber for
+ * warmer, quiet neutral for same. None of these is a tab or a status
+ * colour: the pill is a day-chip sibling that only ever talks about
+ * yesterday (or today, on the tomorrow page). */
+#define COL_CMP_COLD_BG 0xD9EAF7
+#define COL_CMP_COLD_TX 0x20506E
+#define COL_CMP_WARM_BG 0xFFE3AE
+#define COL_CMP_WARM_TX 0x7A4A00
+#define COL_CMP_SAME_BG 0xEAE7DE
+#define COL_CMP_SAME_TX 0x545A72
 
 #define C(hex) lv_color_hex(hex)
 
@@ -189,6 +199,7 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
 /* main: bottom bar */
 static lv_obj_t *tab_btn[3], *tab_lbl[3];
 static lv_obj_t *stale_chip, *lbl_stale;
+static lv_obj_t *cmp_pill, *lbl_cmp;   /* iter-12 relative-temperature pill */
 
 /* settings overlay (iter-09: no panel card; the controls sit on the
  * page itself in labelled sections, the info block is label/value rows,
@@ -213,6 +224,8 @@ static struct {
     char title[64];     /* the headline the render actually set (iter-10:
                          * the unavailable screen's headline is a state,
                          * and only the dump can assert on it) */
+    char compare[48];   /* iter-12: the compare pill's text, "" when the
+                         * pill is hidden (no data, or no previous day) */
 } s_dump;
 #endif
 /* Forecast stash: each card's full tile list (read by ui_test_dump). */
@@ -1499,19 +1512,39 @@ static void build_outfit_page(lv_obj_t *scr)
     lbl_chip = label(chip, &font_chip, "");
     lv_obj_center(lbl_chip);
 
-    /* Weather block: icon left of two lines, the block right-aligned to 772. */
+    /* Weather block: icon left of two lines, the block right-aligned to
+     * 772. Iter-12 rides the block a few px higher (icon y4, lines y8
+     * and y46) so the compare pill gets its own row underneath at y78:
+     * above the tile grid (y104), clear of the day chip and the
+     * progress pill on the left, clear of the stale banner's centre. */
     wx_icon = lv_image_create(page_outfit);
-    lv_obj_set_pos(wx_icon, 486, 18);
+    lv_obj_set_pos(wx_icon, 486, 4);
     lbl_wx1 = label(page_outfit, &font_label, "");
     lv_obj_set_style_text_color(lbl_wx1, C(COL_INK), 0);
     lv_obj_set_width(lbl_wx1, 206);
     lv_obj_set_style_text_align(lbl_wx1, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_wx1, 566, 20);
+    lv_obj_set_pos(lbl_wx1, 566, 8);
     lbl_wx2 = label(page_outfit, &font_small, "");
     lv_obj_set_style_text_color(lbl_wx2, C(COL_INK2), 0);
     lv_obj_set_width(lbl_wx2, 206);
     lv_obj_set_style_text_align(lbl_wx2, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(lbl_wx2, 566, 58);
+    lv_obj_set_pos(lbl_wx2, 566, 46);
+
+    /* Compare pill (iter-12): "Colder than yesterday" and kin, a
+     * display-only sibling of the day chip. render() fills, tints,
+     * sizes and positions it (right-aligned under the High/Low line);
+     * it stays hidden whenever there is no honest comparison. It is
+     * never clickable and never part of check-off. */
+    cmp_pill = box(page_outfit);
+    lv_obj_set_style_bg_opa(cmp_pill, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(cmp_pill, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_pad_hor(cmp_pill, 14, 0);
+    lv_obj_set_style_pad_ver(cmp_pill, 0, 0);
+    lv_obj_set_size(cmp_pill, 10, 26);
+    lv_obj_set_pos(cmp_pill, 700, 78);
+    lbl_cmp = label(cmp_pill, &font_tiny, "");
+    lv_obj_center(lbl_cmp);
+    hide(cmp_pill);
 
     build_cat(page_outfit);
     build_tiles(page_outfit);
@@ -2174,6 +2207,12 @@ static void render(void)
      * while the data was fresh stay recorded (they return with the
      * outfit if fresh data for the same date arrives), but the
      * stale screen itself neither takes nor certifies them. */
+    /* Iter-12 compare pill state for this render (filled by the
+     * weather block below; the stale treatment reuses the geometry to
+     * keep the banner clear of the pill). */
+    char cmp_text[48] = "";
+    int cmp_x = 772, cmp_w = 0;
+    bool cmp_shown = false;
     bool stale_on = avail && bucket == 1;
     s_stale = stale_on;
     bool all_done = check_mask != 0 && !stale_on && (s_checks & check_mask) == check_mask;
@@ -2275,8 +2314,57 @@ static void render(void)
         lv_obj_set_x(lbl_wx2, 772 - tw);
         lv_obj_set_width(lbl_wx2, tw);
         lv_obj_set_x(wx_icon, 772 - tw - 80);
+        /* Relative temperature (iter-12): the shown day's daily HIGH
+         * against the previous day's daily HIGH, compared in
+         * Fahrenheit. The previous day is the day before the SHOWN
+         * date, verified by date: the day before days[0] is the
+         * separately-kept yesterday, any other shown day compares
+         * against the forecast entry right before it. That keeps the
+         * after-midnight rollover honest (a Wednesday screen fetched
+         * Tuesday night compares against Tuesday, which the kid
+         * remembers as yesterday). No previous day, no pill: the UI
+         * never guesses. Words only: the generated fonts carry no
+         * up/down arrow glyph. */
+        {
+            long shown_d = days_from_civil(o.year, o.month, o.day);
+            int ti = -1;
+            for (int i = 0; i < s_wx.ndays; i++) {
+                if (days_from_civil(s_wx.days[i].year, s_wx.days[i].month,
+                                    s_wx.days[i].day) == shown_d) { ti = i; break; }
+            }
+            const wx_day_t *prev = NULL;
+            if (ti > 0) {
+                prev = &s_wx.days[ti - 1];
+            } else if (ti == 0 && s_wx.has_yday &&
+                       days_from_civil(s_wx.yday.year, s_wx.yday.month,
+                                       s_wx.yday.day) == shown_d - 1) {
+                prev = &s_wx.yday;
+            }
+            if (prev && days_from_civil(prev->year, prev->month, prev->day) == shown_d - 1) {
+                float d = wx_to_f(&s_wx, o.hi) - wx_to_f(&s_wx, prev->tmax);
+                const char *ref = page == 0 ? "yesterday" : "today";
+                uint32_t bg, tx;
+                if (d <= -12.0f)     { snprintf(cmp_text, sizeof cmp_text, "A lot colder than %s", ref); bg = COL_CMP_COLD_BG; tx = COL_CMP_COLD_TX; }
+                else if (d <= -4.0f) { snprintf(cmp_text, sizeof cmp_text, "Colder than %s", ref);       bg = COL_CMP_COLD_BG; tx = COL_CMP_COLD_TX; }
+                else if (d < 4.0f)   { snprintf(cmp_text, sizeof cmp_text, "Same as %s", ref);           bg = COL_CMP_SAME_BG; tx = COL_CMP_SAME_TX; }
+                else if (d < 12.0f)  { snprintf(cmp_text, sizeof cmp_text, "Warmer than %s", ref);       bg = COL_CMP_WARM_BG; tx = COL_CMP_WARM_TX; }
+                else                 { snprintf(cmp_text, sizeof cmp_text, "A lot warmer than %s", ref); bg = COL_CMP_WARM_BG; tx = COL_CMP_WARM_TX; }
+                cmp_w = text_w(cmp_text, &font_tiny) + 28;
+                cmp_x = 772 - cmp_w;
+                cmp_shown = true;
+                lv_label_set_text(lbl_cmp, cmp_text);
+                lv_obj_set_style_text_color(lbl_cmp, C(tx), 0);
+                lv_obj_set_style_bg_color(cmp_pill, C(bg), 0);
+                lv_obj_set_size(cmp_pill, cmp_w, 26);
+                lv_obj_set_pos(cmp_pill, cmp_x, 78);
+                show_obj(cmp_pill);
+            } else {
+                hide(cmp_pill);
+            }
+        }
     } else {
         hide(wx_icon);
+        hide(cmp_pill);
         lv_label_set_text(lbl_wx1, "--");
         lv_label_set_text(lbl_wx2, "");
     }
@@ -2477,10 +2565,25 @@ static void render(void)
     for (int j = 0; j < X_SLOTS; j++) {
         lv_obj_set_style_opa(xchip[j], stale_on ? 185 : LV_OPA_COVER, 0);
     }
+    /* The compare pill derives from the same fetch as the rest of the
+     * stage, so on a stale screen it takes the same fade (iter-12). */
+    lv_obj_set_style_opa(cmp_pill, stale_on ? 185 : LV_OPA_COVER, 0);
     if (stale_on) {
         lv_label_set_text(lbl_stale_big, "From earlier today");
-        lv_obj_set_size(stale_banner, text_w("From earlier today", &font_chip) + 44, 44);
-        lv_obj_set_pos(stale_banner, 284, 56);
+        int bw = text_w("From earlier today", &font_chip) + 44;
+        int bx = 284;
+        /* A long compare pill ("A lot colder than yesterday") reaches
+         * into the banner's centre slot; slide the banner left just
+         * enough to clear it, never past x240 (iter-12). The shipped
+         * stale scenario's pill starts right of the banner, so the
+         * banner keeps its panel-approved home there. */
+        if (cmp_shown && cmp_x < bx + bw + 8) {
+            bx = cmp_x - bw - 8;
+            if (bx < 240) bx = 240;
+            if (bx > 284) bx = 284;
+        }
+        lv_obj_set_size(stale_banner, bw, 44);
+        lv_obj_set_pos(stale_banner, bx, 56);
         lv_obj_set_width(lbl_stale_big, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale_big);
         show_obj(stale_banner);
@@ -2569,6 +2672,7 @@ static void render(void)
     snprintf(s_dump.shown, sizeof(s_dump.shown), "%s", avail ? lv_label_get_text(lbl_advice) : "");
     snprintf(s_dump.wx1, sizeof(s_dump.wx1), "%s", lv_label_get_text(lbl_wx1));
     snprintf(s_dump.title, sizeof(s_dump.title), "%s", lv_label_get_text(lbl_title));
+    snprintf(s_dump.compare, sizeof(s_dump.compare), "%s", cmp_text);
 #endif
 }
 
@@ -2742,6 +2846,7 @@ void ui_test_dump(const char *path)
             s_dump.advice, s_dump.shown, s_dump.wx1, s_dump.wx_icon, s_dump.stale_banner ? 1 : 0);
     fprintf(f, "stale_checks=%s\nchecks=%d\n", s_dump.checks_locked ? "disabled" : "enabled", (int)s_checks);
     fprintf(f, "title=%s\n", s_dump.title);
+    fprintf(f, "compare=%s\n", s_dump.compare);
     for (int i = 0; i < 3; i++) {
         fprintf(f, "fc%d_tiles=", i);
         for (int k = 0; k < s_fc_n[i]; k++) {

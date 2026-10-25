@@ -249,7 +249,7 @@ S["snow_day"]["sim_clock"] = "2027-01-15T07:35"
 # Hot summer day: shorts, water bottle, sunglasses.
 S["hot_summer"] = build(
     "2027-07-12", "13:00", {"t": 89.4, "f": 93.0, "day": 1, "code": 0},
-    (1, 84, 70, 10, 8.0, 11.0), [(0, 92, 74, 5, 9.1, 13.0), (2, 88, 72, 10, 8.4, 10.0), (95, 85, 70, 65, 6.2, 5.0),
+    (1, 78, 70, 10, 8.0, 11.0), [(0, 92, 74, 5, 9.1, 13.0), (2, 88, 72, 10, 8.4, 10.0), (95, 85, 70, 65, 6.2, 5.0),
                                  (1, 86, 69, 5, 8.8, 12.0)],
     lambda i: 0 if i < 24 else (2 if i < 48 else (95 if 62 <= i <= 66 else 3) if i < 72 else 1),
     lambda i: 0 if i < 48 else (65 if 60 <= i <= 67 else 10),
@@ -335,6 +335,23 @@ S["long_text"] = build(
     lambda i: 0 if i < 48 else 10,
     sunrise=7, sunset=17, feels_delta=-3)
 S["long_text"]["sim_clock"] = "2026-11-10T07:35"
+
+# Yesterday's high in hot_summer is 78 (above) on purpose: today is
+# 92, a +14 jump, so the set covers the "A lot warmer than yesterday"
+# tier of the iter-12 compare pill. Yesterday feeds nothing else: the
+# parser drops pre-today hours and the outfit never reads yday, so no
+# prescription changes.
+
+# Iter-12 honest absence: a payload with NO yesterday in it (a first
+# boot, or a fetch that carried forecast days only). The compare pill
+# must hide rather than guess, so every daily array drops its
+# yesterday entry and every hourly array its yesterday hours.
+_no_yday = json.loads(json.dumps(S["mild_may"]))
+for _key in _no_yday["daily"]:
+    _no_yday["daily"][_key] = _no_yday["daily"][_key][1:]
+for _key in _no_yday["hourly"]:
+    _no_yday["hourly"][_key] = _no_yday["hourly"][_key][24:]
+S["mild_no_yday"] = _no_yday
 
 
 for name, data in S.items():

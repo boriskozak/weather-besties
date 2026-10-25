@@ -13,6 +13,7 @@ stale_banner=0
 stale_checks=enabled
 checks=0
 title=What to wear today
+compare=A lot warmer than yesterday
 fc0_tiles=Long sleeves|Long pants|Rain jacket|Rain boots
 fc0_labels=Long sleeves|Long pants|Rain jacket|Rain boots
 fc1_tiles=Dress|Light jacket|Tights|Dress shoes
