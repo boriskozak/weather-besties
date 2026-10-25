@@ -1195,6 +1195,16 @@ def g_scarf():
     return svg(out)
 
 
+def g_dress():
+    # Fallback only: the real tile icon is the wardrobe sheet's dress,
+    # cropped by tools/crop_garment_sheet.py. A simple pink A-line dress
+    # in the same stick style, in case the crop ever goes missing.
+    shapes = ['<path d="M38,12 L62,12 L58,34 L86,84 Q50,94 14,84 L42,34 Z"/>']
+    out = stick(shapes, "#F49AC1")
+    out += '<path d="M42,34 L58,34" stroke="#E0457B" stroke-width="4" stroke-linecap="round"/>'
+    return svg(out)
+
+
 GARMENTS = {
     "short_sleeves": c_tshirt, "long_sleeves": g_long_sleeves,
     "shorts": g_shorts, "long_pants": g_long_pants,
@@ -1203,6 +1213,7 @@ GARMENTS = {
     "sneakers": g_sneakers, "rain_boots": g_rain_boots, "snow_boots": g_snow_boots,
     "warm_hat": g_warm_hat, "gloves": c_mittens, "umbrella": c_umbrella,
     "sunglasses": g_sunglasses, "water_bottle": c_water, "scarf": g_scarf,
+    "dress": g_dress,
 }
 
 

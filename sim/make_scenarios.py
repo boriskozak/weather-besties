@@ -294,6 +294,33 @@ S["hanukkah_night3"] = build(
     sunrise=7, sunset=16, feels_delta=-7)
 S["hanukkah_night3"]["sim_clock"] = "2026-12-06T17:37"
 
+# A plain cold morning in the dress band (iter-06): departure feels-like
+# 40F, dry, warming to 56F. Warm coat, no hat or gloves (both thresholds
+# are colder), so the outfit is the dress and its coat, nothing else.
+# This is the dress outfit's reference scenario (and the heart
+# animation's, since the frames exist for the dress sprite only).
+S["dress_morning"] = build(
+    "2026-11-04", "08:00", {"t": 44.0, "f": 42.0, "day": 1, "code": 1, "gust": 9},
+    (2, 55, 40, 10, 3.0, 6.0), [(1, 58, 40, 0, 3.0, 7.0), (2, 56, 41, 10, 2.8, 6.0), (3, 54, 42, 20, 2.4, 4.0),
+                                (0, 57, 40, 0, 3.2, 8.0)],
+    lambda i: 1 if i < 48 else 2,
+    lambda i: 0 if i < 48 else 10,
+    sunrise=7, sunset=18, feels_delta=-2)
+S["dress_morning"]["sim_clock"] = "2026-11-04T08:05"
+
+# A warm late-spring day in the pants band (iter-06): departure
+# feels-like 67F (no layer), high 73F (short sleeves, but long pants:
+# the shorts rule needs a 74F high with a 66F departure). Tee, jeans,
+# sneakers, no extras: the pants outfit's reference scenario.
+S["warm_day"] = build(
+    "2027-06-09", "11:00", {"t": 71.0, "f": 71.0, "day": 1, "code": 2},
+    (2, 70, 56, 5, 4.8, 9.0), [(2, 73, 58, 5, 5.0, 9.0), (1, 75, 59, 5, 5.4, 10.0), (3, 72, 58, 20, 3.4, 5.0),
+                               (2, 74, 57, 10, 5.0, 9.0)],
+    lambda i: 2 if i < 48 else 3,
+    lambda i: 5 if i < 48 else 10,
+    sunrise=6, sunset=20, feels_delta=0)
+S["warm_day"]["sim_clock"] = "2027-06-09T11:05"
+
 # Longest advice combo: big warm-up swing (sentence A + the long sentence B).
 S["long_text"] = build(
     "2026-11-10", "07:30", {"t": 38.0, "f": 35.0, "day": 1, "code": 1},

@@ -30,8 +30,25 @@ enum { CH_WARMUP = 1, CH_COOLDOWN = 2, CH_RAIN_LATER = 4, CH_RAIN_ALL_DAY = 8, C
 typedef enum {
     SHORT_SLEEVES, LONG_SLEEVES, SHORTS, LONG_PANTS, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT,
     WINTER_COAT, SNEAKERS, RAIN_BOOTS, SNOW_BOOTS, WARM_HAT, GLOVES, UMBRELLA, SUNGLASSES,
-    WATER_BOTTLE, SCARF
+    WATER_BOTTLE, SCARF, DRESS
 } garment_t;
+
+/* The resolved "look": which flattened Pippa sprite family shows this
+ * outfit, and (iter-06, panel round 4) the fidelity anchor. outfit_make
+ * first computes the weather prescription, then picks the look whose
+ * sprite can actually wear it, then rewrites the prescription into the
+ * canonical outfit that sprite wears. Invariant: every garment visible
+ * on the sprite is a tile or a checkable chip, and every tile and chip
+ * is visible on the sprite. The UI picks the sprite from this field
+ * alone, so tiles, chips, advice and cat can never disagree. */
+typedef enum {
+    LOOK_DRESS = 0,   /* dress + tights + Mary Janes + her blue warm coat */
+    LOOK_PANTS,       /* tee + jeans + sneakers (+ her everyday jacket) */
+    LOOK_SNOW,        /* puffer, beanie, mittens, snow boots, long everything */
+    LOOK_RAIN,        /* rain jacket, long pants, rain boots, umbrella in hand */
+    LOOK_HOT,         /* tee, shorts, sneakers, heart sunglasses, water bottle */
+    LOOK_FALL         /* hoodie, long pants, sneakers, light scarf */
+} look_t;
 
 /* Extra-item icons for the advice row, in the priority order of plan 4.4
  * (the names match plan 5.5 EXTRA_ICONS). outfit_t.extra_icon is a plain
@@ -52,6 +69,7 @@ typedef struct {
     bool ok;                 /* false = don't prescribe (unavailable) */
     int year, month, day, wday;   /* the outfit's date */
     top_t top; bottom_t bottom; layer_t layer; feet_t feet;
+    int look;                /* look_t: the sprite family that wears this outfit */
     uint32_t extras, change;
     int ntiles; int tile_kind[4];  /* garment ids in display order, see garment_t */
     char advice[160];        /* sentence A + " " + sentence B */

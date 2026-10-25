@@ -46,7 +46,7 @@ static const lv_image_dsc_t *ICON_M[] = WB_WX_ICONS_M;
 static const lv_image_dsc_t *ICON_S[] = WB_WX_ICONS_S;
 
 /* Indexed by garment_t (outfit.h). Asset names from tools/make_assets.py. */
-#define GARMENT_COUNT 18   /* garment_t count in outfit.h */
+#define GARMENT_COUNT 19   /* garment_t count in outfit.h */
 static const lv_image_dsc_t *GARMENT_96[GARMENT_COUNT];
 static const lv_image_dsc_t *GARMENT_56[GARMENT_COUNT];
 static const lv_image_dsc_t *EXTRA_IMG[8];   /* EXTRA_ICON_* ids 0..7 */
@@ -232,19 +232,30 @@ static void on_setup_btn(lv_event_t *e)
     fire(UI_ACT_SETUP);
 }
 
-/* The character mark on the boot / setup / wifi-error screens: Pippa's
- * head, cropped from her dress sprite by the asset pipeline
- * (tools/make_pippa_assets.py). One character everywhere; the old mark
- * was a different cat head with different eye colors. */
+/* The brand mark on the boot / setup / wifi-error screens: Pippa's
+ * head (cropped from her dress sprite by the asset pipeline,
+ * tools/make_pippa_assets.py) set inside a soft round badge in the
+ * app's tile language (white disc, cream border). Round 4's premium
+ * judge read the bare head crop as a severed asset; inside the badge
+ * it is a deliberate logo, identical on all three screens. */
+#define BADGE_D 160
 static void cats_pair(lv_obj_t *parent, int y, bool center)
 {
-    lv_obj_t *a = lv_image_create(parent);
-    lv_image_set_src(a, &img_pippa_head);
+    lv_obj_t *badge = box(parent);
+    lv_obj_set_size(badge, BADGE_D, BADGE_D);
+    lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(badge, lv_color_white(), 0);
+    lv_obj_set_style_border_width(badge, 3, 0);
+    lv_obj_set_style_border_color(badge, C(COL_TILE_LINE_M), 0);
     if (center) {
-        lv_obj_align(a, LV_ALIGN_TOP_MID, 0, y);
+        lv_obj_align(badge, LV_ALIGN_TOP_MID, 0, y);
     } else {
-        lv_obj_set_pos(a, 0, y);
+        lv_obj_set_pos(badge, 0, y);
     }
+    lv_obj_t *a = lv_image_create(badge);
+    lv_image_set_src(a, &img_pippa_head);
+    lv_obj_center(a);
 }
 
 static void solid_bg(lv_obj_t *o, uint32_t col)
@@ -260,23 +271,23 @@ static void build_boot(void)
     lv_obj_remove_flag(scr_boot, LV_OBJ_FLAG_SCROLLABLE);
     solid_bg(scr_boot, COL_BG_MORNING);
 
-    cats_pair(scr_boot, 78, true);
+    cats_pair(scr_boot, 44, true);
 
     boot_title = label(scr_boot, &font_title, "Weather Besties");
     lv_obj_set_style_text_color(boot_title, C(COL_INK), 0);
-    lv_obj_align(boot_title, LV_ALIGN_TOP_MID, 0, 214);
+    lv_obj_align(boot_title, LV_ALIGN_TOP_MID, 0, 224);
 
     boot_msg = label(scr_boot, &font_body, "");
     lv_obj_set_style_text_color(boot_msg, C(COL_INK), 0);
     lv_obj_set_style_text_align(boot_msg, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(boot_msg, 700);
-    lv_obj_align(boot_msg, LV_ALIGN_TOP_MID, 0, 266);
+    lv_obj_align(boot_msg, LV_ALIGN_TOP_MID, 0, 276);
 
     boot_detail = label(scr_boot, &font_small, "");
     lv_obj_set_style_text_color(boot_detail, C(COL_INK2), 0);
     lv_obj_set_style_text_align(boot_detail, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(boot_detail, 700);
-    lv_obj_align(boot_detail, LV_ALIGN_TOP_MID, 0, 306);
+    lv_obj_align(boot_detail, LV_ALIGN_TOP_MID, 0, 316);
 
     boot_spinner = lv_spinner_create(scr_boot);
     lv_obj_set_size(boot_spinner, 48, 48);
@@ -285,10 +296,10 @@ static void build_boot(void)
     lv_obj_set_style_arc_width(boot_spinner, 7, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(boot_spinner, C(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_arc_color(boot_spinner, C(COL_ACCENT), LV_PART_INDICATOR);
-    lv_obj_align(boot_spinner, LV_ALIGN_TOP_MID, 0, 356);
+    lv_obj_align(boot_spinner, LV_ALIGN_TOP_MID, 0, 364);
 
     boot_btn = pill_button(scr_boot, LV_SYMBOL_WIFI "  Set up WiFi", true, on_setup_btn, NULL);
-    lv_obj_align(boot_btn, LV_ALIGN_TOP_MID, 0, 360);
+    lv_obj_align(boot_btn, LV_ALIGN_TOP_MID, 0, 368);
     hide(boot_btn);
 }
 
@@ -357,21 +368,21 @@ static void build_setup(void)
     lv_obj_align(cap, LV_ALIGN_BOTTOM_MID, 0, -22);
 
     lv_obj_t *col = box(scr_setup);
-    lv_obj_set_pos(col, 380, 34);
-    lv_obj_set_size(col, 390, 420);
+    lv_obj_set_pos(col, 380, 16);
+    lv_obj_set_size(col, 390, 448);
 
     cats_pair(col, 0, false);
 
     lv_obj_t *t = label(col, &font_title, "Let's get online!");
     lv_obj_set_style_text_color(t, C(COL_INK), 0);
-    lv_obj_set_pos(t, 0, 128);
+    lv_obj_set_pos(t, 0, 172);
 
     setup_steps = label(col, &font_body, "");
     lv_obj_set_style_text_color(setup_steps, C(COL_INK), 0);
     lv_obj_set_style_text_line_space(setup_steps, 6, 0);
     lv_obj_set_width(setup_steps, 390);
     lv_label_set_long_mode(setup_steps, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(setup_steps, 0, 178);
+    lv_obj_set_pos(setup_steps, 0, 220);
 }
 
 void ui_show_setup(const char *ap_name, const char *url)
@@ -497,10 +508,16 @@ static void on_speed_pill(lv_event_t *e)
 
 static void build_settings(void)
 {
+    /* Restyled in the app system (panel round 4: this sheet read as a
+     * grey diagnostics dump from a different product). Warm dimmed
+     * backdrop, cream panel with the tile border, the same type and
+     * spacing as the outfit pages, and the diagnostics presented as a
+     * tidy grown-ups card instead of a raw text block. Every control
+     * keeps its behaviour; only the presentation changed. */
     settings = lv_obj_create(lv_layer_top());
     lv_obj_remove_style_all(settings);
     lv_obj_set_size(settings, UI_W, UI_H);
-    lv_obj_set_style_bg_color(settings, C(0x0B1022), 0);
+    lv_obj_set_style_bg_color(settings, C(0x3A322A), 0);   /* warm charcoal, not debug navy */
     lv_obj_set_style_bg_opa(settings, 150, 0);
     lv_obj_add_flag(settings, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(settings, LV_OBJ_FLAG_SCROLLABLE);
@@ -512,7 +529,9 @@ static void build_settings(void)
     lv_obj_center(p);
     lv_obj_set_style_radius(p, 28, 0);
     lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(p, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(p, C(COL_BG_MORNING), 0);
+    lv_obj_set_style_border_width(p, 3, 0);
+    lv_obj_set_style_border_color(p, C(COL_TILE_LINE_M), 0);
     lv_obj_set_style_pad_all(p, 24, 0);
 
     lv_obj_t *t = label(p, &font_title, LV_SYMBOL_SETTINGS "  Settings");
@@ -539,18 +558,34 @@ static void build_settings(void)
     }
     style_cat_pills();
 
-    set_info = label(p, &font_body, "");
+    /* Grown-ups section: the connection facts, on a white card in the
+     * tile language (radius, border, padding), set in the small font. */
+    lv_obj_t *grown = label(p, &font_body, "For grown-ups");
+    lv_obj_set_style_text_color(grown, C(COL_INK), 0);
+    lv_obj_set_pos(grown, 0, 100);
+
+    lv_obj_t *card = box(p);
+    lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_pos(card, 0, 134);
+    lv_obj_set_size(card, 592, 152);
+    lv_obj_set_style_radius(card, 22, 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(card, C(COL_TILE), 0);
+    lv_obj_set_style_border_width(card, 3, 0);
+    lv_obj_set_style_border_color(card, C(COL_TILE_LINE_M), 0);
+
+    set_info = label(card, &font_small, "");
     lv_obj_set_style_text_color(set_info, C(COL_INK2), 0);
-    lv_obj_set_style_text_line_space(set_info, 4, 0);
-    lv_obj_set_width(set_info, 592);
+    lv_obj_set_style_text_line_space(set_info, 1, 0);
+    lv_obj_set_width(set_info, 560);
     lv_label_set_long_mode(set_info, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(set_info, 0, 116);
+    lv_obj_set_pos(set_info, 16, 9);
 
     lv_obj_t *sp = pill_button(p, "Speed test", false, on_speed_pill, NULL);
-    lv_obj_set_pos(sp, 0, 284);
+    lv_obj_set_pos(sp, 0, 294);
     set_speed_lbl = label(p, &font_small, "Speed test: off");
     lv_obj_set_style_text_color(set_speed_lbl, C(COL_INK2), 0);
-    lv_obj_set_pos(set_speed_lbl, 190, 298);
+    lv_obj_set_pos(set_speed_lbl, 190, 310);
 
     lv_obj_t *row = box(p);
     lv_obj_set_size(row, 592, LV_SIZE_CONTENT);
@@ -638,6 +673,7 @@ static void init_asset_tables(void)
     GARMENT_96[SUNGLASSES] = &img_g_sunglasses_96;
     GARMENT_96[WATER_BOTTLE] = &img_g_water_bottle_96;
     GARMENT_96[SCARF] = &img_g_scarf_96;
+    GARMENT_96[DRESS] = &img_g_dress_96;
     GARMENT_56[SHORT_SLEEVES] = &img_g_short_sleeves_56;
     GARMENT_56[LONG_SLEEVES] = &img_g_long_sleeves_56;
     GARMENT_56[SHORTS] = &img_g_shorts_56;
@@ -656,6 +692,7 @@ static void init_asset_tables(void)
     GARMENT_56[SUNGLASSES] = &img_g_sunglasses_56;
     GARMENT_56[WATER_BOTTLE] = &img_g_water_bottle_56;
     GARMENT_56[SCARF] = &img_g_scarf_56;
+    GARMENT_56[DRESS] = &img_g_dress_56;
     EXTRA_IMG[EXTRA_ICON_BOLT] = &img_x_bolt;
     EXTRA_IMG[EXTRA_ICON_UMBRELLA] = &img_x_umbrella;
     EXTRA_IMG[EXTRA_ICON_HAT_GLOVES] = &img_x_hat_gloves;
@@ -1442,21 +1479,13 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
         if (unavailable || !o) {
             s_pippa = PIPPA_BASE;
         } else {
-            int v;
-            if (o->feet == FEET_SNOW_BOOTS) {
-                v = PIPPA_SNOW;
-            } else if (o->layer == LAYER_RAIN_JACKET || o->feet == FEET_RAIN_BOOTS ||
-                       (o->change & CH_STORM)) {
-                v = PIPPA_RAIN;
-            } else if (o->change & CH_HOT) {
-                v = PIPPA_HOT;
-            } else if (o->layer == LAYER_HOODIE || o->layer == LAYER_LIGHT_JACKET) {
-                v = PIPPA_FALL;
-            } else if (o->layer == LAYER_NONE && o->feet == FEET_SNEAKERS) {
-                v = PIPPA_PANTS;
-            } else {
-                v = PIPPA_DRESS;
-            }
+            /* The sprite is chosen from the engine's resolved look
+             * (outfit.h): the engine has already rewritten the
+             * prescription into the outfit this sprite wears, so the
+             * cat, the tiles and the chips cannot disagree. */
+            static const int look_variant[] = {PIPPA_DRESS, PIPPA_PANTS, PIPPA_SNOW,
+                                               PIPPA_RAIN,  PIPPA_HOT,   PIPPA_FALL};
+            int v = look_variant[o->look];
             /* Outfit variants come in black/pink pairs (pippa_sets.h):
              * the pink variant is the black one's value + 1. */
             s_pippa = (eff_choice == 1) ? v + 1 : v;
@@ -1929,7 +1958,14 @@ static void render(void)
             lv_obj_set_width(tile_label[i], TILE_W - 116);
             lv_obj_set_style_text_font(tile_label[i], &font_label, 0);   /* always the label font */
             s_tile_layer[i] = o.tile_kind[i] >= HOODIE && o.tile_kind[i] <= WINTER_COAT;
-            lv_obj_set_pos(tile_check[i], TILE_W - 48, 8);
+            /* The check disc sits on the garment icon's bottom-right
+             * corner (icon at (10,4), 96 px), never in the label
+             * column: three panel rounds flagged the disc striking
+             * through two-line labels ("Warm coat", "Winter coat")
+             * when it lived at the tile's top-right. On the picture
+             * it reads as the pick marker for that garment, and no
+             * label text can ever reach it. */
+            lv_obj_set_pos(tile_check[i], 68, 62);
             lv_obj_update_layout(tile[i]);
             int th = lv_obj_get_height(tile_label[i]);
             if (s_tile_layer[i]) {

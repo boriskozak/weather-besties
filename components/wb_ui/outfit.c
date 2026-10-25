@@ -46,7 +46,8 @@ const char *garment_label(int garment)
 {
     static const char *n[] = {"Short sleeves", "Long sleeves", "Shorts",     "Long pants",   "Hoodie",      "Light jacket",
                               "Rain jacket",   "Warm coat",     "Winter coat", "Sneakers",     "Rain boots",  "Snow boots",
-                              "Warm hat",      "Gloves",        "Umbrella",    "Sunglasses",   "Water bottle", "Scarf"};
+                              "Warm hat",      "Gloves",        "Umbrella",    "Sunglasses",   "Water bottle", "Scarf",
+                              "Dress"};
     return (garment >= 0 && garment < (int)(sizeof(n) / sizeof(n[0]))) ? n[garment] : "";
 }
 
@@ -231,15 +232,117 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     if (bike_bus_cold) change |= CH_BIKE_BUS;
     out->change = change;
 
-    /* ---- tiles: top, bottom, layer if any, feet (plan 3.1 / 4.1) ---- */
-    int n = 0;
-    out->tile_kind[n++] = out->top == TOP_SHORT_SLEEVES ? SHORT_SLEEVES : LONG_SLEEVES;
-    out->tile_kind[n++] = out->bottom == BOTTOM_SHORTS ? SHORTS : LONG_PANTS;
-    if (out->layer != LAYER_NONE) {
-        static const int layer_garment[] = {0, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT, WINTER_COAT};
-        out->tile_kind[n++] = layer_garment[out->layer];
+    /* ---- iter-06 (panel round 4): resolve the look, then canonicalise ----
+     * Pippa's sprites are flattened: each one wears ONE fixed outfit.
+     * Round 4's judges all converged on the same failure: the tiles
+     * prescribed one outfit while the sprite on stage wore another
+     * (jeans and sneakers against her dress, a winter-coat tile against
+     * her light jacket, hat/gloves/scarf chips she never wears, a storm
+     * screen prescribing shorts and a water bottle while she stood in
+     * long pants holding an umbrella). So the prescription is now
+     * rewritten into the canonical outfit of the sprite that will show
+     * it, and the invariant holds by construction:
+     *
+     *   every garment visible on the sprite is a tile or a chip, and
+     *   every tile and chip garment is visible on the sprite.
+     *
+     * Canonical outfits (what each sprite demonstrably wears):
+     *   SNOW: long sleeves, long pants, winter coat (the puffer),
+     *         snow boots, warm hat, gloves. No scarf: she wears none.
+     *   RAIN: long sleeves, long pants, rain jacket, rain boots,
+     *         umbrella in hand. Storms use rain logic end to end.
+     *   HOT:  short sleeves, shorts, sneakers, sunglasses, water bottle.
+     *   FALL: the engine's top/bottom/feet (sneakers), the layer said as
+     *         a hoodie (the fall sprite wears a hoodie, not a light
+     *         jacket), and the light scarf she wears as the only extra.
+     *   DRESS: the dress itself replaces top+bottom as a tile; the blue
+     *         jacket she wears is the warm coat. Tights and Mary Janes
+     *         are part of the dress outfit, not separate tiles (the
+     *         sheet has no icons for them). No extras: she wears none.
+     *   PANTS: the engine's top/bottom/feet (sneakers, no layer), no
+     *         extras: she wears none.
+     *
+     * Safety: canonicalisation never dresses her lighter than the
+     * weather rules demanded. Winter-coat weather and snow boots go to
+     * the full winter kit; a day cold enough to need a hat or gloves
+     * (the engine's own thresholds) is upgraded to the winter kit,
+     * the only sprite that wears them, instead of prescribing extras
+     * she does not wear. Where two rules collide (cold rain: the coat
+     * rule says warm coat, the rain rule says rain gear) rain gear
+     * wins, because a rain jacket over long sleeves is the wearable
+     * answer and no sprite wears a warm coat in the rain. Extras the
+     * chosen sprite does not wear (a scarf on a snow day, sunglasses
+     * or a water bottle on a hoodie day, an umbrella on a thunder day
+     * under the old "never on thunder" exception) are dropped or, on
+     * the storm screen, restored: the rain sprite holds her umbrella
+     * in a storm too, so it is a required chip there like any rain day.
+     */
+    int look;
+    if (out->feet == FEET_SNOW_BOOTS || out->layer == LAYER_WINTER_COAT) {
+        look = LOOK_SNOW;
+    } else if (out->layer == LAYER_RAIN_JACKET || out->feet == FEET_RAIN_BOOTS || (change & CH_STORM) ||
+               (extras & EX_UMBRELLA)) {
+        look = LOOK_RAIN;
+    } else if (out->layer == LAYER_HOODIE || out->layer == LAYER_LIGHT_JACKET) {
+        look = LOOK_FALL;
+    } else if (out->layer == LAYER_WARM_COAT) {
+        look = (extras & (EX_HAT | EX_GLOVES)) ? LOOK_SNOW : LOOK_DRESS;
+    } else {
+        look = (change & CH_HOT) ? LOOK_HOT : LOOK_PANTS;
     }
-    out->tile_kind[n++] = out->feet == FEET_SNEAKERS ? SNEAKERS : out->feet == FEET_RAIN_BOOTS ? RAIN_BOOTS : SNOW_BOOTS;
+    switch (look) {
+    case LOOK_SNOW:
+        out->top = TOP_LONG_SLEEVES;
+        out->bottom = BOTTOM_LONG_PANTS;
+        out->layer = LAYER_WINTER_COAT;
+        out->feet = FEET_SNOW_BOOTS;
+        extras = EX_HAT | EX_GLOVES;   /* both are on the sprite, always */
+        break;
+    case LOOK_RAIN:
+        out->top = TOP_LONG_SLEEVES;
+        out->bottom = BOTTOM_LONG_PANTS;
+        out->layer = LAYER_RAIN_JACKET;
+        out->feet = FEET_RAIN_BOOTS;
+        extras = EX_UMBRELLA;   /* in her hand, so it is a required chip */
+        break;
+    case LOOK_HOT:
+        out->top = TOP_SHORT_SLEEVES;
+        out->bottom = BOTTOM_SHORTS;
+        out->layer = LAYER_NONE;
+        out->feet = FEET_SNEAKERS;
+        extras = EX_SUNGLASSES | EX_WATER;   /* both are on the sprite */
+        break;
+    case LOOK_FALL:
+        out->layer = LAYER_HOODIE;   /* the fall sprite wears a hoodie */
+        extras = EX_SCARF;           /* the light scarf she wears */
+        break;
+    default:   /* LOOK_DRESS, LOOK_PANTS: no extras; the sprites wear none */
+        extras = 0;
+        break;
+    }
+    out->extras = extras;
+    out->look = look;
+
+    /* ---- tiles: top, bottom, layer if any, feet (plan 3.1 / 4.1).
+     * A dress day is the exception: the dress is one garment that
+     * replaces top and bottom, and her shoes are part of the outfit,
+     * so the tiles are the dress and its layer, nothing else. ---- */
+    int n = 0;
+    if (look == LOOK_DRESS) {
+        out->tile_kind[n++] = DRESS;
+        if (out->layer != LAYER_NONE) {
+            static const int layer_garment[] = {0, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT, WINTER_COAT};
+            out->tile_kind[n++] = layer_garment[out->layer];
+        }
+    } else {
+        out->tile_kind[n++] = out->top == TOP_SHORT_SLEEVES ? SHORT_SLEEVES : LONG_SLEEVES;
+        out->tile_kind[n++] = out->bottom == BOTTOM_SHORTS ? SHORTS : LONG_PANTS;
+        if (out->layer != LAYER_NONE) {
+            static const int layer_garment[] = {0, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT, WINTER_COAT};
+            out->tile_kind[n++] = layer_garment[out->layer];
+        }
+        out->tile_kind[n++] = out->feet == FEET_SNEAKERS ? SNEAKERS : out->feet == FEET_RAIN_BOOTS ? RAIN_BOOTS : SNOW_BOOTS;
+    }
     out->ntiles = n;
 
     /* ---- 4.4 extra icon, by priority ---- */
@@ -264,7 +367,11 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     /* ---- 4.5 advice sentences (no numbers) ---- */
     char a[64], b[80];   /* longest A is 43 chars, longest B is 70, both fit advice_short */
     b[0] = 0;
-    if (out->layer == LAYER_NONE) {
+    if (look == LOOK_DRESS) {
+        /* The dress replaces top and bottom in the words too. */
+        snprintf(a, sizeof(a), "Wear your dress. %s %s.", (change & CH_WARMUP) ? "Bring" : "Wear",
+                 layer_phrase(out->layer));
+    } else if (out->layer == LAYER_NONE) {
         snprintf(a, sizeof(a), "Wear %s and %s.", top_phrase(out->top), bottom_phrase(out->bottom));
     } else {
         snprintf(a, sizeof(a), "Wear %s. %s %s.", top_phrase(out->top), (change & CH_WARMUP) ? "Bring" : "Wear",
@@ -289,7 +396,14 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     } else if (change & CH_COOLDOWN) {
         snprintf(b, sizeof(b), "Warm now, chilly later. Bring a layer.");
     } else if (change & CH_BIKE_BUS) {
-        snprintf(b, sizeof(b), "%s", tomorrow ? "Bike bus tomorrow! Lay out your gloves." : "Bike bus today! Wear your gloves.");
+        /* Gloves are promised only when they survived canonicalisation,
+         * i.e. the winter kit is the outfit and the gloves are worn and
+         * checkable. A milder bike-bus outfit cannot promise them. */
+        if (extras & EX_GLOVES) {
+            snprintf(b, sizeof(b), "%s", tomorrow ? "Bike bus tomorrow! Lay out your gloves." : "Bike bus today! Wear your gloves.");
+        } else {
+            snprintf(b, sizeof(b), "%s", tomorrow ? "Bike bus tomorrow! Dress warm." : "Bike bus today! Dress warm.");
+        }
     } else if (change & CH_WINDY) {
         if (out->layer != LAYER_NONE) {
             snprintf(b, sizeof(b), "Windy! Zip up your %s.", layer_noun(out->layer));

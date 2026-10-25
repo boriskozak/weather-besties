@@ -41,16 +41,17 @@ PAD = 8
 MIN_PART_PX = 200   # smaller opaque specks are sheet noise, not garment parts
 
 # Sheet name (icon-order.json) -> garment key (tools/icons.py GARMENTS).
-# "dress" and "star-badge" have no garment_t entry: the dress is Pippa's
-# own outfit, never a tile, and the star badge was retired in favour of
-# the words "Extra layer" (panel round 3 fix 1). Both are still cropped
-# and reported, just not written as garment icons.
+# "dress" is a garment since iter-06: on dress days the prescription
+# itself names the dress (panel round 4), so it needs a tile icon.
+# "star-badge" still has no garment_t entry: it was retired in favour
+# of the words "Extra layer" (panel round 3 fix 1). It is still cropped
+# and reported, just not written as a garment icon.
 KEYMAP = {
     "long-sleeve-shirt": "long_sleeves",
     "short-sleeve-shirt": "short_sleeves",
     "pants": "long_pants",
     "shorts": "shorts",
-    "dress": None,
+    "dress": "dress",
     "hoodie": "hoodie",
     "light-jacket": "light_jacket",
     "raincoat": "rain_jacket",

@@ -191,12 +191,14 @@ int main(int argc, char **argv)
     ui_test_set_checks(0);
 
     /* Pippa proof still: her all-done heart animation plays on its own
-     * in the renderer, on the black dress sprite only. The morning
-     * outfit is the dress variant; lay everything out (4 tiles + hat
-     * and gloves chips, bits 4 and 5) and pin frame 4 (the eyes-closed
-     * heart hold) so the screenshot set shows the gesture
-     * deterministically. */
-    load(sc, "brief_morning");
+     * in the renderer, on the black dress sprite only. The dress
+     * scenario's outfit is the dress (2 tiles, no chips since iter-06
+     * canonicalised the prescription to what the sprite wears); lay
+     * everything out and pin frame 4 (the eyes-closed heart hold) so
+     * the screenshot set shows the gesture deterministically. (The
+     * brief morning used to double as this proof; it is a winter-kit
+     * day now, and the heart frames were never the snow sprite's.) */
+    load(sc, "dress_morning");
     show();
     ui_test_set_checks(0x3F);
     pump(10);
@@ -264,6 +266,17 @@ int main(int argc, char **argv)
     load(sc, "bike_bus_cold_friday");
     show();
     save(out, "36_bike_bus");
+
+    /* iter-06 outfit references: the dress day and the pants day,
+     * unchecked. Round 4's fidelity failures lived on exactly these
+     * two outfits (and the winter kit on the cold days above). */
+    load(sc, "dress_morning");
+    show();
+    save(out, "37_dress_day");
+
+    load(sc, "warm_day");
+    show();
+    save(out, "38_warm_day");
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");

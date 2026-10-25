@@ -62,6 +62,8 @@ set(WB_ASSET_SRCS
     assets/img_g_water_bottle_56.c
     assets/img_g_scarf_96.c
     assets/img_g_scarf_56.c
+    assets/img_g_dress_96.c
+    assets/img_g_dress_56.c
     assets/img_x_bolt.c
     assets/img_x_umbrella.c
     assets/img_x_hat_gloves.c
