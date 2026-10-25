@@ -69,6 +69,7 @@ void ui_set_cat_cb(ui_cat_cb_t cb);
 /* Desktop-renderer test hooks. */
 void ui_test_set_checks(uint8_t mask);
 void ui_test_set_page(int page);
+void ui_test_set_pippa_frame(int frame);   /* pin Pippa's heart animation to a frame, -1 releases */
 #endif
 
 #ifdef __cplusplus

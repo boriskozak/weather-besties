@@ -181,6 +181,14 @@ int main(int argc, char **argv)
     ui_test_set_checks(0xF); /* everything laid out */
     pump(10);
     save(out, "23_evening_all_done");
+
+    /* Pippa proof still: her all-done heart animation plays on its own
+     * in the renderer; pin frame 4 (the eyes-closed heart hold) so the
+     * screenshot set shows the gesture deterministically. */
+    ui_test_set_pippa_frame(4);
+    pump(10);
+    save(out, "23b_evening_all_done_heart");
+    ui_test_set_pippa_frame(-1);
     ui_test_set_checks(0);
 
     load(sc, "brief_morning");

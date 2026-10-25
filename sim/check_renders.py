@@ -40,6 +40,34 @@ def sha(name):
         return hashlib.sha256(f.read()).hexdigest()
 
 
+# Pippa (the flattened-sprite cat) draws in the same stage box. Her
+# markers, measured on the source sprites: golden-yellow eyes, the pink
+# dress/top, and denim that appears only in the pants variant.
+STAGE = (24, 100, 284, 352)
+
+
+def count_where(img, box, pred):
+    crop = img.crop(box).convert("RGB")
+    return sum(1 for px in crop.getdata() if pred(*px))
+
+
+def is_eye_yellow(r, g, b):
+    return r > 200 and 150 < g < 235 and b < 130
+
+
+def is_garment_pink(r, g, b):
+    return r > 220 and 120 < g < 190 and b > 160
+
+
+def is_denim(r, g, b):
+    return 40 < r < 110 and 80 < g < 140 and b > 140
+
+
+def stage_sha(name):
+    img = Image.open(os.path.join(OUT, name)).crop(STAGE)
+    return hashlib.sha256(img.tobytes()).hexdigest()
+
+
 def main():
     failures = []
 
@@ -67,6 +95,45 @@ def main():
           "32_pink_cat differs from 20_morning (pink cat is not the black cat)")
     check(sha("23_evening_all_done.png") != sha("21_evening.png"),
           "23_evening_all_done differs from 21_evening (checks change the page)")
+
+    # Pippa is the cat on the black-cat outfit pages: golden eyes and
+    # the pink dress in the stage, and no denim (that is the pants
+    # variant). A blank or old-cat stage fails these, not just the
+    # non-background fraction above.
+    for name in ("20_morning.png", "21_evening.png", "23_evening_all_done.png", "28_snow.png"):
+        img = Image.open(os.path.join(OUT, name))
+        eyes = count_where(img, STAGE, is_eye_yellow)
+        pink = count_where(img, STAGE, is_garment_pink)
+        denim = count_where(img, STAGE, is_denim)
+        check(eyes > 150, f"{name}: Pippa golden eyes in stage ({eyes} px, need > 150)")
+        check(pink > 1000, f"{name}: Pippa pink dress in stage ({pink} px, need > 1000)")
+        check(denim < 200, f"{name}: dress variant on stage, no denim ({denim} px, need < 200)")
+
+    # The hot day maps to the pants variant: denim in the stage.
+    img = Image.open(os.path.join(OUT, "29_hot.png"))
+    eyes = count_where(img, STAGE, is_eye_yellow)
+    denim = count_where(img, STAGE, is_denim)
+    check(eyes > 150, f"29_hot: Pippa golden eyes in stage ({eyes} px, need > 150)")
+    check(denim > 500, f"29_hot: Pippa denim pants in stage ({denim} px, need > 500)")
+    check(stage_sha("29_hot.png") != stage_sha("20_morning.png"),
+          "stage crops differ: pants variant is not the dress variant")
+
+    # Unavailable shows the undressed base: eyes, but no pink garment
+    # and no denim.
+    img = Image.open(os.path.join(OUT, "26_unavailable.png"))
+    eyes = count_where(img, STAGE, is_eye_yellow)
+    pink = count_where(img, STAGE, is_garment_pink)
+    denim = count_where(img, STAGE, is_denim)
+    check(eyes > 150, f"26_unavailable: Pippa base golden eyes in stage ({eyes} px, need > 150)")
+    check(pink < 800, f"26_unavailable: base variant, no pink garment ({pink} px, need < 800)")
+    check(denim < 200, f"26_unavailable: base variant, no denim ({denim} px, need < 200)")
+
+    # The heart proof still: Pippa mid-gesture, not the static sprite.
+    img = Image.open(os.path.join(OUT, "23b_evening_all_done_heart.png"))
+    pink = count_where(img, STAGE, is_garment_pink)
+    check(pink > 1000, f"23b_evening_all_done_heart: Pippa pink dress in stage ({pink} px, need > 1000)")
+    check(stage_sha("23b_evening_all_done_heart.png") != stage_sha("23_evening_all_done.png"),
+          "23b heart frame stage differs from the static all-done stage")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

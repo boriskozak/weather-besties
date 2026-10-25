@@ -6,6 +6,7 @@
 
 #include "assets/assets.h"
 #include "assets/cat2_sets.h"
+#include "assets/pippa_sets.h"
 #include "cat.h"
 #include "lvgl.h"
 #include "outfit.h"
@@ -102,6 +103,7 @@ static lv_obj_t *wx_icon, *lbl_wx1, *lbl_wx2;
 static lv_obj_t *cat_stage, *cat_grp;
 static lv_obj_t *cat_layer[WB_C2_COUNT];
 static lv_obj_t *cat_flame[9];
+static lv_obj_t *pippa_img;
 static lv_obj_t *sparkle[3];
 static lv_obj_t *tile[4], *tile_icon[4], *tile_label[4], *tile_check[4], *tile_check_mark[4], *tile_badge[4];
 static bool s_tile_layer[4];   /* tile i is the extra layer (amber frame + star badge) */
@@ -750,13 +752,118 @@ static void on_cat_tap(lv_event_t *e)
     cat_hop();
 }
 
+/* ------------------------------------------------------------------ Pippa */
+
+/* Pippa (external artwork package; see tools/make_pippa_assets.py) is a
+ * flattened full-character sprite, not a layer stack. When she is on
+ * stage she replaces the layered cat's body, garments, expression
+ * overlays and seasonal hats (they are positioned for the old cat's
+ * head). Ground props still draw: the pumpkin, menorah and present sit
+ * at the stage corners, not on the cat.
+ *
+ * Variant mapping, nearest available art (the package has no rain,
+ * snow or hot variants and no pink colorway):
+ *   pink cat choice, incl. "take turns" on a pink day -> no Pippa
+ *   unavailable                                       -> base
+ *   no outer layer + sneakers                         -> pink top + pants
+ *   anything else                                     -> dress + black tights
+ */
+static int s_pippa = PIPPA_NONE;
+static bool s_pippa_playing;      /* heart animation running */
+static uint32_t s_pippa_start;    /* tick when the current play started */
+static int s_pippa_frame = -1;    /* heart frame shown, -1 = static sprite */
+#ifdef WB_SIM
+static int s_pippa_forced = -1;   /* ui_test_set_pippa_frame override */
+#endif
+
+static bool pippa_active(void)
+{
+    return s_pippa != PIPPA_NONE;
+}
+
+static bool pippa_keeps_layer(int i)
+{
+    return i == WB_C2_PROP_PUMPKIN || i == WB_C2_PROP_MENORAH || i == WB_C2_PROP_PRESENT;
+}
+
+static void pippa_show_static(void)
+{
+    if (!pippa_img) {
+        return;
+    }
+    s_pippa_frame = -1;
+    if (!pippa_active()) {
+        hide(pippa_img);
+        return;
+    }
+    lv_image_set_src(pippa_img, WB_PIPPA_SPRITES[s_pippa]);
+    lv_obj_set_pos(pippa_img, WB_PIPPA_SPRITE_POS[s_pippa].x, WB_PIPPA_SPRITE_POS[s_pippa].y);
+    show_obj(pippa_img);
+}
+
+static void pippa_show_frame(int frame)
+{
+    lv_image_set_src(pippa_img, WB_PIPPA_HEART_FRAMES[frame]);
+    lv_obj_set_pos(pippa_img, WB_PIPPA_HEART_POS[frame].x, WB_PIPPA_HEART_POS[frame].y);
+    show_obj(pippa_img);
+    s_pippa_frame = frame;
+}
+
+static int pippa_heart_frame_at(uint32_t elapsed)
+{
+    uint32_t acc = 0;
+    for (int i = 0; i < 6; i++) {
+        acc += WB_PIPPA_HEART_MS[i];
+        if (elapsed < acc) {
+            return i;
+        }
+    }
+    return 5;
+}
+
+/* Advances the heart animation; called from blink_tick (100 ms cadence,
+ * fine against the manifest's 110-500 ms frames). */
+static void pippa_tick(uint32_t now)
+{
+    if (!pippa_img || !s_pippa_playing || s_pippa != PIPPA_DRESS) {
+        return;
+    }
+#ifdef WB_SIM
+    if (s_pippa_forced >= 0) {
+        if (s_pippa_frame != s_pippa_forced) {
+            pippa_show_frame(s_pippa_forced);
+        }
+        return;
+    }
+    /* Demo loop while all-done lasts, so the motion is visible in the
+     * emulator and a still can catch the gesture. The board plays the
+     * sequence once and holds the last frame, per the package. */
+    uint32_t elapsed = (now - s_pippa_start) % WB_PIPPA_HEART_TOTAL_MS;
+#else
+    uint32_t elapsed = now - s_pippa_start;
+    if (elapsed >= WB_PIPPA_HEART_TOTAL_MS) {
+        if (s_pippa_frame != 5) {
+            pippa_show_frame(5);
+        }
+        s_pippa_playing = false;
+        return;
+    }
+#endif
+    int frame = pippa_heart_frame_at(elapsed);
+    if (frame != s_pippa_frame) {
+        pippa_show_frame(frame);
+    }
+}
+
 /* Expression overlays are exclusive; the blink timer owns them. */
 static void expr_show(int which)
 {
     /* which: -1 none, WB_C2_BLINK / WB_C2_HAPPY / WB_C2_PUZZLED */
     const int ids[3] = {WB_C2_BLINK, WB_C2_HAPPY, WB_C2_PUZZLED};
     for (int i = 0; i < 3; i++) {
-        if (ids[i] == which) {
+        /* Pippa's sprite already carries a complete face; the layered
+         * cat's expression overlays must never draw over her. */
+        if (ids[i] == which && !pippa_active()) {
             show_obj(cat_layer[ids[i]]);
         } else {
             hide(cat_layer[ids[i]]);
@@ -768,6 +875,7 @@ static void blink_tick(lv_timer_t *t)
 {
     (void)t;
     uint32_t now = lv_tick_get();
+    pippa_tick(now);
     if (s_done_hold) {
         /* Every tile checked: the happy cat and her sparkles stay up for as
          * long as the state lasts, so the payoff reads at any glance (and
@@ -824,6 +932,11 @@ static void build_cat(lv_obj_t *page)
         cat_flame[i] = lv_image_create(cat_grp);
         hide(cat_flame[i]);
     }
+    /* Pippa sits above the layered cat and the ground props (she
+     * replaces them when active) but below the all-done sparkles. Not
+     * clickable: stage taps still land on the base layer beneath her. */
+    pippa_img = lv_image_create(cat_grp);
+    hide(pippa_img);
     for (int i = 0; i < 3; i++) {
         sparkle[i] = lv_image_create(cat_grp);
         lv_image_set_src(sparkle[i], &img_x_sparkle);
@@ -1198,6 +1311,24 @@ static const wb_cat2_t *cat_set(const cat_season_t *seas)
 static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavailable)
 {
     const wb_cat2_t *set = cat_set(seas);
+    /* Pippa decision first: the layer loop below needs to know whether
+     * she is on stage. The effective choice mirrors cat_set(): "take
+     * turns" alternates by day of year. */
+    {
+        int eff_choice = s_cat_choice;
+        if (eff_choice == 2) {
+            eff_choice = (seas->doy % 2 == 0) ? 0 : 1;
+        }
+        if (eff_choice == 1) {
+            s_pippa = PIPPA_NONE;
+        } else if (unavailable) {
+            s_pippa = PIPPA_BASE;
+        } else if (o && o->layer == LAYER_NONE && o->feet == FEET_SNEAKERS) {
+            s_pippa = PIPPA_PANTS;
+        } else {
+            s_pippa = PIPPA_DRESS;
+        }
+    }
     bool vis[WB_C2_COUNT];
     for (int i = 0; i < WB_C2_COUNT; i++) {
         vis[i] = false;
@@ -1269,7 +1400,10 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
         lv_obj_set_pos(cat_grp, 24, 36);
         lv_obj_set_style_transform_pivot_x(cat_grp, 130, 0);
         lv_obj_set_style_transform_pivot_y(cat_grp, 205, 0);
-        lv_obj_set_style_transform_scale(cat_grp, 300, 0);
+        /* Pippa's head sits higher in her sprite than the old cat's;
+         * at 300 her ear would cover the day chip, which never gets
+         * hidden. She fills the stage a touch smaller instead. */
+        lv_obj_set_style_transform_scale(cat_grp, pippa_active() ? 272 : 300, 0);
     } else {
         lv_obj_set_pos(cat_stage, 24, 100);
         lv_obj_set_size(cat_stage, 260, 252);
@@ -1290,7 +1424,9 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
             lv_image_set_src(cat_layer[i], set->img[i]);
             lv_obj_set_pos(cat_layer[i], set->x[i], set->y[i]);
         }
-        if (vis[i] && set->img[i]) {
+        /* With Pippa on stage only the ground props survive; her sprite
+         * already contains the body, garments and face. */
+        if (vis[i] && set->img[i] && !(pippa_active() && !pippa_keeps_layer(i))) {
             show_obj(cat_layer[i]);
         } else {
             hide(cat_layer[i]);
@@ -1315,6 +1451,21 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
                 show_obj(cat_flame[i]);
             }
         }
+    }
+
+    /* Pippa: start the heart animation when the all-done state shows
+     * her dress variant; otherwise hold the static sprite. A finished
+     * play (last frame up, s_pippa_frame >= 0) is left alone until the
+     * state changes. */
+    if (s_pippa == PIPPA_DRESS && s_done_hold) {
+        if (!s_pippa_playing && s_pippa_frame < 0) {
+            s_pippa_playing = true;
+            s_pippa_start = lv_tick_get();
+            pippa_show_frame(0);
+        }
+    } else {
+        s_pippa_playing = false;
+        pippa_show_static();
     }
 }
 
@@ -1510,6 +1661,12 @@ static void render(void)
         celebrate();
     } else if (!all_done) {
         s_celebrating = false;
+        /* Confine the sparkles to the celebration itself: clearing the
+         * flag here is what used to strand them on later pages (the
+         * blink timer only hides them while s_celebrating is set). */
+        for (int i = 0; i < 3; i++) {
+            hide(sparkle[i]);
+        }
     }
     s_done_hold = all_done;
 
@@ -1823,6 +1980,17 @@ void ui_test_set_checks(uint8_t mask)
     s_check_date = -2;   /* adopt the current outfit date without clearing */
     s_force = true;
     render();
+}
+
+/* Pins Pippa's heart animation to one frame (or -1 to release), so a
+ * screenshot can show the gesture deterministically. */
+void ui_test_set_pippa_frame(int frame)
+{
+    s_pippa_forced = frame;
+    if (frame >= 0 && frame < 6 && s_pippa == PIPPA_DRESS && pippa_img) {
+        s_pippa_playing = true;
+        pippa_show_frame(frame);
+    }
 }
 
 void ui_test_set_page(int p)
