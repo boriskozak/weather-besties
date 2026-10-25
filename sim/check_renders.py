@@ -41,9 +41,20 @@ def sha(name):
 
 
 # Pippa (the flattened-sprite cat) draws in the same stage box. Her
-# markers, measured on the source sprites: golden-yellow eyes, the pink
-# dress/top, and denim that appears only in the pants variant.
+# markers, measured on the wardrobe source sprites: golden-yellow
+# eyes, the pink dress/top, denim that appears only in the pants
+# variant, and one signature colour per wardrobe family (snow-shirt
+# green, raincoat yellow, hot-day sunglass frames, fall-jacket
+# periwinkle, pink-#FFB3CF fur). Sprite coordinates are stage
+# coordinates: the pipeline crops each sprite to its alpha box and
+# the UI draws it back at that offset.
 STAGE = (24, 100, 284, 352)
+STAGE_TORSO = (24, 210, 284, 352)   # stage below the face: coats live here
+EYE_BAND = (64, 145, 244, 200)      # where the hot sprite's sunglasses sit
+EYE_BOX = (107, 142, 199, 188)      # just the eyes: stage-wide counts also
+                                    # catch the pumpkin's yellow highlights
+HEAD_BOX = (94, 105, 214, 205)      # the head: fur colour shows here, the
+                                    # dress colour does not
 
 
 def count_where(img, box, pred):
@@ -61,6 +72,28 @@ def is_garment_pink(r, g, b):
 
 def is_denim(r, g, b):
     return 40 < r < 110 and 80 < g < 140 and b > 140
+
+
+def is_snow_green(r, g, b):
+    return 30 < r < 95 and 125 < g < 195 and 45 < b < 115
+
+
+def is_rain_yellow(r, g, b):
+    return r > 235 and 180 < g < 230 and b < 110
+
+
+def is_hot_frames(r, g, b):
+    return r > 225 and 55 < g < 130 and 110 < b < 175
+
+
+def is_fall_periwinkle(r, g, b):
+    return 95 < r < 140 and 140 < g < 185 and b > 185
+
+
+def is_pink_fur(r, g, b):
+    # #FFB3CF fur, widened for the RGB565 round trip (its green and
+    # blue come back a few steps brighter than the source PNG).
+    return r > 230 and 148 < g < 182 and 178 < b < 215
 
 
 def stage_sha(name):
@@ -97,44 +130,103 @@ def main():
     check(sha("23_evening_all_done.png") != sha("21_evening.png"),
           "23_evening_all_done differs from 21_evening (checks change the page)")
 
-    # Pippa is the cat on the black-cat outfit pages: golden eyes and
-    # the pink dress in the stage, and no denim (that is the pants
-    # variant). A blank or old-cat stage fails these, not just the
-    # non-background fraction above.
-    for name in ("20_morning.png", "21_evening.png", "23_evening_all_done.png", "28_snow.png"):
-        img = Image.open(os.path.join(OUT, name))
-        eyes = count_where(img, STAGE, is_eye_yellow)
-        pink = count_where(img, STAGE, is_garment_pink)
-        denim = count_where(img, STAGE, is_denim)
-        check(eyes > 150, f"{name}: Pippa golden eyes in stage ({eyes} px, need > 150)")
-        check(pink > 1000, f"{name}: Pippa pink dress in stage ({pink} px, need > 1000)")
-        check(denim < 200, f"{name}: dress variant on stage, no denim ({denim} px, need < 200)")
-
-    # The hot day maps to the pants variant: denim in the stage.
-    img = Image.open(os.path.join(OUT, "29_hot.png"))
-    eyes = count_where(img, STAGE, is_eye_yellow)
+    # Wardrobe mapping (iter-05): each scenario family shows its own
+    # Pippa sprite, proven by the family's signature colour in the
+    # stage. A blank stage, the old dress-for-everything mapping, or
+    # the retired layered cat fails these.
+    img = Image.open(os.path.join(OUT, "20_morning.png"))
+    eyes = count_where(img, EYE_BOX, is_eye_yellow)
+    pink = count_where(img, STAGE, is_garment_pink)
     denim = count_where(img, STAGE, is_denim)
-    check(eyes > 150, f"29_hot: Pippa golden eyes in stage ({eyes} px, need > 150)")
-    check(denim > 500, f"29_hot: Pippa denim pants in stage ({denim} px, need > 500)")
+    fur = count_where(img, HEAD_BOX, is_pink_fur)
+    check(eyes > 150, f"20_morning: Pippa golden eyes in stage ({eyes} px, need > 150)")
+    check(pink > 1000, f"20_morning: Pippa pink dress in stage ({pink} px, need > 1000)")
+    check(denim < 200, f"20_morning: dress variant on stage, no denim ({denim} px, need < 200)")
+    check(fur < 600, f"20_morning: black fur on the head, not the pink colourway ({fur} px, need < 600)")
+
+    # Rain family (evening rain, all-done rain, storm): the yellow
+    # raincoat fills the torso band. On 23 the coat also proves the
+    # all-done state holds the STATIC rain sprite: the heart frames
+    # exist only for the black dress and contain no yellow coat, so
+    # a stretched heart animation fails here.
+    for name in ("21_evening.png", "23_evening_all_done.png", "30_storm.png"):
+        img = Image.open(os.path.join(OUT, name))
+        coat = count_where(img, STAGE_TORSO, is_rain_yellow)
+        green = count_where(img, STAGE, is_snow_green)
+        check(coat > 700, f"{name}: rain sprite's yellow coat in stage torso ({coat} px, need > 700)")
+        check(green < 30, f"{name}: rain sprite, no snow-shirt green ({green} px, need < 30)")
+
+    # Snow family: the green-and-white striped shirt under the puffer.
+    img = Image.open(os.path.join(OUT, "28_snow.png"))
+    green = count_where(img, STAGE, is_snow_green)
+    eyes = count_where(img, EYE_BOX, is_eye_yellow)
+    check(green > 120, f"28_snow: snow sprite's green shirt in stage ({green} px, need > 120)")
+    check(eyes > 150, f"28_snow: Pippa golden eyes in stage ({eyes} px, need > 150)")
+
+    # Fall family: the stale day wears a hoodie, which maps to the
+    # fall sprite (periwinkle jacket; the dress sprite has none).
+    img = Image.open(os.path.join(OUT, "25_stale.png"))
+    peri = count_where(img, STAGE, is_fall_periwinkle)
+    green = count_where(img, STAGE, is_snow_green)
+    check(peri > 120, f"25_stale: fall sprite's periwinkle jacket in stage ({peri} px, need > 120)")
+    check(green < 30, f"25_stale: fall sprite, no snow-shirt green ({green} px, need < 30)")
+
+    # Hot family: heart sunglasses over the eyes (so no golden-eye
+    # assertion here: the lenses cover them), lavender shorts, and
+    # no denim (the hot sprite replaced the old pants mapping).
+    img = Image.open(os.path.join(OUT, "29_hot.png"))
+    frames = count_where(img, EYE_BAND, is_hot_frames)
+    denim = count_where(img, STAGE, is_denim)
+    check(frames > 200, f"29_hot: hot sprite's heart sunglasses in stage ({frames} px, need > 200)")
+    check(denim < 200, f"29_hot: hot variant on stage, no denim ({denim} px, need < 200)")
     check(stage_sha("29_hot.png") != stage_sha("20_morning.png"),
-          "stage crops differ: pants variant is not the dress variant")
+          "stage crops differ: hot variant is not the dress variant")
+
+    # Pink colourway: scenario 32 resolves the Settings choice to
+    # pink, so the stage must show Pippa's pink fur and golden eyes.
+    # The retired layered pink cat had navy dot eyes and flat #FF9EC4
+    # fur, so the golden-eye count is what proves she is gone.
+    img = Image.open(os.path.join(OUT, "32_pink_cat.png"))
+    fur = count_where(img, STAGE, is_pink_fur)
+    head = count_where(img, HEAD_BOX, is_pink_fur)
+    eyes = count_where(img, EYE_BOX, is_eye_yellow)
+    check(fur > 3000, f"32_pink_cat: Pippa pink fur in stage ({fur} px, need > 3000)")
+    check(head > 2000, f"32_pink_cat: pink fur on the head, not just a pink garment ({head} px, need > 2000)")
+    check(eyes > 150, f"32_pink_cat: Pippa golden eyes in stage ({eyes} px, need > 150)")
+
+    # Tile icons come from the wardrobe sheet now: its sneakers have
+    # broad pink soles (g ~128), where the retired code-drawn icon
+    # had a navy sole and a thin pink stripe (g ~95). Tile 3 of
+    # 29_hot is the sneakers tile, icon box (294,220)-(390,316).
+    def is_sole_pink(r, g, b):
+        return r > 225 and 108 < g < 152 and 158 < b < 198
+
+    img = Image.open(os.path.join(OUT, "29_hot.png"))
+    sole = count_where(img, (294, 220, 390, 316), is_sole_pink)
+    check(sole > 120, f"29_hot: sheet sneakers' pink soles in tile 3 icon ({sole} px, need > 120)")
 
     # Unavailable shows the undressed base: eyes, but no pink garment
     # and no denim.
     img = Image.open(os.path.join(OUT, "26_unavailable.png"))
-    eyes = count_where(img, STAGE, is_eye_yellow)
+    eyes = count_where(img, EYE_BOX, is_eye_yellow)
     pink = count_where(img, STAGE, is_garment_pink)
     denim = count_where(img, STAGE, is_denim)
     check(eyes > 150, f"26_unavailable: Pippa base golden eyes in stage ({eyes} px, need > 150)")
     check(pink < 800, f"26_unavailable: base variant, no pink garment ({pink} px, need < 800)")
     check(denim < 200, f"26_unavailable: base variant, no denim ({denim} px, need < 200)")
 
-    # The heart proof still: Pippa mid-gesture, not the static sprite.
-    img = Image.open(os.path.join(OUT, "23b_evening_all_done_heart.png"))
+    # The heart proof still: the morning outfit (black dress sprite)
+    # all laid out, heart animation pinned at frame 4, the eyes-closed
+    # heart hold. Golden eyes nearly vanish (they are closed), which
+    # together with the stage hash proves a heart frame, not the
+    # static dress, is on stage.
+    img = Image.open(os.path.join(OUT, "23b_morning_all_done_heart.png"))
     pink = count_where(img, STAGE, is_garment_pink)
-    check(pink > 1000, f"23b_evening_all_done_heart: Pippa pink dress in stage ({pink} px, need > 1000)")
-    check(stage_sha("23b_evening_all_done_heart.png") != stage_sha("23_evening_all_done.png"),
-          "23b heart frame stage differs from the static all-done stage")
+    eyes = count_where(img, EYE_BOX, is_eye_yellow)
+    check(pink > 1000, f"23b_morning_all_done_heart: Pippa pink dress in stage ({pink} px, need > 1000)")
+    check(eyes < 120, f"23b_morning_all_done_heart: eyes closed in the heart hold ({eyes} px, need < 120)")
+    check(stage_sha("23b_morning_all_done_heart.png") != stage_sha("20_morning.png"),
+          "23b heart frame stage differs from the static dress stage")
 
     # Fix 1: the extra-layer tile names itself in words. The "Extra
     # layer" caption is COL_WARN_TX (138,75,0); three panel rounds

@@ -181,16 +181,28 @@ int main(int argc, char **argv)
 
     ui_test_set_checks(0x1F); /* everything laid out: 4 tiles + the
                                * umbrella chip (bit 4). All-done must not
-                               * fire on the tiles alone any more. */
+                               * fire on the tiles alone any more. Note
+                               * the static rain sprite here: the heart
+                               * animation exists only for the black
+                               * dress sprite and is never stretched
+                               * over another outfit. */
     pump(10);
     save(out, "23_evening_all_done");
+    ui_test_set_checks(0);
 
     /* Pippa proof still: her all-done heart animation plays on its own
-     * in the renderer; pin frame 4 (the eyes-closed heart hold) so the
-     * screenshot set shows the gesture deterministically. */
+     * in the renderer, on the black dress sprite only. The morning
+     * outfit is the dress variant; lay everything out (4 tiles + hat
+     * and gloves chips, bits 4 and 5) and pin frame 4 (the eyes-closed
+     * heart hold) so the screenshot set shows the gesture
+     * deterministically. */
+    load(sc, "brief_morning");
+    show();
+    ui_test_set_checks(0x3F);
+    pump(10);
     ui_test_set_pippa_frame(4);
     pump(10);
-    save(out, "23b_evening_all_done_heart");
+    save(out, "23b_morning_all_done_heart");
     ui_test_set_pippa_frame(-1);
     ui_test_set_checks(0);
 

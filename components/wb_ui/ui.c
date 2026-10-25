@@ -774,19 +774,28 @@ static void on_cat_tap(lv_event_t *e)
 
 /* ------------------------------------------------------------------ Pippa */
 
-/* Pippa (external artwork package; see tools/make_pippa_assets.py) is a
+/* Pippa (external artwork packages; see tools/make_pippa_assets.py) is a
  * flattened full-character sprite, not a layer stack. When she is on
  * stage she replaces the layered cat's body, garments, expression
  * overlays and seasonal hats (they are positioned for the old cat's
  * head). Ground props still draw: the pumpkin, menorah and present sit
  * at the stage corners, not on the cat.
  *
- * Variant mapping, nearest available art (the package has no rain,
- * snow or hot variants and no pink colorway):
- *   pink cat choice, incl. "take turns" on a pink day -> no Pippa
- *   unavailable                                       -> base
- *   no outer layer + sneakers                         -> pink top + pants
- *   anything else                                     -> dress + black tights
+ * Variant mapping (wardrobe expansion package: six outfits, each in
+ * black and pink fur; the Settings cat choice picks the colourway,
+ * "take turns" alternating by day of year):
+ *   unavailable                                -> base
+ *   snow boots                                 -> snow
+ *   rain jacket / rain boots / storm coming    -> rain
+ *   hot day (CH_HOT)                           -> hot
+ *   hoodie / light jacket                      -> fall
+ *   no outer layer + sneakers                  -> pink top + pants
+ *   anything else (mild days, warm/winter coat
+ *   without snow boots)                        -> dress + black tights
+ * The heart animation exists only for the black dress sprite; on any
+ * other outfit or colourway all-done holds the static sprite. The old
+ * layered pink cat is retired: the pink choice shows Pippa's pink
+ * colourway, and the layered cat no longer draws on outfit pages.
  */
 static int s_pippa = PIPPA_NONE;
 static bool s_pippa_playing;      /* heart animation running */
@@ -1430,14 +1439,27 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
         if (eff_choice == 2) {
             eff_choice = (seas->doy % 2 == 0) ? 0 : 1;
         }
-        if (eff_choice == 1) {
-            s_pippa = PIPPA_NONE;
-        } else if (unavailable) {
+        if (unavailable || !o) {
             s_pippa = PIPPA_BASE;
-        } else if (o && o->layer == LAYER_NONE && o->feet == FEET_SNEAKERS) {
-            s_pippa = PIPPA_PANTS;
         } else {
-            s_pippa = PIPPA_DRESS;
+            int v;
+            if (o->feet == FEET_SNOW_BOOTS) {
+                v = PIPPA_SNOW;
+            } else if (o->layer == LAYER_RAIN_JACKET || o->feet == FEET_RAIN_BOOTS ||
+                       (o->change & CH_STORM)) {
+                v = PIPPA_RAIN;
+            } else if (o->change & CH_HOT) {
+                v = PIPPA_HOT;
+            } else if (o->layer == LAYER_HOODIE || o->layer == LAYER_LIGHT_JACKET) {
+                v = PIPPA_FALL;
+            } else if (o->layer == LAYER_NONE && o->feet == FEET_SNEAKERS) {
+                v = PIPPA_PANTS;
+            } else {
+                v = PIPPA_DRESS;
+            }
+            /* Outfit variants come in black/pink pairs (pippa_sets.h):
+             * the pink variant is the black one's value + 1. */
+            s_pippa = (eff_choice == 1) ? v + 1 : v;
         }
     }
     bool vis[WB_C2_COUNT];

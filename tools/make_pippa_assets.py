@@ -1,29 +1,33 @@
 #!/usr/bin/env python3
 """Builds the Pippa character assets into components/wb_ui/assets.
 
-Pippa's artwork comes from an external package (flattened full-character
-sprites + animation frames, 260x252, transparent PNGs; PNG transparency is
-authoritative). This script converts the pieces the UI uses into the same
-LVGL image format as every other asset (RGB565A8, RLE compressed, via
+Pippa's artwork comes from external packages (flattened full-character
+sprites, 260x252, transparent PNGs; PNG transparency is authoritative).
+This script converts the pieces the UI uses into the same LVGL image
+format as every other asset (RGB565A8, RLE compressed, via
 components/lvgl/scripts/LVGLImage.py) and generates:
 
-  assets/img_pippa_dress.c / img_pippa_pants.c / img_pippa_base.c
-  assets/img_pippa_heart_0..5.c   (the heart animation, dress variant)
+  assets/img_pippa_<variant>.c    (13 sprites: six outfits x two fur
+                                   colourways, plus the undressed base)
+  assets/img_pippa_heart_0..5.c   (the heart animation, black dress only)
   assets/img_pippa_head.c         (head crop of the dress sprite, for
                                    the boot / setup / wifi-error screens)
   assets/pippa_sets.h / pippa_sets.c   (descriptors + stage positions)
   assets/pippa_assets_list.cmake     (firmware source list fragment)
+
+Sources: the wardrobe expansion package (WB_WARDROBE_DIR, default
+../../pippa-complete/Pippa/wardrobe-expansion) holds the twelve outfit
+sprites in sprites/black/ and sprites/pink/. The original package
+(WB_PIPPA_DIR, default ../../pippa-incoming/Pippa) still supplies the
+base sprite and the heart frames: the wardrobe package has neither
+(the heart animation exists for the black dress outfit only, and the
+UI plays it only on that sprite).
 
 Unlike the cat2 layers, Pippa sprites are NOT swappable garment layers:
 each is a complete character. The UI draws exactly one sprite (or one
 heart frame) in the 260x252 stage slot. Sprites are cropped to their
 alpha bounding box and the crop offset is recorded, exactly like the
 cat2 pipeline, so positions stay honest.
-
-The package location defaults to ../../pippa-incoming/Pippa relative to
-the repo root; override with WB_PIPPA_DIR. Wave/smile/hop frames are
-deliberately NOT converted: they have no UI trigger yet (see the flash
-math in the Pippa integration commit message).
 
 Run from anywhere:  ~/artenv/bin/python tools/make_pippa_assets.py
 Needs: pillow. NOTE: tools/make_assets.py regenerates assets_list.cmake
@@ -40,6 +44,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 PKG = os.environ.get("WB_PIPPA_DIR",
                      os.path.join(os.path.dirname(ROOT), "pippa-incoming", "Pippa"))
+WARDROBE = os.environ.get(
+    "WB_WARDROBE_DIR",
+    os.path.join(os.path.dirname(ROOT), "pippa-complete", "Pippa", "wardrobe-expansion"))
 OUT = os.path.join(ROOT, "components", "wb_ui", "assets")
 PNG = os.path.join(HERE, "build", "png")
 LVGLIMAGE = os.path.join(ROOT, "components", "lvgl", "scripts", "LVGLImage.py")
@@ -47,23 +54,35 @@ LVGLIMAGE = os.path.join(ROOT, "components", "lvgl", "scripts", "LVGLImage.py")
 os.makedirs(OUT, exist_ok=True)
 os.makedirs(PNG, exist_ok=True)
 
-# (symbol, package-relative PNG) in pippa_variant_t order (pippa_sets.h).
-SPRITES = [
-    ("img_pippa_dress", os.path.join("sprites", "pippa_dress_black_tights-260x252.png")),
-    ("img_pippa_pants", os.path.join("sprites", "pippa_pink_top_pants-260x252.png")),
-    ("img_pippa_base", os.path.join("sprites", "pippa_base-260x252.png")),
-]
+# (enum name, symbol, source PNG) in pippa_variant_t order (pippa_sets.h).
+# Outfit variants come in black/pink pairs: the pink variant is always
+# the black variant's enum value + 1 (ui.c relies on this). PIPPA_BASE
+# stands alone at the end: one undressed sprite for the unavailable
+# screen, whatever the colourway setting.
+VARIANTS = []
+for _outfit in ("dress", "pants", "snow", "rain", "hot", "fall"):
+    for _color in ("black", "pink"):
+        _enum = "PIPPA_" + (_outfit if _color == "black" else f"PINK_{_outfit}").upper()
+        _sym = "img_pippa_" + (_outfit if _color == "black" else f"pink_{_outfit}")
+        VARIANTS.append((_enum, _sym, os.path.join(
+            WARDROBE, "sprites", _color, f"pippa-{_outfit}.png")))
+VARIANTS.append(("PIPPA_BASE", "img_pippa_base",
+                 os.path.join(PKG, "sprites", "pippa_base-260x252.png")))
+SPRITES = [(sym, src) for _, sym, src in VARIANTS]
+
 HEART_MS = [260, 150, 150, 240, 500, 400]   # animations/manifest.json
-HEART = [(f"img_pippa_heart_{i}", os.path.join("animations", "frames", "heart", f"0{i}.png"))
+HEART = [(f"img_pippa_heart_{i}", os.path.join(PKG, "animations", "frames", "heart", f"0{i}.png"))
          for i in range(6)]
 
 # Pippa's head, for the boot / setup / wifi-error screens: a crop of the
 # dress sprite (ears to chin), NOT a redrawn mark. The window is in
 # sprite coordinates (260x252). It stays above the neck (the alpha rows
 # narrow at y ~104-120) and left of the tail, which only rises at
-# x > 200 / y > 120, so neither leaks into the crop.
+# x > 200 / y > 120, so neither leaks into the crop. The wardrobe's
+# black dress is pixel-identical to the original package's dress
+# sprite (verified), so the crop is unchanged.
 HEAD_NAME = "img_pippa_head"
-HEAD_SRC = os.path.join("sprites", "pippa_dress_black_tights-260x252.png")
+HEAD_SRC = os.path.join(WARDROBE, "sprites", "black", "pippa-dress.png")
 HEAD_WINDOW = (48, 4, 198, 120)
 
 
@@ -93,13 +112,15 @@ def convert(png_path, name, window=None):
 def main():
     if not os.path.isdir(PKG):
         raise SystemExit(f"Pippa package not found: {PKG} (set WB_PIPPA_DIR)")
+    if not os.path.isdir(WARDROBE):
+        raise SystemExit(f"Wardrobe package not found: {WARDROBE} (set WB_WARDROBE_DIR)")
     jobs = SPRITES + HEART
     info = {}
-    for name, rel in jobs:
-        info[name] = convert(os.path.join(PKG, rel), name)
+    for name, src in jobs:
+        info[name] = convert(src, name)
         x, y, w, h = info[name]
         print(f"{name}: cropped {w}x{h} at stage ({x}, {y})")
-    hx, hy, hw, hh = convert(os.path.join(PKG, HEAD_SRC), HEAD_NAME, HEAD_WINDOW)
+    hx, hy, hw, hh = convert(HEAD_SRC, HEAD_NAME, HEAD_WINDOW)
     print(f"{HEAD_NAME}: cropped {hw}x{hh} from head window {HEAD_WINDOW} at ({hx}, {hy})")
 
     with open(os.path.join(OUT, "pippa_sets.h"), "w") as f:
@@ -107,10 +128,10 @@ def main():
  * Do not edit by hand; rerun that script instead.
  *
  * Pippa sprites are FLATTENED full-character images for the 260x252
- * stage, not interchangeable garment layers (see the package
- * HANDOFF.md). Exactly one sprite, or one heart-animation frame, is
- * drawn in the stage slot at its recorded position. The heart frames
- * are the dress variant only. */
+ * stage, not interchangeable garment layers (see the wardrobe
+ * package README). Exactly one sprite, or one heart-animation frame,
+ * is drawn in the stage slot at its recorded position. The heart
+ * frames exist for the black dress outfit only. */
 #pragma once
 #include "lvgl.h"
 
@@ -119,18 +140,27 @@ def main():
             f.write(f"LV_IMAGE_DECLARE({name});\n")
         f.write(f"LV_IMAGE_DECLARE({HEAD_NAME});   /* head crop for boot/setup/error */\n")
         f.write("""
-/* Static variants, in draw order. PIPPA_NONE means "no Pippa on
- * stage" (the pink-cat choice keeps the previous layered cat). */
-typedef enum { PIPPA_DRESS = 0, PIPPA_PANTS = 1, PIPPA_BASE = 2, PIPPA_COUNT = 3 } pippa_variant_t;
+/* Static variants, in draw order. Outfit variants come in black/pink
+ * pairs (pink = black + 1); PIPPA_BASE is the undressed sprite for
+ * the unavailable screen and has no pair. PIPPA_NONE means "no Pippa
+ * on stage" (kept for the stage code; the outfit pages now always
+ * show Pippa, in the colourway the Settings choice resolves to). */
+typedef enum {
+""")
+        for i, (enum, _, _) in enumerate(VARIANTS):
+            f.write(f"    {enum} = {i},\n")
+        f.write(f"""    PIPPA_COUNT = {len(VARIANTS)}
+}} pippa_variant_t;
 #define PIPPA_NONE (-1)
 
 extern const lv_image_dsc_t *const WB_PIPPA_SPRITES[PIPPA_COUNT];
 extern const lv_point_t WB_PIPPA_SPRITE_POS[PIPPA_COUNT];
 
-/* Heart animation (all-done celebration proof): dress variant,
+/* Heart animation (all-done celebration): black dress variant only,
  * frames in manifest order, played once and holding the last frame
  * (the desktop renderer loops it while all-done lasts, so the motion
- * is visible in the emulator and in stills). */
+ * is visible in the emulator and in stills). On any other outfit or
+ * colourway, all-done holds the static sprite. */
 extern const lv_image_dsc_t *const WB_PIPPA_HEART_FRAMES[6];
 extern const lv_point_t WB_PIPPA_HEART_POS[6];
 """)

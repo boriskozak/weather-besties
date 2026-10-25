@@ -107,11 +107,34 @@ to_c(p, "img_drop")
 images.append("img_drop")
 
 # ------------------------------------------------------- garment tile icons
+# The garment icons are ChatGPT's sheet art (wardrobe expansion package),
+# cropped by tools/crop_garment_sheet.py into tools/garment_sheet/<key>.png
+# (background removed by border flood fill, so interior whites survive).
+# Each crop is scaled so its longer side fills the same fraction of the
+# box for every garment, and centred on a transparent square. The old
+# icons.py SVG drawings remain below as a fallback if a crop is missing.
+SHEET_ICONS = os.path.join(HERE, "garment_sheet")
+SHEET_FILL = 0.94
+
+
+def render_sheet_icon(key, px, path):
+    src = Image.open(os.path.join(SHEET_ICONS, key + ".png")).convert("RGBA")
+    scale = (px * SHEET_FILL) / max(src.width, src.height)
+    im = src.resize((max(1, round(src.width * scale)), max(1, round(src.height * scale))),
+                    Image.LANCZOS)
+    canvas = Image.new("RGBA", (px, px), (0, 0, 0, 0))
+    canvas.paste(im, ((px - im.width) // 2, (px - im.height) // 2), im)
+    canvas.save(path)
+
+
 for key, fn in icons.GARMENTS.items():
     for px in GARMENT_SIZES:
         name = f"img_g_{key}_{px}"
         p = os.path.join(PNG, name + ".png")
-        render(fn(), px, p, zoom=1.16)
+        if os.path.exists(os.path.join(SHEET_ICONS, key + ".png")):
+            render_sheet_icon(key, px, p)
+        else:
+            render(fn(), px, p, zoom=1.16)
         to_c(p, name)
         images.append(name)
 

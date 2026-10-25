@@ -2,15 +2,25 @@
  * Do not edit by hand; rerun that script instead.
  *
  * Pippa sprites are FLATTENED full-character images for the 260x252
- * stage, not interchangeable garment layers (see the package
- * HANDOFF.md). Exactly one sprite, or one heart-animation frame, is
- * drawn in the stage slot at its recorded position. The heart frames
- * are the dress variant only. */
+ * stage, not interchangeable garment layers (see the wardrobe
+ * package README). Exactly one sprite, or one heart-animation frame,
+ * is drawn in the stage slot at its recorded position. The heart
+ * frames exist for the black dress outfit only. */
 #pragma once
 #include "lvgl.h"
 
 LV_IMAGE_DECLARE(img_pippa_dress);
+LV_IMAGE_DECLARE(img_pippa_pink_dress);
 LV_IMAGE_DECLARE(img_pippa_pants);
+LV_IMAGE_DECLARE(img_pippa_pink_pants);
+LV_IMAGE_DECLARE(img_pippa_snow);
+LV_IMAGE_DECLARE(img_pippa_pink_snow);
+LV_IMAGE_DECLARE(img_pippa_rain);
+LV_IMAGE_DECLARE(img_pippa_pink_rain);
+LV_IMAGE_DECLARE(img_pippa_hot);
+LV_IMAGE_DECLARE(img_pippa_pink_hot);
+LV_IMAGE_DECLARE(img_pippa_fall);
+LV_IMAGE_DECLARE(img_pippa_pink_fall);
 LV_IMAGE_DECLARE(img_pippa_base);
 LV_IMAGE_DECLARE(img_pippa_heart_0);
 LV_IMAGE_DECLARE(img_pippa_heart_1);
@@ -20,18 +30,37 @@ LV_IMAGE_DECLARE(img_pippa_heart_4);
 LV_IMAGE_DECLARE(img_pippa_heart_5);
 LV_IMAGE_DECLARE(img_pippa_head);   /* head crop for boot/setup/error */
 
-/* Static variants, in draw order. PIPPA_NONE means "no Pippa on
- * stage" (the pink-cat choice keeps the previous layered cat). */
-typedef enum { PIPPA_DRESS = 0, PIPPA_PANTS = 1, PIPPA_BASE = 2, PIPPA_COUNT = 3 } pippa_variant_t;
+/* Static variants, in draw order. Outfit variants come in black/pink
+ * pairs (pink = black + 1); PIPPA_BASE is the undressed sprite for
+ * the unavailable screen and has no pair. PIPPA_NONE means "no Pippa
+ * on stage" (kept for the stage code; the outfit pages now always
+ * show Pippa, in the colourway the Settings choice resolves to). */
+typedef enum {
+    PIPPA_DRESS = 0,
+    PIPPA_PINK_DRESS = 1,
+    PIPPA_PANTS = 2,
+    PIPPA_PINK_PANTS = 3,
+    PIPPA_SNOW = 4,
+    PIPPA_PINK_SNOW = 5,
+    PIPPA_RAIN = 6,
+    PIPPA_PINK_RAIN = 7,
+    PIPPA_HOT = 8,
+    PIPPA_PINK_HOT = 9,
+    PIPPA_FALL = 10,
+    PIPPA_PINK_FALL = 11,
+    PIPPA_BASE = 12,
+    PIPPA_COUNT = 13
+} pippa_variant_t;
 #define PIPPA_NONE (-1)
 
 extern const lv_image_dsc_t *const WB_PIPPA_SPRITES[PIPPA_COUNT];
 extern const lv_point_t WB_PIPPA_SPRITE_POS[PIPPA_COUNT];
 
-/* Heart animation (all-done celebration proof): dress variant,
+/* Heart animation (all-done celebration): black dress variant only,
  * frames in manifest order, played once and holding the last frame
  * (the desktop renderer loops it while all-done lasts, so the motion
- * is visible in the emulator and in stills). */
+ * is visible in the emulator and in stills). On any other outfit or
+ * colourway, all-done holds the static sprite. */
 extern const lv_image_dsc_t *const WB_PIPPA_HEART_FRAMES[6];
 extern const lv_point_t WB_PIPPA_HEART_POS[6];
 static const uint16_t WB_PIPPA_HEART_MS[6] = {260, 150, 150, 240, 500, 400};
