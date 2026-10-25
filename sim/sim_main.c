@@ -196,8 +196,9 @@ int main(int argc, char **argv)
      * canonicalised the prescription to what the sprite wears); lay
      * everything out and pin frame 4 (the eyes-closed heart hold) so
      * the screenshot set shows the gesture deterministically. (The
-     * brief morning used to double as this proof; it is a winter-kit
-     * day now, and the heart frames were never the snow sprite's.) */
+     * brief morning used to double as this proof; its outfit changed
+     * with the panel rounds, most recently to a dress day in iter-07,
+     * and the heart frames were never any other sprite's.) */
     load(sc, "dress_morning");
     show();
     ui_test_set_checks(0x3F);

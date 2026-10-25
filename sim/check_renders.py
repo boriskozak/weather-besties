@@ -137,12 +137,15 @@ def main():
     # dress-for-everything mapping, or the retired layered cat fails
     # these.
     #
-    # Snow family: the brief morning (33F at departure, hat + gloves
-    # thresholds met), the snow day, and the other winter-kit days
-    # (halloween, hanukkah, long text, bike bus) all wear the puffer
-    # sprite: green striped shirt under the coat, golden eyes, no
-    # denim (her pants there are dark navy, outside the denim range).
-    for name in ("20_morning.png", "28_snow.png", "31_halloween.png", "34_long_text.png",
+    # Snow family: the snow day and the genuinely cold dry days
+    # (halloween, hanukkah, bike bus) wear the puffer sprite: green
+    # striped shirt under the coat, golden eyes, no denim (her pants
+    # there are dark navy, outside the denim range). Since iter-07
+    # the coat-off-later warm-up days (the brief morning, the long
+    # text day) are NOT in this family any more: they wear the dress
+    # (next block), and days in this family name their boots "Warm
+    # boots" unless snow is forecast (boots-naming block below).
+    for name in ("28_snow.png", "31_halloween.png",
                  "35_hanukkah.png", "36_bike_bus.png"):
         img = Image.open(os.path.join(OUT, name))
         green = count_where(img, STAGE, is_snow_green)
@@ -160,19 +163,27 @@ def main():
     fur = count_where(img, HEAD_BOX, is_pink_fur)
     check(fur < 600, f"20_morning: black fur on the head, not the pink colourway ({fur} px, need < 600)")
 
-    # Dress family (iter-06): the dress scenario is the one place the
-    # dress sprite remains: a warm-coat day with no hat/gloves need.
-    # Pink garment, golden eyes, no denim (tights, not jeans).
-    img = Image.open(os.path.join(OUT, "37_dress_day.png"))
-    pink = count_where(img, STAGE, is_garment_pink)
-    eyes = count_where(img, EYE_BOX, is_eye_yellow)
-    denim = count_where(img, STAGE, is_denim)
-    check(pink > 1000, f"37_dress_day: Pippa pink dress in stage ({pink} px, need > 1000)")
-    check(eyes > 150, f"37_dress_day: Pippa golden eyes in stage ({eyes} px, need > 150)")
-    check(denim < 200, f"37_dress_day: dress variant on stage, no denim ({denim} px, need < 200)")
+    # Dress family (iter-06, widened iter-07): a warm-coat day with no
+    # hat/gloves need wears the dress, and so do warm-coat days whose
+    # hat/gloves need comes with a big warm-up and no snow (the brief
+    # morning and the long-text day: cold at the bus stop, 60s by
+    # lunch, so the dress + warm coat is the honest outfit and the
+    # winter kit stays home). Pink garment, golden eyes, no denim
+    # (tights, not jeans).
+    for name in ("20_morning.png", "34_long_text.png", "37_dress_day.png"):
+        img = Image.open(os.path.join(OUT, name))
+        pink = count_where(img, STAGE, is_garment_pink)
+        eyes = count_where(img, EYE_BOX, is_eye_yellow)
+        denim = count_where(img, STAGE, is_denim)
+        check(pink > 1000, f"{name}: Pippa pink dress in stage ({pink} px, need > 1000)")
+        check(eyes > 150, f"{name}: Pippa golden eyes in stage ({eyes} px, need > 150)")
+        check(denim < 200, f"{name}: dress variant on stage, no denim ({denim} px, need < 200)")
 
     # Pants family (iter-06): the warm day wears the pants sprite:
-    # denim jeans and the pink tee, and nothing else.
+    # denim jeans and the pink tee. Since iter-07 she also wears her
+    # open blue jacket there, and it is prescribed: tile 3 (bottom-left
+    # cell, icon box (294,220)-(390,316)) is the light-jacket icon,
+    # whose blue matches the jacket on her body.
     img = Image.open(os.path.join(OUT, "38_warm_day.png"))
     denim = count_where(img, STAGE, is_denim)
     pink = count_where(img, STAGE, is_garment_pink)
@@ -181,25 +192,46 @@ def main():
     check(pink > 500, f"38_warm_day: pants sprite's pink tee in stage ({pink} px, need > 500)")
     check(eyes > 150, f"38_warm_day: Pippa golden eyes in stage ({eyes} px, need > 150)")
 
-    # Rain family (evening rain, all-done rain, storm): the yellow
-    # raincoat fills the torso band. On 23 the coat also proves the
-    # all-done state holds the STATIC rain sprite: the heart frames
-    # exist only for the black dress and contain no yellow coat, so
-    # a stretched heart animation fails here.
-    for name in ("21_evening.png", "23_evening_all_done.png", "30_storm.png"):
+    def is_jacket_blue(r, g, b):
+        return b > r + 25 and b > 110 and r < 170
+
+    jblue = count_where(img, (294, 220, 390, 316), is_jacket_blue)
+    check(jblue > 500, f"38_warm_day: tile 3 icon is the blue light jacket she wears ({jblue} px, need > 500)")
+
+    # Rain family (evening rain, all-done rain): the yellow raincoat
+    # fills the torso band. On 23 the coat also proves the all-done
+    # state holds the STATIC rain sprite: the heart frames exist only
+    # for the black dress and contain no yellow coat, so a stretched
+    # heart animation fails here. The storm screen left this family
+    # in iter-07 (next block): at 88/90F it wears the hot outfit.
+    for name in ("21_evening.png", "23_evening_all_done.png"):
         img = Image.open(os.path.join(OUT, name))
         coat = count_where(img, STAGE_TORSO, is_rain_yellow)
         green = count_where(img, STAGE, is_snow_green)
         check(coat > 700, f"{name}: rain sprite's yellow coat in stage torso ({coat} px, need > 700)")
         check(green < 30, f"{name}: rain sprite, no snow-shirt green ({green} px, need < 30)")
 
-    # Storm fidelity (iter-06): the storm screen uses rain logic end
-    # to end. Tile 2 (top-right cell, icon box (544,108)-(640,204))
-    # must be the long-pants icon (denim), never the shorts icon
-    # (lavender, ~64 denim px at this size vs ~500 for jeans).
+    # Hot storm (iter-07): at hot temperatures the storm screen
+    # dresses for the heat, not the rain (round 5: 88/90F prescribed
+    # long sleeves, long pants and a rain jacket while the plain hot
+    # day at 89F prescribed short sleeves and shorts). The sprite is
+    # the hot one (heart sunglasses over the eyes, no yellow coat in
+    # the torso), and tile 2 (top-right cell, icon box
+    # (544,108)-(640,204)) is the shorts icon: lavender, with only
+    # outline denim (~54 px here vs ~480 for the jeans icon).
     img = Image.open(os.path.join(OUT, "30_storm.png"))
-    t2 = count_where(img, (544, 108, 640, 204), is_denim)
-    check(t2 > 250, f"30_storm: tile 2 icon is long pants, not shorts ({t2} denim px, need > 250)")
+    coat = count_where(img, STAGE_TORSO, is_rain_yellow)
+    frames = count_where(img, EYE_BAND, is_hot_frames)
+    check(coat < 30, f"30_storm: no rain coat on the hot storm sprite ({coat} px, need < 30)")
+    check(frames > 200, f"30_storm: hot sprite's heart sunglasses in stage ({frames} px, need > 200)")
+
+    def is_shorts_lavender(r, g, b):
+        return 130 < r < 195 and 120 < g < 185 and b > 185
+
+    t2lav = count_where(img, (544, 108, 640, 204), is_shorts_lavender)
+    t2den = count_where(img, (544, 108, 640, 204), is_denim)
+    check(t2lav > 120, f"30_storm: tile 2 icon is the lavender shorts ({t2lav} px, need > 120)")
+    check(t2den < 120, f"30_storm: tile 2 icon is not the jeans ({t2den} denim px, need < 120)")
 
     # Fall family: the stale day wears a hoodie, which maps to the
     # fall sprite (periwinkle jacket; the dress sprite has none).
@@ -220,21 +252,37 @@ def main():
     check(stage_sha("29_hot.png") != stage_sha("20_morning.png"),
           "stage crops differ: hot variant is not the dress variant")
 
+    # Sunglasses chip icon (iter-07): the chip in the strip must read
+    # as sunglasses, not a dark smudge. The wide-aspect icon is fitted
+    # by height now, so its pink frames actually land in the chip's
+    # icon zone (284,322)-(340,356): frame pink there (the iter-06
+    # square-fit rendering left 18 px; the fitted one leaves ~60).
+    def is_frame_pink(r, g, b):
+        return r > 200 and 90 < g < 170 and b > 140
+
+    fpink = count_where(img, (284, 322, 340, 356), is_frame_pink)
+    check(fpink > 30, f"29_hot: sunglasses chip icon reads (frame pink {fpink} px, need > 30)")
+
     # Pink colourway: scenario 32 resolves the Settings choice to
     # pink, so the stage must show Pippa's pink fur and golden eyes.
     # The retired layered pink cat had navy dot eyes and flat #FF9EC4
     # fur, so the golden-eye count is what proves she is gone. Since
-    # iter-06 the brief morning is a winter-kit day, so the pink
-    # colourway shows the pink SNOW sprite (green shirt included).
+    # iter-07 the brief morning is a dress day (coat-off-later rule),
+    # so the pink colourway shows the pink DRESS sprite: pink garment
+    # everywhere, no denim, no snow-shirt green.
     img = Image.open(os.path.join(OUT, "32_pink_cat.png"))
     fur = count_where(img, STAGE, is_pink_fur)
     head = count_where(img, HEAD_BOX, is_pink_fur)
     eyes = count_where(img, EYE_BOX, is_eye_yellow)
+    pink = count_where(img, STAGE, is_garment_pink)
+    denim = count_where(img, STAGE, is_denim)
     green = count_where(img, STAGE, is_snow_green)
     check(fur > 3000, f"32_pink_cat: Pippa pink fur in stage ({fur} px, need > 3000)")
     check(head > 2000, f"32_pink_cat: pink fur on the head, not just a pink garment ({head} px, need > 2000)")
     check(eyes > 150, f"32_pink_cat: Pippa golden eyes in stage ({eyes} px, need > 150)")
-    check(green > 120, f"32_pink_cat: pink snow sprite's green shirt in stage ({green} px, need > 120)")
+    check(pink > 1000, f"32_pink_cat: pink dress sprite's dress in stage ({pink} px, need > 1000)")
+    check(denim < 200, f"32_pink_cat: dress variant on stage, no denim ({denim} px, need < 200)")
+    check(green < 30, f"32_pink_cat: dress variant, no snow-shirt green ({green} px, need < 30)")
 
     # Tile icons come from the wardrobe sheet now: its sneakers have
     # broad pink soles (g ~128), where the retired code-drawn icon
@@ -274,16 +322,26 @@ def main():
     # Fix 1: the extra-layer tile names itself in words. The "Extra
     # layer" caption is COL_WARN_TX (138,75,0); three panel rounds
     # failed the layer question while it was marked by border+star
-    # alone. 20_morning's layer tile is tile 3 (Warm coat), the
-    # bottom-left cell (284,216)-(522,320); tile 1 must NOT carry it.
+    # alone. The canonical layer tiles carry it, each in its cell:
+    # 28_snow tile 3 (winter coat, bottom-left (284,216)-(522,320)),
+    # 37_dress_day tile 2 (warm coat, top-right (534,104)-(772,208)),
+    # 38_warm_day tile 3 (the light jacket she wears, iter-07,
+    # presented exactly like the dress look's coat). A non-layer tile
+    # (28 tile 1) must NOT carry it.
     def is_caption(r, g, b):
         return 105 < r < 170 and 50 < g < 100 and b < 45
 
-    img = Image.open(os.path.join(OUT, "20_morning.png"))
+    img = Image.open(os.path.join(OUT, "28_snow.png"))
     cap = count_where(img, (284, 216, 522, 320), is_caption)
-    check(cap > 40, f"20_morning: 'Extra layer' caption pixels on the layer tile ({cap}, need > 40)")
+    check(cap > 40, f"28_snow: 'Extra layer' caption pixels on the layer tile ({cap}, need > 40)")
     cap1 = count_where(img, (284, 104, 522, 208), is_caption)
-    check(cap1 < 10, f"20_morning: no caption on a non-layer tile ({cap1}, need < 10)")
+    check(cap1 < 10, f"28_snow: no caption on a non-layer tile ({cap1}, need < 10)")
+    img = Image.open(os.path.join(OUT, "37_dress_day.png"))
+    cap = count_where(img, (534, 104, 772, 208), is_caption)
+    check(cap > 40, f"37_dress_day: 'Extra layer' caption pixels on the warm coat tile ({cap}, need > 40)")
+    img = Image.open(os.path.join(OUT, "38_warm_day.png"))
+    cap = count_where(img, (284, 216, 522, 320), is_caption)
+    check(cap > 40, f"38_warm_day: 'Extra layer' caption pixels on the light jacket tile ({cap}, need > 40)")
 
     # Fix 2: advised extras are checkable chips in the strip under the
     # grid (284,322)-(772,356). Chip bodies are pure white (255,255,255)
@@ -373,12 +431,12 @@ def main():
         return inside, outside
 
     TILE_CELLS = [(284, 104), (534, 104), (284, 216), (534, 216)]
-    BADGED = {"20_morning.png": 4, "21_evening.png": 4, "22_evening_2_checked.png": 4,
+    BADGED = {"20_morning.png": 2, "21_evening.png": 4, "22_evening_2_checked.png": 4,
               "23_evening_all_done.png": 4, "23b_morning_all_done_heart.png": 2,
               "25_stale.png": 4, "27_rollover.png": 4, "28_snow.png": 4,
-              "29_hot.png": 3, "30_storm.png": 4, "31_halloween.png": 4,
-              "32_pink_cat.png": 4, "34_long_text.png": 4, "35_hanukkah.png": 4,
-              "36_bike_bus.png": 4, "37_dress_day.png": 2, "38_warm_day.png": 3}
+              "29_hot.png": 3, "30_storm.png": 3, "31_halloween.png": 4,
+              "32_pink_cat.png": 2, "34_long_text.png": 2, "35_hanukkah.png": 4,
+              "36_bike_bus.png": 4, "37_dress_day.png": 2, "38_warm_day.png": 4}
     for name, ntiles in BADGED.items():
         img = Image.open(os.path.join(OUT, name))
         for i in range(ntiles):
@@ -415,6 +473,94 @@ def main():
               f"{name}: badge top inside edge is white {top}")
         eyes = count_where(img, (cx - 55, cy - 40, cx + 55, cy + 40), is_eye_yellow)
         check(eyes > 40, f"{name}: Pippa golden eyes inside the badge ({eyes} px, need > 40)")
+
+    # Boots naming (iter-07): the winter boots tile (tile 4, bottom-
+    # right cell; its label sits in the crop (648,242)-(768,294)) is
+    # "Snow boots" only when snow is forecast. 28_snow has real snow;
+    # 31/35/36 are dry cold days and must all carry the SAME other
+    # label ("Warm boots"): their label ink patterns are identical to
+    # each other and different from the snow day's. (Ink only: the
+    # morning/evening tile border colours differ, so the crop keeps
+    # to the label's text rows and the ink predicate ignores borders.)
+    def is_label_ink(r, g, b):
+        return r < 95 and g < 105 and b < 130
+
+    def label_ink(name):
+        img = Image.open(os.path.join(OUT, name)).convert("RGB")
+        crop = img.crop((648, 242, 768, 294))
+        return {(x, y) for y in range(crop.height) for x in range(crop.width)
+                if is_label_ink(*crop.getpixel((x, y)))}
+
+    snow_ink = label_ink("28_snow.png")
+    warm_ink = label_ink("31_halloween.png")
+    check(len(snow_ink) > 200 and len(warm_ink) > 200,
+          f"boots labels render (snow {len(snow_ink)} ink px, warm {len(warm_ink)}, need > 200)")
+    check(snow_ink != warm_ink,
+          "boots tile label differs: snow day says Snow boots, dry day says Warm boots")
+    check(label_ink("35_hanukkah.png") == warm_ink and label_ink("36_bike_bus.png") == warm_ink,
+          "dry cold days (35_hanukkah, 36_bike_bus) share the Warm boots label")
+
+    # Prop restraint (iter-07): the seasonal ground prop belongs to
+    # the outfit pages only. Pumpkin orange (saturated, b < 70 so the
+    # amber tile frames and menorah gold stay out) in the stage's
+    # lower-right zone (190,260)-(280,380), left of the tile column:
+    # present on the fresh outfit pages (21_evening, 31_halloween),
+    # absent on the stale page and the offline state.
+    def is_pumpkin(r, g, b):
+        return r > 215 and 100 < g < 165 and b < 70
+
+    for name in ("21_evening.png", "31_halloween.png"):
+        img = Image.open(os.path.join(OUT, name))
+        n = count_where(img, (190, 260, 280, 380), is_pumpkin)
+        check(n > 400, f"{name}: pumpkin on the fresh outfit page ({n} px, need > 400)")
+    for name in ("25_stale.png", "26_unavailable.png"):
+        img = Image.open(os.path.join(OUT, name))
+        n = count_where(img, (190, 260, 280, 380), is_pumpkin)
+        check(n < 40, f"{name}: no seasonal prop off the outfit pages ({n} px, need < 40)")
+
+    # Next days (iter-07): every forecast card carries a mini Pippa
+    # in that day's look, at the left of the garment row. Her dark
+    # fur fills the left of the card's bottom band (nothing else dark
+    # sits there: the garment icon starts further right), and her
+    # golden eyes land somewhere in the band.
+    def is_dark_fur(r, g, b):
+        return r < 70 and g < 70 and b < 90
+
+    img = Image.open(os.path.join(OUT, "24_next_days.png"))
+    for i in range(3):
+        cx = 28 + i * 252
+        fur = count_where(img, (cx + 6, 348, cx + 96, 420), is_dark_fur)
+        eyes = count_where(img, (cx, 348, cx + 236, 420), is_eye_yellow)
+        check(fur > 150, f"24_next_days card {i + 1}: mini Pippa's dark fur in the garment row ({fur} px, need > 150)")
+        check(eyes > 5, f"24_next_days card {i + 1}: mini Pippa's golden eyes in the garment row ({eyes} px, need > 5)")
+
+    # Settings bands (iter-07): the Speed test pill and the bottom
+    # button row must not overlap. Geometry read off this render: the
+    # button row's ink fill (24,32,65) forms rows at least 200 px
+    # wide in (104,345)-(500,475) (the pill's own label text is ink
+    # too, but never 200 px wide in a row), and the pill's light body
+    # (238,242,246) shows above it. In the iter-06 layout the button
+    # drew OVER the pill: the pill's visible light ended at the
+    # button's top edge and the gap computed here was 0.
+    img = Image.open(os.path.join(OUT, "33_settings.png")).convert("RGB")
+
+    def is_pill_light(r, g, b):
+        return r > 225 and g > 228 and b > 235 and b >= r
+
+    def is_button_ink(r, g, b):
+        return abs(r - 24) <= 12 and abs(g - 32) <= 12 and abs(b - 65) <= 14
+
+    ink_rows = [y for y in range(345, 475)
+                if count_where(img, (104, y, 500, y + 1), is_button_ink) >= 200]
+    check(bool(ink_rows), "33_settings: bottom button row found")
+    if ink_rows:
+        button_top = min(ink_rows)
+        light_rows = [y for y in range(300, button_top)
+                      if count_where(img, (104, y, 300, y + 1), is_pill_light) >= 10]
+        check(bool(light_rows), "33_settings: speed test pill found above the button row")
+        if light_rows:
+            gap = button_top - max(light_rows) - 1
+            check(gap >= 3, f"33_settings: speed pill and button row do not overlap ({gap} clear px, need >= 3)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

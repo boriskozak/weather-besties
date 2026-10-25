@@ -26,11 +26,15 @@ typedef enum { FEET_SNEAKERS, FEET_RAIN_BOOTS, FEET_SNOW_BOOTS } feet_t;
 enum { EX_HAT = 1, EX_GLOVES = 2, EX_UMBRELLA = 4, EX_SUNGLASSES = 8, EX_WATER = 16, EX_SCARF = 32 };
 enum { CH_WARMUP = 1, CH_COOLDOWN = 2, CH_RAIN_LATER = 4, CH_RAIN_ALL_DAY = 8, CH_SNOW = 16, CH_STORM = 32, CH_WINDY = 64, CH_HOT = 128, CH_BIKE_BUS = 256 };
 
-/* Garment ids, also the art order in icons.py GARMENTS. Values index tile_kind. */
+/* Garment ids, also the art order in icons.py GARMENTS. Values index tile_kind.
+ * WARM_BOOTS (iter-07) is appended at the end so the existing ids keep their
+ * values: it is the winter-kit boots tile on a day with no snow or ice in
+ * the forecast, labelled "Warm boots" (the icon is the same boot art; the
+ * word "Snow" is reserved for days that actually have snow). */
 typedef enum {
     SHORT_SLEEVES, LONG_SLEEVES, SHORTS, LONG_PANTS, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT,
     WINTER_COAT, SNEAKERS, RAIN_BOOTS, SNOW_BOOTS, WARM_HAT, GLOVES, UMBRELLA, SUNGLASSES,
-    WATER_BOTTLE, SCARF, DRESS
+    WATER_BOTTLE, SCARF, DRESS, WARM_BOOTS
 } garment_t;
 
 /* The resolved "look": which flattened Pippa sprite family shows this
@@ -43,7 +47,8 @@ typedef enum {
  * alone, so tiles, chips, advice and cat can never disagree. */
 typedef enum {
     LOOK_DRESS = 0,   /* dress + tights + Mary Janes + her blue warm coat */
-    LOOK_PANTS,       /* tee + jeans + sneakers (+ her everyday jacket) */
+    LOOK_PANTS,       /* tee + jeans + sneakers + her open blue jacket,
+                       * prescribed as the light-jacket tile (iter-07) */
     LOOK_SNOW,        /* puffer, beanie, mittens, snow boots, long everything */
     LOOK_RAIN,        /* rain jacket, long pants, rain boots, umbrella in hand */
     LOOK_HOT,         /* tee, shorts, sneakers, heart sunglasses, water bottle */

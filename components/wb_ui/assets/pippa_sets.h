@@ -29,6 +29,18 @@ LV_IMAGE_DECLARE(img_pippa_heart_3);
 LV_IMAGE_DECLARE(img_pippa_heart_4);
 LV_IMAGE_DECLARE(img_pippa_heart_5);
 LV_IMAGE_DECLARE(img_pippa_head);   /* head crop for boot/setup/error */
+LV_IMAGE_DECLARE(img_pippa_mini_dress);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_dress);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pants);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_pants);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_snow);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_snow);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_rain);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_rain);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_hot);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_hot);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_fall);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_fall);   /* forecast-card mini */
 
 /* Static variants, in draw order. Outfit variants come in black/pink
  * pairs (pink = black + 1); PIPPA_BASE is the undressed sprite for
@@ -55,6 +67,11 @@ typedef enum {
 
 extern const lv_image_dsc_t *const WB_PIPPA_SPRITES[PIPPA_COUNT];
 extern const lv_point_t WB_PIPPA_SPRITE_POS[PIPPA_COUNT];
+
+/* Forecast-card minis, index-aligned with WB_PIPPA_SPRITES (NULL for
+ * PIPPA_BASE): build-time downscales of the outfit sprites, drawn
+ * unscaled on the Next Days cards (iter-07). */
+extern const lv_image_dsc_t *const WB_PIPPA_MINIS[PIPPA_COUNT];
 
 /* Heart animation (all-done celebration): black dress variant only,
  * frames in manifest order, played once and holding the last frame

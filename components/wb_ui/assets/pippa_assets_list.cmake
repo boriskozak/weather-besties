@@ -20,5 +20,17 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_heart_4.c
     assets/img_pippa_heart_5.c
     assets/img_pippa_head.c
+    assets/img_pippa_mini_dress.c
+    assets/img_pippa_mini_pink_dress.c
+    assets/img_pippa_mini_pants.c
+    assets/img_pippa_mini_pink_pants.c
+    assets/img_pippa_mini_snow.c
+    assets/img_pippa_mini_pink_snow.c
+    assets/img_pippa_mini_rain.c
+    assets/img_pippa_mini_pink_rain.c
+    assets/img_pippa_mini_hot.c
+    assets/img_pippa_mini_pink_hot.c
+    assets/img_pippa_mini_fall.c
+    assets/img_pippa_mini_pink_fall.c
     assets/pippa_sets.c
 )

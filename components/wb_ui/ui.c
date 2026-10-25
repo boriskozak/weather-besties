@@ -46,7 +46,7 @@ static const lv_image_dsc_t *ICON_M[] = WB_WX_ICONS_M;
 static const lv_image_dsc_t *ICON_S[] = WB_WX_ICONS_S;
 
 /* Indexed by garment_t (outfit.h). Asset names from tools/make_assets.py. */
-#define GARMENT_COUNT 19   /* garment_t count in outfit.h */
+#define GARMENT_COUNT 20   /* garment_t count in outfit.h */
 static const lv_image_dsc_t *GARMENT_96[GARMENT_COUNT];
 static const lv_image_dsc_t *GARMENT_56[GARMENT_COUNT];
 static const lv_image_dsc_t *EXTRA_IMG[8];   /* EXTRA_ICON_* ids 0..7 */
@@ -137,6 +137,7 @@ static lv_obj_t *adv_icon, *lbl_advice;
 /* main: forecast page */
 static lv_obj_t *fc_col[3], *fc_name[3], *fc_date[3], *fc_img[3], *fc_hi[3], *fc_lo[3];
 static lv_obj_t *fc_rain[3], *fc_drop[3], *fc_pop[3], *fc_garment[3], *fc_gimg[3], *fc_glabel[3];
+static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) */
 
 /* main: bottom bar */
 static lv_obj_t *tab_btn[3], *tab_lbl[3];
@@ -525,7 +526,9 @@ static void build_settings(void)
 
     lv_obj_t *p = box(settings);
     lv_obj_add_flag(p, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(p, 640, 448);
+    lv_obj_set_size(p, 640, 456);   /* 456, not 448 (iter-07): the taller
+                                     * panel is what buys every band below
+                                     * its own clear space */
     lv_obj_center(p);
     lv_obj_set_style_radius(p, 28, 0);
     lv_obj_set_style_bg_opa(p, LV_OPA_COVER, 0);
@@ -541,7 +544,7 @@ static void build_settings(void)
     /* Cat choice (plan 3.6). */
     lv_obj_t *cat_lbl = label(p, &font_body, "Cat:");
     lv_obj_set_style_text_color(cat_lbl, C(COL_INK), 0);
-    lv_obj_set_pos(cat_lbl, 0, 58);
+    lv_obj_set_pos(cat_lbl, 0, 50);
     static const char *cat_names[3] = {"Black cat", "Pink cat", "Take turns"};
     for (int i = 0; i < 3; i++) {
         lv_obj_t *b = lv_button_create(p);
@@ -549,8 +552,8 @@ static void build_settings(void)
         lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(b, 2, 0);
         lv_obj_set_style_pad_hor(b, 20, 0);
-        lv_obj_set_height(b, 48);
-        lv_obj_set_pos(b, 70 + i * 178, 48);
+        lv_obj_set_height(b, 46);
+        lv_obj_set_pos(b, 70 + i * 178, 42);
         cat_pill[i] = b;
         cat_pill_lbl[i] = label(b, &font_chip, cat_names[i]);
         lv_obj_center(cat_pill_lbl[i]);
@@ -562,12 +565,12 @@ static void build_settings(void)
      * tile language (radius, border, padding), set in the small font. */
     lv_obj_t *grown = label(p, &font_body, "For grown-ups");
     lv_obj_set_style_text_color(grown, C(COL_INK), 0);
-    lv_obj_set_pos(grown, 0, 100);
+    lv_obj_set_pos(grown, 0, 96);
 
     lv_obj_t *card = box(p);
     lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_pos(card, 0, 134);
-    lv_obj_set_size(card, 592, 152);
+    lv_obj_set_pos(card, 0, 126);
+    lv_obj_set_size(card, 592, 146);   /* the five info lines need ~143 */
     lv_obj_set_style_radius(card, 22, 0);
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(card, C(COL_TILE), 0);
@@ -579,13 +582,18 @@ static void build_settings(void)
     lv_obj_set_style_text_line_space(set_info, 1, 0);
     lv_obj_set_width(set_info, 560);
     lv_label_set_long_mode(set_info, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(set_info, 16, 9);
+    lv_obj_set_pos(set_info, 16, 8);
 
+    /* Speed row and the bottom button row get explicit bands (iter-07):
+     * the card used to end at 286 with the pill at 294 and the bottom
+     * row bottom-aligned into the same space, so "Change WiFi or town"
+     * drew over the pill. Bands now: card 126..272, speed row 282..341,
+     * bottom row ~349..408, with clear panel showing between them. */
     lv_obj_t *sp = pill_button(p, "Speed test", false, on_speed_pill, NULL);
-    lv_obj_set_pos(sp, 0, 294);
+    lv_obj_set_pos(sp, 0, 282);
     set_speed_lbl = label(p, &font_small, "Speed test: off");
     lv_obj_set_style_text_color(set_speed_lbl, C(COL_INK2), 0);
-    lv_obj_set_pos(set_speed_lbl, 190, 310);
+    lv_obj_set_pos(set_speed_lbl, 186, 298);
 
     lv_obj_t *row = box(p);
     lv_obj_set_size(row, 592, LV_SIZE_CONTENT);
@@ -674,6 +682,8 @@ static void init_asset_tables(void)
     GARMENT_96[WATER_BOTTLE] = &img_g_water_bottle_96;
     GARMENT_96[SCARF] = &img_g_scarf_96;
     GARMENT_96[DRESS] = &img_g_dress_96;
+    GARMENT_96[WARM_BOOTS] = &img_g_snow_boots_96;   /* same boot art, dry-day name (iter-07) */
+
     GARMENT_56[SHORT_SLEEVES] = &img_g_short_sleeves_56;
     GARMENT_56[LONG_SLEEVES] = &img_g_long_sleeves_56;
     GARMENT_56[SHORTS] = &img_g_shorts_56;
@@ -693,6 +703,8 @@ static void init_asset_tables(void)
     GARMENT_56[WATER_BOTTLE] = &img_g_water_bottle_56;
     GARMENT_56[SCARF] = &img_g_scarf_56;
     GARMENT_56[DRESS] = &img_g_dress_56;
+    GARMENT_56[WARM_BOOTS] = &img_g_snow_boots_56;   /* same boot art, dry-day name (iter-07) */
+
     EXTRA_IMG[EXTRA_ICON_BOLT] = &img_x_bolt;
     EXTRA_IMG[EXTRA_ICON_UMBRELLA] = &img_x_umbrella;
     EXTRA_IMG[EXTRA_ICON_HAT_GLOVES] = &img_x_hat_gloves;
@@ -1374,10 +1386,10 @@ static void build_forecast_page(lv_obj_t *scr)
         lv_obj_align(fc_img[i], LV_ALIGN_TOP_MID, 0, 70);
         fc_hi[i] = label(c, &font_label, "");
         lv_obj_set_style_text_color(fc_hi[i], C(COL_INK), 0);
-        lv_obj_align(fc_hi[i], LV_ALIGN_TOP_MID, 0, 186);
+        lv_obj_align(fc_hi[i], LV_ALIGN_TOP_MID, 0, 182);
         fc_lo[i] = label(c, &font_body, "");
         lv_obj_set_style_text_color(fc_lo[i], C(COL_INK2), 0);
-        lv_obj_align(fc_lo[i], LV_ALIGN_TOP_MID, 0, 224);
+        lv_obj_align(fc_lo[i], LV_ALIGN_TOP_MID, 0, 218);
 
         /* Fixed slots, identical in every column: the rain row keeps its
          * slot whether or not it rains, and the garment row is one pinned
@@ -1387,7 +1399,7 @@ static void build_forecast_page(lv_obj_t *scr)
         lv_obj_set_flex_flow(fc_rain[i], LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(fc_rain[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_column(fc_rain[i], 6, 0);
-        lv_obj_align(fc_rain[i], LV_ALIGN_TOP_MID, 0, 258);
+        lv_obj_align(fc_rain[i], LV_ALIGN_TOP_MID, 0, 252);
         fc_drop[i] = lv_image_create(fc_rain[i]);
         lv_image_set_src(fc_drop[i], &img_drop);
         lv_image_set_scale(fc_drop[i], 256);   /* native 22 px drop */
@@ -1398,8 +1410,13 @@ static void build_forecast_page(lv_obj_t *scr)
         lv_obj_set_size(fc_garment[i], LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(fc_garment[i], LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(fc_garment[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(fc_garment[i], 8, 0);
+        lv_obj_set_style_pad_column(fc_garment[i], 6, 0);
         lv_obj_align(fc_garment[i], LV_ALIGN_BOTTOM_MID, 0, -6);
+        /* Mini Pippa leads the row, wearing the day's own look: the
+         * forecast page had no cat at all (iter-07, panel round 5), and
+         * she is the product's star. render_forecast picks the sprite. */
+        fc_pippa[i] = lv_image_create(fc_garment[i]);
+        lv_image_set_pivot(fc_pippa[i], 0, 0);
         fc_gimg[i] = lv_image_create(fc_garment[i]);
         /* garment icon at its full 56 px (it used to be scaled to ~32) */
         fc_glabel[i] = label(fc_garment[i], &font_small, "");
@@ -1465,7 +1482,7 @@ static const wb_cat2_t *cat_set(const cat_season_t *seas)
     return choice == 1 ? &wb_cat2_pink : &wb_cat2_black;
 }
 
-static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavailable)
+static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavailable, bool show_props)
 {
     const wb_cat2_t *set = cat_set(seas);
     /* Pippa decision first: the layer loop below needs to know whether
@@ -1543,12 +1560,21 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
             vis[WB_C2_HAT_SANTA] = true;
         }
     }
-    if (seas->prop == CAT_SEASON_PROP_PUMPKIN) {
-        vis[WB_C2_PROP_PUMPKIN] = true;
-    } else if (seas->prop == CAT_SEASON_PROP_PRESENT) {
-        vis[WB_C2_PROP_PRESENT] = true;
-    } else if (seas->prop == CAT_SEASON_PROP_MENORAH) {
-        vis[WB_C2_PROP_MENORAH] = true;
+    /* Seasonal ground props (pumpkin, menorah, present) are outfit-page
+     * dressing only (iter-07, panel round 5): the identical pumpkin on
+     * nine screens, the offline error state included, read as a stuck
+     * asset rather than a season. The caller passes show_props only for
+     * a fresh, available outfit page (Today or Tomorrow); unavailable,
+     * stale, and every non-outfit screen get no prop. The seasonal hats
+     * are not props and keep their own rules above. */
+    if (show_props) {
+        if (seas->prop == CAT_SEASON_PROP_PUMPKIN) {
+            vis[WB_C2_PROP_PUMPKIN] = true;
+        } else if (seas->prop == CAT_SEASON_PROP_PRESENT) {
+            vis[WB_C2_PROP_PRESENT] = true;
+        } else if (seas->prop == CAT_SEASON_PROP_MENORAH) {
+            vis[WB_C2_PROP_MENORAH] = true;
+        }
     }
     /* Unavailable state: a bigger puzzled cat fills the stage instead of a
      * small cat next to a void. The transform scales the whole layer group
@@ -1665,6 +1691,23 @@ static bool s_built;
  * width (tile w - 116) every garment word fits on one line: the
  * longest, "sleeves", measures ~105 px against 122 px. */
 
+/* The Pippa variant for one outfit on one date: the engine's look picks
+ * the outfit, the Settings cat choice picks the colourway, and "take
+ * turns" alternates by that date's day of year (the same rule cat2_apply
+ * uses on the outfit pages, so the forecast mini matches the day page). */
+static int pippa_variant_for(int look, int y, int m, int d)
+{
+    static const int look_variant[] = {PIPPA_DRESS, PIPPA_PANTS, PIPPA_SNOW,
+                                       PIPPA_RAIN,  PIPPA_HOT,   PIPPA_FALL};
+    int choice = s_cat_choice;
+    if (choice == 2) {
+        long doy = days_from_civil(y, m, d) - days_from_civil(y, 1, 1) + 1;
+        choice = (doy % 2 == 0) ? 0 : 1;
+    }
+    int v = look_variant[look];
+    return choice == 1 ? v + 1 : v;
+}
+
 static void render_forecast(const wx_t *wx, const struct tm *now)
 {
     outfit_opts_t opts = s_opts;   /* same engine configuration as the outfit pages */
@@ -1699,12 +1742,22 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
             hide(fc_rain[i]);
         }
         int g = o.layer != LAYER_NONE ? layer_garment(o.layer) : top_garment(o.top);
+        show_obj(fc_garment[i]);
+        /* Mini Pippa in the day's look, beside the key garment she is
+         * wearing. The minis are separate build-time downscales (see
+         * tools/make_pippa_assets.py): this LVGL build draws nothing
+         * for a runtime-downscaled RLE sprite, so the full sprites
+         * cannot be shrunk here. Drawn unscaled, like every Pippa. */
+        lv_image_set_src(fc_pippa[i],
+                         WB_PIPPA_MINIS[pippa_variant_for(o.look, o.year, o.month, o.day)]);
         if (g >= 0 && GARMENT_56[g]) {
-            show_obj(fc_garment[i]);
+            show_obj(fc_gimg[i]);
+            show_obj(fc_glabel[i]);
             lv_image_set_src(fc_gimg[i], GARMENT_56[g]);
             lv_label_set_text(fc_glabel[i], garment_label(g));
         } else {
-            hide(fc_garment[i]);
+            hide(fc_gimg[i]);
+            hide(fc_glabel[i]);
         }
     }
 }
@@ -1925,7 +1978,7 @@ static void render(void)
         civil_from_days(days_from_civil(now.tm_year + 1900, now.tm_mon + 1, now.tm_mday) + page, &cy, &cm, &cd);
         cat_season(cy, cm, cd, now.tm_hour, &seas);
     }
-    cat2_apply(avail ? &o : NULL, &seas, !avail);
+    cat2_apply(avail ? &o : NULL, &seas, !avail, avail && bucket == 0);
     s_expr = avail ? 0 : 1;
     /* Own the base expression here. The face overlays are otherwise only
      * touched by the blink timer, and on a page change a stale overlay
@@ -1999,7 +2052,17 @@ static void render(void)
             const char *txt = garment_label(s_xgar[j]);
             lv_label_set_text(xchip_label[j], txt);
             lv_image_set_src(xchip_icon[j], GARMENT_56[s_xgar[j]]);
-            int w = text_w(txt, &font_small) + 75;
+            /* Wide-aspect icons are fitted by height, not by the square
+             * icons' scale (iter-07, panel round 5): the heart
+             * sunglasses are 2:1 in a square canvas, so at the standard
+             * chip scale the glyph was a ~24x12 px smudge. At 176 the
+             * glyph is ~36x18, nudged up so it centres in the chip, and
+             * the label (and chip) widen to make room for it. */
+            bool wide = s_xgar[j] == SUNGLASSES;
+            lv_image_set_scale(xchip_icon[j], wide ? 176 : 118);
+            lv_obj_set_pos(xchip_icon[j], 7, wide ? -2 : 4);
+            lv_obj_set_pos(xchip_label[j], wide ? 52 : 40, 5);
+            int w = text_w(txt, &font_small) + 75 + (wide ? 12 : 0);
             lv_obj_set_size(xchip[j], w, 34);
             lv_obj_set_pos(xchip[j], xx, X_STRIP_Y);
             lv_obj_set_pos(xchip_check[j], w - 29, 6);
