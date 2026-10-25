@@ -325,6 +325,11 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      *   every garment visible on the sprite is a tile or a chip, and
      *   every tile and chip garment is visible on the sprite.
      *
+     *   (One owner-approved exception since iter-27: the Watchung
+     *   logo hot sprite wears neither the sunglasses nor the water
+     *   bottle, but both stay prescribed on a logo hot day; see the
+     *   rotation note below.)
+     *
      * Canonical outfits (what each sprite demonstrably wears):
      *   SNOW: long sleeves, long pants, winter coat (the puffer),
      *         snow boots, warm hat, gloves. No scarf: she wears none.
@@ -462,22 +467,31 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      * forward one candidate per day through a same-weather stretch.
      * Candidates are only ever looks whose canonical outfit below is
      * the band's own prescription, so the rotation changes which
-     * sprite wears the weather, never the weather truth. Rain, snow
-     * and hot are safety looks and never rotate, into or out of: the
-     * snow look rotates ONLY inside the dry warm-coat tier marked
-     * above (where the kit itself was already a stand-in for "a warm
-     * coat"), and only when the prescription carries neither hat nor
-     * gloves, because the warmcoat sprite wears neither. The Watchung
-     * logo looks are ordinary candidates in their bands, one among
-     * several, so the logo shows every once in a while, not daily.
-     * LOOK_UNIFORM_HOT is deliberately not a candidate anywhere: the
-     * hot band does not rotate, and its sprite wears neither the
-     * sunglasses nor the water bottle the hot look prescribes. ---- */
+     * sprite wears the weather, never the weather truth. Rain and snow
+     * are safety looks and never rotate, into or out of: the snow look
+     * rotates ONLY inside the dry warm-coat tier marked above (where
+     * the kit itself was already a stand-in for "a warm coat"), and
+     * only when the prescription carries neither hat nor gloves,
+     * because the warmcoat sprite wears neither. The Watchung logo
+     * looks are ordinary candidates in their bands, one among several,
+     * so the logo shows every once in a while, not daily.
+     *
+     * Iter-27: the hot band rotates too, between the standard hot
+     * look and the Watchung logo hot look. Iter-25 deliberately kept
+     * LOOK_UNIFORM_HOT out: its sprite wears neither the sunglasses
+     * nor the water bottle the hot look prescribes, and picking it
+     * would break the sprite/tiles/chips invariant. The owner has
+     * explicitly relaxed that for this one look ("it's ok if we don't
+     * have the water bottle for Watchung day, or sunglasses"): on a
+     * logo hot day the prescription is unchanged (the tiles and the
+     * sunglasses and water-bottle chips prescribe exactly what a
+     * standard hot day prescribes); only the sprite differs. ---- */
     {
         static const int dress_band[] = {LOOK_DRESS, LOOK_DRESS_LAVENDER, LOOK_DRESS_MINT,
                                          LOOK_DRESS_MUSTARD, LOOK_UNIFORM_DRESS};
         static const int fall_band[] = {LOOK_FALL, LOOK_FALL_HOODIE, LOOK_UNIFORM_FALL};
         static const int warm_band[] = {LOOK_SNOW, LOOK_WARMCOAT};
+        static const int hot_band[] = {LOOK_HOT, LOOK_UNIFORM_HOT};
         int pants_band[5];
         const int *band = NULL;
         int nband = 0;
@@ -489,6 +503,9 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         } else if (look == LOOK_DRESS) {
             band = dress_band;
             nband = 5;
+        } else if (look == LOOK_HOT) {
+            band = hot_band;
+            nband = 2;
         } else if (look == LOOK_FALL) {
             band = fall_band;
             nband = 3;
@@ -542,12 +559,18 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         extras = EX_UMBRELLA;   /* in her hand, so it is a required chip */
         break;
     case LOOK_HOT:
+    case LOOK_UNIFORM_HOT:
         out->top = TOP_SHORT_SLEEVES;
         out->bottom = BOTTOM_SHORTS;
         out->layer = LAYER_NONE;
         out->feet = FEET_SNEAKERS;
-        /* Both extras are on the sprite, on storm days too (iter-11,
-         * panel round 9: see the hot-storms note above). */
+        /* Both extras are on the standard sprite, on storm days too
+         * (iter-11, panel round 9: see the hot-storms note above).
+         * Iter-27: they stay prescribed on a logo hot day as well,
+         * even though the logo sprite wears neither: the owner
+         * accepted the missing props on the picture for Watchung
+         * day, and the prescription (tiles, chips, advice) must
+         * still tell the girls to take sunglasses and water. */
         extras = EX_SUNGLASSES | EX_WATER;
         break;
     case LOOK_FALL:

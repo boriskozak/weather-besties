@@ -54,7 +54,10 @@ typedef enum {
  * canonical outfit that sprite wears. Invariant: every garment visible
  * on the sprite is a tile or a checkable chip, and every tile and chip
  * is visible on the sprite. The UI picks the sprite from this field
- * alone, so tiles, chips, advice and cat can never disagree. */
+ * alone, so tiles, chips, advice and cat can never disagree. One
+ * owner-approved exception (iter-27): the Watchung logo hot sprite
+ * wears neither the sunglasses nor the water bottle, but both stay
+ * prescribed on a logo hot day; only the sprite differs. */
 typedef enum {
     LOOK_DRESS = 0,   /* dress + tights + Mary Janes + her blue LIGHT jacket:
                        * the sprite's jacket is short, light and open, so the
@@ -87,10 +90,13 @@ typedef enum {
                            * heart tee and the white scarf */
     LOOK_UNIFORM_DRESS,   /* dress band: the Watchung logo dress */
     LOOK_UNIFORM_PANTS,   /* pants band: the Watchung logo tee + jeans */
-    LOOK_UNIFORM_HOT,     /* hot band art only: outfit.c never rotates
-                           * into it (the hot look is safety-fixed and the
-                           * sprite wears no sunglasses or water bottle);
-                           * wired so the band's art set is complete */
+    LOOK_UNIFORM_HOT,     /* hot band: the Watchung logo hot look
+                           * (iter-27). It rotates in by date like the
+                           * other logo looks; its sprite wears neither
+                           * the sunglasses nor the water bottle, and
+                           * the owner has explicitly accepted that for
+                           * this look: both stay prescribed as chips
+                           * (see outfit.c's iter-27 note) */
     LOOK_UNIFORM_FALL     /* hoodie band: logo tee + lavender hooded
                            * jacket, no scarf */
 } look_t;

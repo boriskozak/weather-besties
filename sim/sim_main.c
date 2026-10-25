@@ -472,6 +472,28 @@ int main(int argc, char **argv)
     save(out, "56_warmcoat");
     dump(out, "56_warmcoat");
 
+    /* Iter-27: the hot band rotation. Two consecutive hot days
+     * (scenarios rot_hot_0..1, 2027-07-13..14): the first day's pick
+     * is the standard hot look, the next day's is the Watchung logo
+     * hot look, and the first day's Tomorrow page must already show
+     * the logo pick (the seed is the outfit's own date). The logo
+     * day's tiles and chips must prescribe exactly what the standard
+     * day prescribes, sunglasses and water bottle included; only the
+     * sprite differs. The cat stays pinned to black, as above. */
+    load(sc, "rot_hot_0");
+    show();
+    save(out, "57_rot_jul13");
+    dump(out, "57_rot_jul13");
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "57_rot_jul13b_tomorrow");
+    dump(out, "57_rot_jul13b_tomorrow");
+    ui_test_set_page(0);
+    load(sc, "rot_hot_1");
+    show();
+    save(out, "58_rot_jul14");
+    dump(out, "58_rot_jul14");
+
     /* Iter-14: the My Day page, third screen. The populated state
      * (fixture events on both days), the configured-but-clear state,
      * and the no-calendar-link state, all on the brief_morning clock

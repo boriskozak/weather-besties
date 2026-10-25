@@ -276,25 +276,33 @@ S["snow_day"] = build(
     sunrise=7, sunset=17, feels_delta=-8)
 S["snow_day"]["sim_clock"] = "2027-01-15T07:35"
 
-# Hot summer day: shorts, water bottle, sunglasses.
+# Hot summer day: shorts, water bottle, sunglasses. Iter-27: the date
+# moved 2027-07-12 -> 2027-07-13 because the hot band rotates now (see
+# rot_hot_* below): 2027-07-13's rotation pick is the standard hot
+# look, so this fixture (the plain hot day's reference scenario, heart
+# sunglasses and all) still shows the reference outfit. The yesterday
+# tuple is unchanged, so the compare pill still reads the +14 tier.
 S["hot_summer"] = build(
-    "2027-07-12", "13:00", {"t": 89.4, "f": 93.0, "day": 1, "code": 0},
+    "2027-07-13", "13:00", {"t": 89.4, "f": 93.0, "day": 1, "code": 0},
     (1, 78, 70, 10, 8.0, 11.0), [(0, 92, 74, 5, 9.1, 13.0), (2, 88, 72, 10, 8.4, 10.0), (95, 85, 70, 65, 6.2, 5.0),
                                  (1, 86, 69, 5, 8.8, 12.0)],
     lambda i: 0 if i < 24 else (2 if i < 48 else (95 if 62 <= i <= 66 else 3) if i < 72 else 1),
     lambda i: 0 if i < 48 else (65 if 60 <= i <= 67 else 10),
     sunrise=6, sunset=20, feels_delta=3)
-S["hot_summer"]["sim_clock"] = "2027-07-12T13:05"
+S["hot_summer"]["sim_clock"] = "2027-07-13T13:05"
 
-# Storms roll in mid-afternoon.
+# Storms roll in mid-afternoon. Iter-27: the date moved 2027-07-14 ->
+# 2027-07-15 for the same reason as hot_summer: the hot band rotates,
+# and 2027-07-15's pick is the standard hot look, so the hot-storm
+# reference (heart sunglasses prescribed and worn) is unchanged.
 S["storm_afternoon"] = build(
-    "2027-07-14", "13:00", {"t": 88.0, "f": 92.0, "day": 1, "code": 2},
+    "2027-07-15", "13:00", {"t": 88.0, "f": 92.0, "day": 1, "code": 2},
     (1, 88, 72, 10, 8.0, 11.0), [(2, 90, 74, 20, 8.5, 10.0), (1, 87, 71, 10, 8.4, 11.0), (3, 84, 70, 30, 6.0, 7.0),
                                  (0, 88, 72, 5, 8.8, 12.0)],
     lambda i: (95 if 15 <= i <= 18 else 2) if i < 24 else 1,
     lambda i: (80 if 15 <= i <= 18 else 10) if i < 24 else 10,
     sunrise=6, sunset=20, feels_delta=2)
-S["storm_afternoon"]["sim_clock"] = "2027-07-14T13:05"
+S["storm_afternoon"]["sim_clock"] = "2027-07-15T13:05"
 
 # Cold Friday bike bus: small warm-up swing so the bike-bus sentence wins.
 S["bike_bus_cold_friday"] = build(
@@ -412,6 +420,29 @@ for _i, _day in enumerate(("2026-11-08", "2026-11-09", "2026-11-10",
                            "2026-11-11", "2026-11-12", "2026-11-13")):
     S[f"rot_dress_{_i}"] = _rot_dress(_day)
     S[f"rot_dress_{_i}"]["sim_clock"] = f"{_day}T08:05"
+
+# Iter-27: the hot band rotation proof. Two consecutive hot days:
+# 2027-07-13 has days_from_civil mod 2 = 0, so its pick is the
+# standard hot look; 2027-07-14 is mod 2 = 1, the Watchung logo hot
+# look. Every day of each payload wears the hot_summer weather (high
+# 92, dry), so each day's Tomorrow page resolves in the same band and
+# must show the NEXT day's pick. sim_main.c renders each day's Today
+# and the first day's Tomorrow. The logo day prescribes exactly what
+# the standard day prescribes (sunglasses and water bottle chips
+# included); only the sprite differs.
+def _rot_hot(day):
+    return build(
+        day, "13:00", {"t": 89.4, "f": 93.0, "day": 1, "code": 0},
+        (1, 78, 70, 10, 8.0, 11.0), [(0, 92, 74, 5, 9.1, 13.0), (2, 88, 72, 10, 8.4, 10.0), (95, 85, 70, 65, 6.2, 5.0),
+                                     (1, 86, 69, 5, 8.8, 12.0)],
+        lambda i: 0 if i < 24 else (2 if i < 48 else (95 if 62 <= i <= 66 else 3) if i < 72 else 1),
+        lambda i: 0 if i < 48 else (65 if 60 <= i <= 67 else 10),
+        sunrise=6, sunset=20, feels_delta=3)
+
+
+for _i, _day in enumerate(("2027-07-13", "2027-07-14")):
+    S[f"rot_hot_{_i}"] = _rot_hot(_day)
+    S[f"rot_hot_{_i}"]["sim_clock"] = f"{_day}T13:05"
 
 # Iter-25: a dry warm-coat-tier morning (departure feels-like ~44F:
 # warm coat tier, but above the hat and gloves thresholds) whose

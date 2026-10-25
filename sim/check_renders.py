@@ -885,7 +885,8 @@ def main():
               "50_rot_nov08", "50_rot_nov08b_tomorrow", "51_rot_nov09", "51_rot_nov09b_tomorrow",
               "52_rot_nov10", "52_rot_nov10b_tomorrow", "53_rot_nov11", "53_rot_nov11b_tomorrow",
               "54_rot_nov12", "54_rot_nov12b_tomorrow", "55_rot_nov13", "55_rot_nov13b_tomorrow",
-              "56_warmcoat")
+              "56_warmcoat",
+              "57_rot_jul13", "57_rot_jul13b_tomorrow", "58_rot_jul14")
     dumps = {n: dump(n) for n in DUMPED}
 
     # The dress bound (iter-09 fix 1, panel round 7's headline): the
@@ -1993,6 +1994,35 @@ def main():
           f"56_warmcoat: no chips, the sprite wears no hat or gloves (chips={d['chips']})")
     check("warm coat" in d["advice"],
           f"56_warmcoat: the advice names the warm coat ({d['advice']})")
+
+    # Iter-27: the hot band rotation. Two consecutive hot days
+    # (2027-07-13..14, identical weather): the first pick is the
+    # standard hot look, the second the Watchung logo hot look, and
+    # the first day's Tomorrow already shows the logo pick. The
+    # prescription does NOT change on the logo day: the tiles are
+    # the hot outfit's own and both chips (sunglasses, water bottle)
+    # are prescribed and named, even though the logo sprite wears
+    # neither (the owner's explicit relaxation). Only the sprite
+    # differs, proven by the stage crops differing.
+    d = dumps["57_rot_jul13"]
+    check(d["look_name"] == "hot",
+          f"57_rot_jul13: rotation pick for 2027-07-13 is the standard hot look (look={d['look_name']})")
+    t = dumps["57_rot_jul13b_tomorrow"]
+    check(t["look_name"] == "uniform_hot",
+          f"57_rot_jul13b_tomorrow: tomorrow's pick steps to the logo hot look (look={t['look_name']})")
+    d = dumps["58_rot_jul14"]
+    check(d["look_name"] == "uniform_hot",
+          f"58_rot_jul14: rotation pick for 2027-07-14 is the logo hot look (look={d['look_name']})")
+    for name in ("57_rot_jul13", "57_rot_jul13b_tomorrow", "58_rot_jul14"):
+        dd = dumps[name]
+        check(dd["tiles"] == "Short sleeves|Shorts|Sneakers",
+              f"{name}: hot tiles unchanged by the rotation ({dd['tiles']})")
+        check(dd["chips"] == "Sunglasses|Water bottle",
+              f"{name}: both chips prescribed, logo day included ({dd['chips']})")
+        check("sunglasses" in dd["advice"].lower() and "water bottle" in dd["advice"].lower(),
+              f"{name}: the advice names both chips ({dd['advice']})")
+    check(stage_sha("57_rot_jul13.png") != stage_sha("58_rot_jul14.png"),
+          "stage crops differ: the logo hot sprite is not the standard hot sprite")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")
