@@ -17,10 +17,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* The two event stores below are ~17 KB each of plain data. In internal
+ * DRAM bss they grew the firmware's internal footprint enough to starve
+ * esp_wifi_init on boot (ESP_ERR_NO_MEM, then an abort and a reboot
+ * loop), so on device they live in PSRAM. The parser and the page only
+ * ever touch them through the accessors, never by address arithmetic
+ * across the arrays. The desktop renderer has no PSRAM, and plain
+ * static storage is exactly equivalent there. */
+#ifndef WB_SIM
+#include "esp_attr.h"
+#define CAL_STORE_ATTR EXT_RAM_BSS_ATTR
+#else
+#define CAL_STORE_ATTR
+#endif
+
 #define CAL_STORE 96
 #define CAL_KEEP_DAYS 75
 
-static cal_event_t s_store[CAL_STORE];
+static CAL_STORE_ATTR cal_event_t s_store[CAL_STORE];
 static int s_first;   /* index of the first exposed event */
 static int s_count;   /* exposed events (<= CAL_MAX_EVENTS) */
 
@@ -149,7 +163,7 @@ typedef struct {
     char location[64];
 } cur_t;
 
-static cal_event_t s_tmp[CAL_STORE];
+static CAL_STORE_ATTR cal_event_t s_tmp[CAL_STORE];
 static int s_tmp_n;
 static bool s_in_event;
 static cur_t s_cur;
