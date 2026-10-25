@@ -1220,9 +1220,10 @@ def main():
     # morning dress one (23b): sparkles up around the cat (74 solid
     # sparkle px per burst position measured; the unchecked
     # counterparts have none) and the heart on her chest (for 23 the
-    # extracted overlay: hundreds of new dark paw pixels over the
-    # unchecked frame in the chest zone; 23b's own heart frame is
-    # asserted by the dress checks above). The all-done line is
+    # extracted heart alone: new heart-pink pixels over the unchecked
+    # frame in the chest zone and no new dark paw mass; 23b's own
+    # heart frame is asserted by the dress checks above). The
+    # all-done line is
     # "Nice job!" with no names, and no dump anywhere carries the
     # children's names.
     check(dumps["23_evening_all_done"]["advice_shown"] == "Nice job!",
@@ -1255,10 +1256,23 @@ def main():
     def is_overlay_dark(r, g, b):
         return r < 70 and g < 70 and b < 90
 
+    def is_heart_pink(r, g, b):
+        return r >= 120 and r - g >= 30 and r - b >= 10
+
     new_dark = sum(1 for y in range(198, 260) for x in range(112, 198)
                    if is_overlay_dark(*img23.getpixel((x, y))[:3])
                    and not is_overlay_dark(*img21.getpixel((x, y))[:3]))
-    check(new_dark > 300, f"23_evening_all_done: the heart overlay's paws sit on her chest ({new_dark} new dark px vs unchecked, need > 300)")
+    new_heart = sum(1 for y in range(198, 260) for x in range(112, 198)
+                    if is_heart_pink(*img23.getpixel((x, y))[:3])
+                    and not is_heart_pink(*img21.getpixel((x, y))[:3]))
+    # The overlay is the heart ALONE (first hardware flash: when it
+    # carried the animation's paws, the layered raised arms read as a
+    # second pair of arms over the static sprite's resting ones).
+    # So all-done must ADD heart pink to the chest zone and must NOT
+    # add a dark paw mass: the paw version of this overlay produced
+    # hundreds of new dark pixels here.
+    check(new_heart > 80, f"23_evening_all_done: the heart floats on her chest ({new_heart} new heart-pink px vs unchecked, need > 80)")
+    check(new_dark < 60, f"23_evening_all_done: no paw mass over her chest ({new_dark} new dark px vs unchecked, need < 60)")
 
     # Screen edge guard (iter-08 fix 5, kept after the advice glyph
     # it was written for was deleted in iter-09): no outfit screen

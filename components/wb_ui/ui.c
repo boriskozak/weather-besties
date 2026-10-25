@@ -984,8 +984,9 @@ static void on_cat_tap(lv_event_t *e)
  *   without snow boots)                        -> dress + black tights
  * The heart animation exists only for the black dress sprite; on any
  * other outfit or colourway all-done holds the static sprite with
- * the extracted heart gesture overlaid on her chest instead
- * (iter-11), so the celebration is the same everywhere. The old
+ * the heart alone (extracted from the animation, without its paws)
+ * floating on her chest instead (iter-11), so the celebration is
+ * the same everywhere. The old
  * layered pink cat is retired: the pink choice shows Pippa's pink
  * colourway, and the layered cat no longer draws on outfit pages.
  */
@@ -1159,20 +1160,23 @@ static void build_cat(lv_obj_t *page)
      * layer beneath her. */
     pippa_img = lv_image_create(cat_grp);
     hide(pippa_img);
-    /* The all-done heart overlay (iter-11): the heart gesture
+    /* The all-done heart overlay (iter-11): the heart alone,
      * extracted from the black dress sprite's heart animation
      * (tools/make_pippa_assets.py), at its recorded stage position.
-     * cat2_apply shows it over the static sprite whenever all-done
-     * holds on an outfit the animation does not cover, so the
-     * celebration is the same everywhere. */
+     * Never the animation's paws: the frames are a full-character
+     * pose, and layering the raised paws over a static sprite whose
+     * arms rest at its sides gave her a second pair of arms (first
+     * hardware flash). cat2_apply shows the heart over the static
+     * sprite whenever all-done holds on an outfit the animation
+     * does not cover, so the celebration is the same everywhere. */
     heart_overlay = lv_image_create(cat_grp);
     lv_image_set_src(heart_overlay, &img_pippa_heart_overlay);
     lv_obj_set_pos(heart_overlay, WB_PIPPA_HEART_OVERLAY_POS.x, WB_PIPPA_HEART_OVERLAY_POS.y);
-    /* Drawn at 1.25x about its centre: at native size the gesture
+    /* Drawn at 1.25x about its centre: at native size the heart
      * read as a smudge on the busier sprites (rain coat, snow kit);
      * the dress page's own heart is a full animation frame, so a
      * slightly larger still keeps the two treatments in balance. */
-    lv_image_set_pivot(heart_overlay, 33, 23);
+    lv_image_set_pivot(heart_overlay, 11, 6);
     lv_image_set_scale(heart_overlay, 320);
     hide(heart_overlay);
     for (int i = 0; i < 3; i++) {
@@ -1910,7 +1914,7 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
      * state changes.
      * Iter-11 (panel round 9): all-done celebrates the SAME on every
      * outfit. The frames exist only for the black dress; everywhere
-     * else the extracted heart gesture overlays the static sprite's
+     * else the extracted heart floats on the static sprite's
      * chest instead (the round-9 premium judge: the evening all-done
      * left the cat pixel-identical to her unchecked state, so the
      * reward depended on which flow the child used). The sparkles

@@ -84,10 +84,12 @@ extern const lv_image_dsc_t *const WB_PIPPA_MINIS[PIPPA_COUNT];
 extern const lv_image_dsc_t *const WB_PIPPA_HEART_FRAMES[6];
 extern const lv_point_t WB_PIPPA_HEART_POS[6];
 
-/* All-done heart overlay (iter-11): the heart gesture extracted
- * from heart frame 04, drawn over any other sprite's chest at this
- * stage position when all-done shows it instead of the animation,
- * so the celebration is the same on every outfit. */
+/* All-done heart overlay (iter-11): the heart alone extracted
+ * from heart frame 04 (never the animation's paws: layered over a
+ * static sprite they read as a second pair of arms), drawn over
+ * any other sprite's chest at this stage position when all-done
+ * shows it instead of the animation, so the celebration is the
+ * same on every outfit. */
 extern const lv_point_t WB_PIPPA_HEART_OVERLAY_POS;
 static const uint16_t WB_PIPPA_HEART_MS[6] = {260, 150, 150, 240, 500, 400};
 #define WB_PIPPA_HEART_TOTAL_MS 1700

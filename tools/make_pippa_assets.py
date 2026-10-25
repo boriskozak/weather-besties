@@ -17,7 +17,7 @@ components/lvgl/scripts/LVGLImage.py) and generates:
                                    time; see MINI_H below)
   assets/img_pippa_head_*_thumb.c (Settings cat-pill head thumbnails,
                                    black + pink; see THUMB_H below)
-  assets/img_pippa_heart_overlay.c (the all-done heart gesture from
+  assets/img_pippa_heart_overlay.c (the all-done heart, from
                                    heart frame 04, for the outfits the
                                    heart animation does not cover)
   assets/pippa_sets.h / pippa_sets.c   (descriptors + stage positions)
@@ -106,23 +106,27 @@ THUMBS = [("img_pippa_head_thumb", HEAD_SRC),
           ("img_pippa_head_pink_thumb",
            os.path.join(WARDROBE, "sprites", "pink", "pippa-dress.png"))]
 
-# All-done heart overlay (iter-11, panel round 9): the heart
-# animation exists only for the black dress sprite, so on every
-# other outfit the all-done celebration used to leave the cat
-# pixel-identical to her unchecked state. The overlay is the heart
-# gesture itself, extracted from heart frame 04: within the window
-# below, the pixels that differ from the static dress sprite AND
-# read as the gesture (near-black paw outline or the heart's pink
-# centre), flood-filled from the centre so stray dress/bow pixels
-# the paws vacated stay out, with the centre's enclosed highlight
-# holes filled in the centre's median pink. Drawn over the current
-# sprite's chest (all sprites share the 260x252 stage space) with
-# the sparkles, so all-done celebrates the same everywhere.
+# All-done heart overlay (iter-11, panel round 9; heart-only since
+# the first hardware flash): the heart animation exists only for
+# the black dress sprite, so on every other outfit the all-done
+# celebration used to leave the cat pixel-identical to her unchecked
+# state. The overlay is the heart itself, extracted from heart
+# frame 04. It must NOT carry the animation's paws: the frame is a
+# full-character pose (paws raised to the chest), and layering the
+# paw gesture over the static sprites, whose arms rest at their
+# sides, gave the cat a second pair of arms (the first board flash
+# showed four hands). So the extraction keeps only the heart's own
+# pink-family pixels, flood-filled from the heart's centre: the
+# paws are near-neutral black and bound the heart on every side,
+# so the flood cannot leak into the sleeves or the dress. Enclosed
+# highlight holes take the frame's own pixels. Drawn over the
+# current sprite's chest (all sprites share the 260x252 stage
+# space) with the sparkles, so all-done celebrates the same
+# everywhere: just a heart floating at her chest.
 HEART_OVERLAY_NAME = "img_pippa_heart_overlay"
 HEART_OVERLAY_FRAME = os.path.join(PKG, "animations", "frames", "heart", "04.png")
-HEART_OVERLAY_WINDOW = (99, 106, 165, 152)   # x0, y0, x1, y1 in stage space
-HEART_OVERLAY_SEED = (126, 131)              # (y, x) inside the pink centre
-HEART_CENTRE_BOX = (112, 114, 151, 143)      # hole filling stays in here
+HEART_OVERLAY_WINDOW = (104, 110, 152, 146)   # x0, y0, x1, y1 in stage space
+HEART_OVERLAY_SEED = (127, 129)              # (y, x) inside the heart
 
 # Forecast-card minis (iter-07): one small copy of each outfit sprite for
 # the Next Days cards. They are downscaled HERE, at asset-build time,
@@ -238,50 +242,40 @@ def _flood(mask, w, h, seeds):
 
 
 def convert_heart_overlay():
-    """Extract the heart gesture from heart frame 04 (see the
+    """Extract the heart alone from heart frame 04 (see the
     HEART_OVERLAY note above). Returns (stage x, stage y, w, h)."""
     frame = Image.open(HEART_OVERLAY_FRAME).convert("RGBA")
-    static = Image.open(HEAD_SRC).convert("RGBA")
-    fp, sp = frame.load(), static.load()
+    fp = frame.load()
     x0, y0, x1, y1 = HEART_OVERLAY_WINDOW
+    # The heart's own pixels: its saturated face, shaded mauve edge
+    # and all share a pink signature (red clearly dominant). The
+    # paws framing it are near-neutral black, the sleeves blue or
+    # blue-striped, so neither joins the mask.
     mask = set()
     for y in range(y0, y1):
         for x in range(x0, x1):
             r, g, b, a = fp[x, y]
-            if a <= 200:
-                continue
-            sr, sg, sb, _ = sp[x, y]
-            if max(abs(r - sr), abs(g - sg), abs(b - sb)) <= 40:
-                continue
-            dark = r < 95 and g < 95 and b < 95
-            pink = r > 215 and 100 < g < 175 and 140 < b < 215
-            if dark or pink:
+            if a > 200 and r >= 120 and r - g >= 30 and r - b >= 10:
                 mask.add((x, y))
     seed = (HEART_OVERLAY_SEED[1], HEART_OVERLAY_SEED[0])   # stored (y, x)
     keep = _flood(mask, frame.width, frame.height, [seed])
-    # Enclosed highlight holes inside the pink centre only: flood the
-    # centre box's complement from its border; what it cannot reach
-    # is a hole and takes the centre's median pink.
-    cx0, cy0, cx1, cy1 = HEART_CENTRE_BOX
-    cbox = {(x, y) for y in range(cy0, cy1) for x in range(cx0, cx1)}
-    border = ([(x, cy0) for x in range(cx0, cx1)] + [(x, cy1 - 1) for x in range(cx0, cx1)]
-              + [(cx0, y) for y in range(cy0, cy1)] + [(cx1 - 1, y) for y in range(cy0, cy1)])
-    reach = _flood(cbox - keep, frame.width, frame.height, border)
-    holes = cbox - keep - reach
-    pinks = sorted(fp[p] for p in keep
-                   if fp[p][0] > 215 and 100 < fp[p][1] < 175 and 140 < fp[p][2] < 215)
-    med = pinks[len(pinks) // 2][:3] if pinks else (252, 155, 183)
-    full = keep | holes
-    # Below the heart's point only the point's own columns survive:
-    # the connected strays there are dress, not gesture.
-    full = {(x, y) for (x, y) in full if y < 147 or 120 <= x <= 142}
-    xs = [p[0] for p in full]
-    ys = [p[1] for p in full]
+    xs = [p[0] for p in keep]
+    ys = [p[1] for p in keep]
     bb = (min(xs), min(ys), max(xs) + 1, max(ys) + 1)
+    # Enclosed highlight holes inside the heart (its glossy spots
+    # are too pale for the mask): flood the bbox's complement from
+    # its border; what it cannot reach is a hole and takes the
+    # frame's own pixel there.
+    bbox = {(x, y) for y in range(bb[1], bb[3]) for x in range(bb[0], bb[2])}
+    border = ([(x, bb[1]) for x in range(bb[0], bb[2])] + [(x, bb[3] - 1) for x in range(bb[0], bb[2])]
+              + [(bb[0], y) for y in range(bb[1], bb[3])] + [(bb[2] - 1, y) for y in range(bb[1], bb[3])])
+    reach = _flood(bbox - keep, frame.width, frame.height, border)
+    holes = {p for p in bbox - keep - reach if fp[p][3] > 200}
+    full = keep | holes
     out = Image.new("RGBA", frame.size)
     op = out.load()
     for (x, y) in full:
-        op[x, y] = fp[x, y] if (x, y) in keep else (med[0], med[1], med[2], 255)
+        op[x, y] = fp[x, y]
     cropped = os.path.join(PNG, HEART_OVERLAY_NAME + ".png")
     out.crop(bb).save(cropped)
     _write_lvimg(cropped, HEART_OVERLAY_NAME)
@@ -384,10 +378,12 @@ extern const lv_image_dsc_t *const WB_PIPPA_MINIS[PIPPA_COUNT];
 extern const lv_image_dsc_t *const WB_PIPPA_HEART_FRAMES[6];
 extern const lv_point_t WB_PIPPA_HEART_POS[6];
 
-/* All-done heart overlay (iter-11): the heart gesture extracted
- * from heart frame 04, drawn over any other sprite's chest at this
- * stage position when all-done shows it instead of the animation,
- * so the celebration is the same on every outfit. */
+/* All-done heart overlay (iter-11): the heart alone extracted
+ * from heart frame 04 (never the animation's paws: layered over a
+ * static sprite they read as a second pair of arms), drawn over
+ * any other sprite's chest at this stage position when all-done
+ * shows it instead of the animation, so the celebration is the
+ * same on every outfit. */
 extern const lv_point_t WB_PIPPA_HEART_OVERLAY_POS;
 """)
         f.write("static const uint16_t WB_PIPPA_HEART_MS[6] = {"
