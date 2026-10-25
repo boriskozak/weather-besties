@@ -310,12 +310,14 @@ static void fetch_calendar(void)
     size_t len;
     if (!net_http_get(S->cal_url, &body, &len)) {
         ESP_LOGW(TAG, "calendar fetch failed");
+        UI_LOCKED(ui_calendar_fetch_failed());
         return;
     }
     bool ok = cal_parse(body, len);
     free(body);
     if (!ok) {
         ESP_LOGW(TAG, "calendar did not parse");
+        UI_LOCKED(ui_calendar_fetch_failed());
         return;
     }
     ESP_LOGI(TAG, "calendar: %d events", cal_count());

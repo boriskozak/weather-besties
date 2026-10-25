@@ -53,7 +53,8 @@ void ui_show_connecting(const char *ssid);
 void ui_show_wifi_error(const char *ssid, const char *detail);
 
 void ui_show_weather(const wx_t *wx);
-void ui_show_calendar(void);   /* fresh kids-calendar data was parsed (cal.c) */
+void ui_show_calendar(void);   /* fresh kids-calendar data was parsed (cal.c); records the fetch time */
+void ui_calendar_fetch_failed(void);   /* a calendar fetch failed: any data on screen is stale (iter-15) */
 /* Whether a kids-calendar link is configured at all: the My Day page
  * shows its "ask a grown-up" state when it is not. The firmware sets
  * this from settings (cal_url non-empty); the sim defaults to false

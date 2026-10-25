@@ -1297,37 +1297,53 @@ def main():
           f"40_myday: populated state (myday_state={md['myday_state']})")
     check(md["myday_today_n"] == "4" and md["myday_tom_n"] == "2",
           f"40_myday: 4 rows today, 2 tomorrow ({md['myday_today_n']}/{md['myday_tom_n']})")
-    check(md["myday_today0"] == "All day|Dentist|",
-          f"40_myday: today row 1 is the all-day dentist ({md['myday_today0']})")
-    check(md["myday_today1"] == "10:00 AM|Library story time|",
-          f"40_myday: today row 2 is library story time ({md['myday_today1']})")
-    check(md["myday_today2"] == "3:30 PM|Soccer practice|Roosevelt Field, north gate",
-          f"40_myday: today row 3 is soccer, escaped comma unescaped ({md['myday_today2']})")
-    check(md["myday_today3"] == "4:00 PM|Video call with Grandma|",
-          f"40_myday: today row 4 is the UTC call at 4 PM local ({md['myday_today3']})")
-    check(md["myday_tom0"] == "8:00 AM|School bake sale|Watchung School gym",
-          f"40_myday: tomorrow row 1 is the bake sale ({md['myday_tom0']})")
-    check(md["myday_tom1"] == "4:00 PM|Piano lesson|Music school",
-          f"40_myday: tomorrow row 2 is piano, folded summary unfolded ({md['myday_tom1']})")
+    # Iter-15: the time column carries ranges (pickup time is half
+    # the point) and all-day events read ALL DAY (the navy pill).
+    check(md["myday_today0"] == "ALL DAY|Dentist|",
+          f"40_myday: today row 1 is the all-day dentist with the ALL DAY pill ({md['myday_today0']})")
+    check(md["myday_today1"] == "10:00-10:45 AM|Library story time|",
+          f"40_myday: today row 2 is library story time with its end time ({md['myday_today1']})")
+    check(md["myday_today2"] == "3:30-4:30 PM|Soccer practice|Roosevelt Field, north gate",
+          f"40_myday: today row 3 is soccer with its end time, escaped comma unescaped ({md['myday_today2']})")
+    check(md["myday_today3"] == "4:00-4:45 PM|Video call with Grandma|",
+          f"40_myday: today row 4 is the UTC call at 4 PM local with its end time ({md['myday_today3']})")
+    check(md["myday_tom0"] == "8:00-9:00 AM|School bake sale|Watchung School gym",
+          f"40_myday: tomorrow row 1 is the bake sale with its end time ({md['myday_tom0']})")
+    check(md["myday_tom1"] == "4:00-4:30 PM|Piano lesson|Music school",
+          f"40_myday: tomorrow row 2 is piano with its end time, folded summary unfolded ({md['myday_tom1']})")
+    # Iter-15: the freshness line (fixture fetch pinned to 7:02 AM)
+    # and the next-up dot: at the 7:35 fixture clock the all-day
+    # dentist is today's first event whose end is still ahead.
+    check(md["myday_fresh"] == "Updated 7:02 AM",
+          f"40_myday: freshness line shows the pinned fetch time ({md['myday_fresh']})")
+    check(md["myday_nextup"] == "0",
+          f"40_myday: next-up dot on today's first upcoming row ({md['myday_nextup']})")
 
     md41 = dump("41_myday_empty")
     check(md41["myday_state"] == "empty" and md41["myday_today_n"] == "0" and md41["myday_tom_n"] == "0",
           f"41_myday_empty: configured, nothing on either day (state={md41['myday_state']})")
+    check(md41["myday_fresh"] == "Updated 7:02 AM" and md41["myday_nextup"] == "-1",
+          f"41_myday_empty: freshness line still shown, no next-up row (fresh={md41['myday_fresh']}, nextup={md41['myday_nextup']})")
     md42 = dump("42_myday_unconfigured")
     check(md42["myday_state"] == "unconfigured",
           f"42_myday_unconfigured: no calendar link state (state={md42['myday_state']})")
+    check(md42["myday_fresh"] == "" and md42["myday_nextup"] == "-1",
+          f"42_myday_unconfigured: no freshness line without a link (fresh={md42['myday_fresh']!r})")
 
     # Pixels: the agenda is its own page (not the forecast), its
-    # band carries the rows, and both message states show the mini.
+    # band carries the rows, Pippa stands at the right of the
+    # populated page, and both message states show the full sprite.
     check(sha("40_myday.png") != sha("24_next_days.png"),
           "40_myday differs from 24_next_days (the agenda is its own page)")
     img = Image.open(os.path.join(OUT, "40_myday.png"))
     frac = non_bg_fraction(img, (28, 100, 772, 416))
     check(frac > 0.01, f"40_myday: agenda band carries rows ({frac:.1%} non-background, need > 1%)")
+    frac = non_bg_fraction(img, (600, 110, 772, 360))
+    check(frac > 0.05, f"40_myday: full Pippa at the right of the list ({frac:.1%} non-background, need > 5%)")
     for name in ("41_myday_empty.png", "42_myday_unconfigured.png"):
         img = Image.open(os.path.join(OUT, name))
-        frac = non_bg_fraction(img, (140, 158, 202, 278))
-        check(frac > 0.10, f"{name}: mini Pippa beside the message ({frac:.1%} non-background, need > 10%)")
+        frac = non_bg_fraction(img, (72, 120, 230, 348))
+        check(frac > 0.10, f"{name}: full Pippa beside the message ({frac:.1%} non-background, need > 10%)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

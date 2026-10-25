@@ -201,21 +201,47 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * sections, Today then Tomorrow. Rows are fixed slots laid out by a
  * y cursor in render_myday: today's slots come first in the arrays,
  * then tomorrow's. A row is the time in a left column, the title
- * (wrapped, up to two lines) and the place in small text under it. */
+ * (wrapped, up to two lines) and the place under it.
+ * Iter-15 (panel round 12): Pippa in her full sprite stands at the
+ * right of the populated page and the list narrows to clear her;
+ * the time column carries ranges ("3:30–4:30 PM") and all-day
+ * events get a navy ALL DAY pill instead of words; locations step
+ * up to font_body in ink; section headers step down from the title
+ * with a pink accent bar; a freshness line ("Updated 7:02 AM")
+ * sits above the tab bar; today's next upcoming event carries a
+ * pink dot in the row gutter. */
 #define MD_TODAY_MAX 4
 #define MD_TOM_MAX 3
 #define MD_ROWS (MD_TODAY_MAX + MD_TOM_MAX)
 static lv_obj_t *md_date;
 static lv_obj_t *md_sec[2];        /* section headers: Today, Tomorrow */
+static lv_obj_t *md_bar[2];        /* a header's pink accent bar */
 static lv_obj_t *md_none[2];       /* a section's "Nothing planned" line */
 static lv_obj_t *md_more[2];       /* a section's "+N more" line */
 static lv_obj_t *md_row[MD_ROWS], *md_time[MD_ROWS], *md_name[MD_ROWS], *md_loc[MD_ROWS];
+static lv_obj_t *md_pill[MD_ROWS], *md_pill_lbl[MD_ROWS];   /* the ALL DAY pill in a row's time column */
+static lv_obj_t *md_dot[MD_ROWS];                           /* the next-up dot in a row's gutter */
 static lv_obj_t *md_msg, *md_msg2, *md_pippa;   /* the two page states */
+static lv_obj_t *md_cat;           /* Pippa on the populated page (full sprite) */
+static lv_obj_t *md_fresh;         /* the "Updated ..." line above the tab bar */
 static bool s_cal_configured;      /* a calendar link exists (ui_set_calendar_configured) */
+/* Calendar freshness (iter-15): the last successful fetch, recorded
+ * by ui_show_calendar from the UI clock, and whether a later fetch
+ * has failed (a failed fetch after a success reads as stale at
+ * once, the way the outfit pages turn when their data ages out). */
+static bool s_cal_fetched;
+static long s_cal_fetch_min;       /* minutes_of() of the fetch */
+static int s_cal_fetch_h, s_cal_fetch_mi, s_cal_fetch_wday;
+static long s_cal_fetch_day;       /* days_from_civil() of the fetch date */
+static bool s_cal_fetch_failed;
+static int s_md_bucket;            /* render()'s weather bucket, for the look */
+static bool s_real_clock;          /* render()'s clock was the real clock */
 #ifdef WB_SIM
 static char s_md_state[16];                          /* events | empty | unconfigured */
 static int s_md_n[2];                                /* rows shown per section */
 static char s_md_rows[MD_ROWS][192];                 /* "time|title|place" per shown row */
+static char s_md_fresh[64];                          /* the freshness line's text ("" = hidden) */
+static int s_md_nextup;                              /* today's shown row carrying the dot, -1 */
 #endif
 
 /* main: bottom bar */
@@ -1736,55 +1762,99 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_set_pos(md_date, 430, 16);
 
     for (int s = 0; s < 2; s++) {
-        md_sec[s] = label(page_myday, &font_label, s ? "Tomorrow" : "Today");
+        /* Iter-15: the headers step down from the page title (font_body
+         * under the h1) and carry a short pink accent bar, so the two
+         * sections read as headers without rivalling "My Day". */
+        md_bar[s] = box(page_myday);
+        lv_obj_set_size(md_bar[s], 6, 22);
+        lv_obj_set_style_radius(md_bar[s], 3, 0);
+        lv_obj_set_style_bg_opa(md_bar[s], LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(md_bar[s], C(COL_ACCENT), 0);
+        hide(md_bar[s]);
+        md_sec[s] = label(page_myday, &font_body, s ? "Tomorrow" : "Today");
         lv_obj_set_style_text_color(md_sec[s], C(COL_INK), 0);
-        lv_obj_set_pos(md_sec[s], 28, 0);   /* render_myday lays the page out */
+        lv_obj_set_pos(md_sec[s], 44, 0);   /* render_myday lays the page out */
         hide(md_sec[s]);
         md_none[s] = label(page_myday, &font_body, "Nothing planned");
         lv_obj_set_style_text_color(md_none[s], C(COL_INK2), 0);
-        lv_obj_set_pos(md_none[s], 164, 0);
         hide(md_none[s]);
         md_more[s] = label(page_myday, &font_body, "");
         lv_obj_set_style_text_color(md_more[s], C(COL_INK2), 0);
-        lv_obj_set_pos(md_more[s], 164, 0);
         hide(md_more[s]);
     }
     for (int r = 0; r < MD_ROWS; r++) {
         lv_obj_t *row = box(page_myday);
         md_row[r] = row;
         lv_obj_set_size(row, UI_W - 56, 40);
+        /* The next-up dot lives in the row's left gutter; the time
+         * column starts right of it (x 18 in row coords). */
+        md_dot[r] = box(row);
+        lv_obj_set_size(md_dot[r], 12, 12);
+        lv_obj_set_style_radius(md_dot[r], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(md_dot[r], LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(md_dot[r], C(COL_ACCENT), 0);
+        lv_obj_set_pos(md_dot[r], 0, 9);
+        hide(md_dot[r]);
         md_time[r] = label(row, &font_label, "");
         lv_obj_set_style_text_color(md_time[r], C(COL_INK2), 0);
-        lv_obj_set_width(md_time[r], 128);
-        lv_obj_set_pos(md_time[r], 0, 0);
+        lv_obj_set_pos(md_time[r], 18, 0);   /* width set by render_myday */
+        /* All-day events wear a navy pill in the time column (the
+         * active tab's language), not the words "All day". */
+        md_pill[r] = box(row);
+        lv_obj_set_size(md_pill[r], 124, 32);
+        lv_obj_set_style_radius(md_pill[r], 16, 0);
+        lv_obj_set_style_bg_opa(md_pill[r], LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(md_pill[r], C(COL_INK), 0);
+        lv_obj_set_pos(md_pill[r], 18, 0);
+        md_pill_lbl[r] = label(md_pill[r], &font_chip, "ALL DAY");
+        lv_obj_set_style_text_color(md_pill_lbl[r], lv_color_white(), 0);
+        lv_obj_center(md_pill_lbl[r]);
+        hide(md_pill[r]);
         md_name[r] = label(row, &font_body, "");
         lv_obj_set_style_text_color(md_name[r], C(COL_INK), 0);
-        lv_obj_set_width(md_name[r], UI_W - 164 - 28);
         lv_label_set_long_mode(md_name[r], LV_LABEL_LONG_MODE_WRAP);
-        lv_obj_set_pos(md_name[r], 136, 2);
-        md_loc[r] = label(row, &font_small, "");
-        lv_obj_set_style_text_color(md_loc[r], C(COL_INK2), 0);
-        lv_obj_set_width(md_loc[r], UI_W - 164 - 28);
+        lv_obj_set_pos(md_name[r], 136, 2);   /* x/width set by render_myday */
+        /* Iter-15: the place steps up to the title's own size in ink
+         * (at reduced opacity), so it can be read across the room;
+         * a small grey line was exactly the detail a kid could not
+         * make out (round 12, all three judges). */
+        md_loc[r] = label(row, &font_body, "");
+        lv_obj_set_style_text_color(md_loc[r], C(COL_INK), 0);
+        lv_obj_set_style_text_opa(md_loc[r], LV_OPA_70, 0);
         lv_label_set_long_mode(md_loc[r], LV_LABEL_LONG_MODE_CLIP);
         lv_obj_set_pos(md_loc[r], 136, 2);   /* render_myday drops it under the title */
         hide(row);
     }
 
+    /* Pippa on the populated page (iter-15): the full sprite in
+     * today's look, standing at the right of the list. Position and
+     * source are set by render_myday (her width sets the list's
+     * right edge, so the two never collide). */
+    md_cat = lv_image_create(page_myday);
+    hide(md_cat);
+
+    /* The freshness line (iter-15): small and muted, right-aligned
+     * above the tab bar, in the clear strip under Pippa's feet. */
+    md_fresh = label(page_myday, &font_tiny, "");
+    lv_obj_set_style_text_color(md_fresh, C(COL_INK2), 0);
+    lv_obj_set_width(md_fresh, 320);
+    lv_obj_set_style_text_align(md_fresh, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_pos(md_fresh, 452, 396);
+    hide(md_fresh);
+
     /* The two whole-page states (no calendar link yet; a link but a
-     * clear two days): one friendly line beside a mini Pippa, the
-     * same furniture the forecast cards use. */
+     * clear two days): a friendly line beside a full-size Pippa,
+     * the cat and the text composed as one centred block (iter-15:
+     * the round-12 cat was a 100 px mini floating in a void). */
     md_pippa = lv_image_create(page_myday);
-    lv_obj_set_pos(md_pippa, 150, 168);
     md_msg = label(page_myday, &font_label, "");
     lv_obj_set_style_text_color(md_msg, C(COL_INK), 0);
-    lv_obj_set_width(md_msg, 460);
+    lv_obj_set_width(md_msg, 470);
     lv_label_set_long_mode(md_msg, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(md_msg, 262, 178);
     md_msg2 = label(page_myday, &font_body, "");
     lv_obj_set_style_text_color(md_msg2, C(COL_INK2), 0);
-    lv_obj_set_width(md_msg2, 460);
+    lv_obj_set_width(md_msg2, 470);
     lv_label_set_long_mode(md_msg2, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_pos(md_msg2, 262, 246);
     hide(page_myday);
 }
 
@@ -2159,40 +2229,81 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
 
 /* ------------------------------------------------------------------ my day render */
 
-/* One section of the agenda: lays its rows out from y and returns
- * the y below them. slot0 is the section's first row slot. A row's
- * height is its title's wrapped lines plus the place line when the
- * event has one; a row that would run off the page folds into the
- * section's "+N more" line instead (the section caps still apply). */
-static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n, int y)
+/* The time column's text for one timed event (iter-15): a range
+ * when the event has a real end ("3:30-4:30 PM": one AM/PM suffix
+ * when both ends share it, both when they straddle noon or
+ * midnight, "11:30 AM-1:00 PM"), else the plain start time. The
+ * separator is a plain hyphen: the Fredoka subsets carry no en
+ * dash (tools/make_assets.py TEXT set), and a missing-glyph box
+ * helps nobody. An end a full day or more after the start is not
+ * a range a kid can use, so those keep the single time too.
+ * Pickup time is half the reason to check this page (round 12),
+ * so the range is the default. */
+static void md_time_text(const cal_event_t *ev, char *buf, size_t n)
 {
+    struct tm s, e;
+    localtime_r(&ev->start, &s);
+    if (ev->end > ev->start && ev->end - ev->start < 86400) {
+        localtime_r(&ev->end, &e);
+        int sh = s.tm_hour % 12, eh = e.tm_hour % 12;
+        if (sh == 0) {
+            sh = 12;
+        }
+        if (eh == 0) {
+            eh = 12;
+        }
+        const char *ss = s.tm_hour < 12 ? "AM" : "PM";
+        const char *es = e.tm_hour < 12 ? "AM" : "PM";
+        if (strcmp(ss, es) == 0) {
+            snprintf(buf, n, "%d:%02d-%d:%02d %s", sh, s.tm_min, eh, e.tm_min, ss);
+        } else {
+            snprintf(buf, n, "%d:%02d %s-%d:%02d %s", sh, s.tm_min, ss, eh, e.tm_min, es);
+        }
+    } else {
+        fmt_time12(s.tm_hour, s.tm_min, buf, n);
+    }
+}
+
+/* One section of the agenda: lays its rows out from y and returns
+ * the y below them. slot0 is the section's first row slot. Rows use
+ * a fixed pitch per row type (the title's wrapped lines, plus the
+ * place line when the event has one), so the rhythm is the same
+ * whether or not a place is present. A row that would run off the
+ * page folds into the section's "+N more" line instead (the section
+ * caps still apply). colw is the page's shared time-column width,
+ * title_x the title column's offset within a row, title_w its
+ * width, right the list's right edge (Pippa sets it), and nextup
+ * the index into evs carrying the next-up dot (Today only). */
+static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n, int y,
+                      int colw, int title_x, int title_w, int right, int nextup)
+{
+    show_obj(md_bar[sec]);
+    lv_obj_set_pos(md_bar[sec], 28, y + 4);
     show_obj(md_sec[sec]);
-    lv_obj_set_pos(md_sec[sec], 28, y);
+    lv_obj_set_pos(md_sec[sec], 44, y);
     y += 32;
     if (n == 0) {
         show_obj(md_none[sec]);
-        lv_obj_set_pos(md_none[sec], 164, y);
+        lv_obj_set_pos(md_none[sec], 28 + title_x, y);
         hide(md_more[sec]);
 #ifdef WB_SIM
         s_md_n[sec] = 0;
 #endif
-        return y + 34;
+        return y + 36;
     }
     hide(md_none[sec]);
     int lh = lv_font_get_line_height(&font_body);
     int shown = 0;
     for (int i = 0; i < n && shown < max_rows; i++) {
         const cal_event_t *ev = evs[i];
-        char tbuf[16];
-        struct tm lt;
-        localtime_r(&ev->start, &lt);
+        char tbuf[40];
         if (ev->all_day) {
-            snprintf(tbuf, sizeof(tbuf), "All day");
+            snprintf(tbuf, sizeof(tbuf), "ALL DAY");
         } else {
-            fmt_time12(lt.tm_hour, lt.tm_min, tbuf, sizeof(tbuf));
+            md_time_text(ev, tbuf, sizeof(tbuf));
         }
         lv_point_t sz;
-        lv_text_get_size(&sz, ev->summary, &font_body, 0, 0, UI_W - 164 - 28, LV_TEXT_FLAG_NONE);
+        lv_text_get_size(&sz, ev->summary, &font_body, 0, 0, title_w, LV_TEXT_FLAG_NONE);
         int lines = sz.y / lh;
         if (lines < 1) {
             lines = 1;
@@ -2200,22 +2311,43 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         if (lines > 2) {
             lines = 2;
         }
-        int h = 2 + lines * lh + (ev->location[0] ? 24 : 0) + 2;
+        int h = 2 + lines * lh + (ev->location[0] ? 27 : 0) + 2;
         if (y + h > 416 && shown > 0) {
             break;   /* out of page: the rest folds into "+N more" */
         }
         int r = slot0 + shown;
-        lv_label_set_text(md_time[r], tbuf);
+        if (ev->all_day) {
+            hide(md_time[r]);
+            lv_obj_set_size(md_pill[r], text_w("ALL DAY", &font_chip) + 24, 32);
+            lv_obj_center(md_pill_lbl[r]);
+            show_obj(md_pill[r]);
+        } else {
+            hide(md_pill[r]);
+            lv_label_set_text(md_time[r], tbuf);
+            lv_obj_set_width(md_time[r], colw);
+            show_obj(md_time[r]);
+        }
+        if (i == nextup) {
+            show_obj(md_dot[r]);
+#ifdef WB_SIM
+            s_md_nextup = shown;
+#endif
+        } else {
+            hide(md_dot[r]);
+        }
         lv_label_set_text(md_name[r], ev->summary);
+        lv_obj_set_width(md_name[r], title_w);
+        lv_obj_set_pos(md_name[r], title_x, 2);
         if (ev->location[0]) {
             lv_label_set_text(md_loc[r], ev->location);
-            lv_obj_set_pos(md_loc[r], 136, 2 + lines * lh);
+            lv_obj_set_width(md_loc[r], title_w);
+            lv_obj_set_pos(md_loc[r], title_x, 2 + lines * lh - 2);
             show_obj(md_loc[r]);
         } else {
             hide(md_loc[r]);
         }
         lv_obj_set_pos(md_row[r], 28, y);
-        lv_obj_set_size(md_row[r], UI_W - 56, h);
+        lv_obj_set_size(md_row[r], right - 28, h);
         show_obj(md_row[r]);
 #ifdef WB_SIM
         snprintf(s_md_rows[r], sizeof(s_md_rows[r]), "%s|%s|%s", tbuf, ev->summary, ev->location);
@@ -2231,7 +2363,7 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         char buf[24];
         snprintf(buf, sizeof(buf), "+%d more", extra);
         lv_label_set_text(md_more[sec], buf);
-        lv_obj_set_pos(md_more[sec], 164, y);
+        lv_obj_set_pos(md_more[sec], 28 + title_x, y);
         show_obj(md_more[sec]);
         y += 34;
     } else {
@@ -2252,6 +2384,8 @@ static void render_myday(const struct tm *now)
 
 #ifdef WB_SIM
     s_md_n[0] = s_md_n[1] = 0;
+    s_md_nextup = -1;
+    s_md_fresh[0] = 0;
     for (int r = 0; r < MD_ROWS; r++) {
         s_md_rows[r][0] = 0;
     }
@@ -2262,6 +2396,7 @@ static void render_myday(const struct tm *now)
      * to filter: just today and tomorrow to pick out. An event that
      * started yesterday and runs into today is not shown in v1. */
     long today = days_from_civil(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
+    long now_min = minutes_of(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min);
     const cal_event_t *tod[CAL_MAX_EVENTS], *tom[CAL_MAX_EVENTS];
     int ntod = 0, ntom = 0;
     if (s_cal_configured) {
@@ -2278,18 +2413,62 @@ static void render_myday(const struct tm *now)
         }
     }
 
+    /* The freshness line (iter-15): a dead feed must not look like
+     * live data (round 12). Fresh reads "Updated 7:02 AM"; over six
+     * hours old, or a failed fetch after a success, it takes the
+     * outfit pages' stale wording and warn colour ("Calendar from
+     * 7:02 AM"); configured but never fetched it says so plainly.
+     * Unconfigured has no line at all: nothing was ever promised. */
+    if (!s_cal_configured) {
+        hide(md_fresh);
+    } else if (!s_cal_fetched) {
+        lv_label_set_text(md_fresh, "Calendar has not loaded yet");
+        lv_obj_set_style_text_color(md_fresh, C(COL_INK2), 0);
+        show_obj(md_fresh);
+#ifdef WB_SIM
+        snprintf(s_md_fresh, sizeof(s_md_fresh), "Calendar has not loaded yet");
+#endif
+    } else {
+        char tbuf[24], fbuf[64];
+        fmt_time12(s_cal_fetch_h, s_cal_fetch_mi, tbuf, sizeof(tbuf));
+        bool stale = s_cal_fetch_failed || (s_real_clock && now_min - s_cal_fetch_min > 360);
+        if (s_cal_fetch_day != today) {
+            snprintf(fbuf, sizeof(fbuf), "%s %s %s", stale ? "Calendar from" : "Updated",
+                     wx_wday_name(s_cal_fetch_wday, true), tbuf);
+        } else {
+            snprintf(fbuf, sizeof(fbuf), "%s %s", stale ? "Calendar from" : "Updated", tbuf);
+        }
+        lv_label_set_text(md_fresh, fbuf);
+        lv_obj_set_style_text_color(md_fresh, C(stale ? COL_WARN_TX : COL_INK2), 0);
+        show_obj(md_fresh);
+#ifdef WB_SIM
+        snprintf(s_md_fresh, sizeof(s_md_fresh), "%s", fbuf);
+#endif
+    }
+
     if (!s_cal_configured || (ntod == 0 && ntom == 0)) {
         for (int s = 0; s < 2; s++) {
             hide(md_sec[s]);
+            hide(md_bar[s]);
             hide(md_none[s]);
             hide(md_more[s]);
         }
         for (int r = 0; r < MD_ROWS; r++) {
             hide(md_row[r]);
         }
+        hide(md_cat);
+        /* Cat and text as one centred block (iter-15): the full
+         * sprite at native size on the left, the words on the right,
+         * the pair centred on the content area's axis. */
         int var = pippa_variant_for(LOOK_FALL, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
-        lv_image_set_src(md_pippa, WB_PIPPA_MINIS[var]);
+        const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
+        lv_image_set_src(md_pippa, spr);
+        int bw = (int)spr->header.w;
+        int bx = (UI_W - (bw + 28 + 470)) / 2;
+        lv_obj_set_pos(md_pippa, bx, 120);
         show_obj(md_pippa);
+        lv_obj_set_pos(md_msg, bx + bw + 28, 182);
+        lv_obj_set_pos(md_msg2, bx + bw + 28, 252);
         if (!s_cal_configured) {
             lv_label_set_text(md_msg, "Ask a grown-up to add the calendar link.");
             lv_label_set_text(md_msg2, "They will find it in the setup page.");
@@ -2313,8 +2492,67 @@ static void render_myday(const struct tm *now)
 #ifdef WB_SIM
     snprintf(s_md_state, sizeof(s_md_state), "events");
 #endif
-    int y = md_section(0, 0, MD_TODAY_MAX, tod, ntod, 56);
-    md_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, y + 4);
+
+    /* Pippa in today's dressed look (iter-15), the same variant the
+     * stage would wear (pippa_variant_for over the outfit engine's
+     * own resolution for today). When no look can be resolved (no
+     * weather, or stale past using) she wears the base sprite, the
+     * unavailable screen's choice. She stands right-aligned in the
+     * content area, vertically centred; her width sets the list's
+     * right edge, so titles can never run under her. */
+    int var = PIPPA_BASE;
+    outfit_t o;
+    if (s_have_wx && s_md_bucket < 2 && outfit_make(&s_wx, now, 0, &s_opts, &o) && o.ok) {
+        var = pippa_variant_for(o.look, o.year, o.month, o.day);
+    }
+    const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
+    lv_image_set_src(md_cat, spr);
+    lv_obj_set_pos(md_cat, 772 - (int)spr->header.w, 120);
+    show_obj(md_cat);
+    int right = 772 - (int)spr->header.w - 16;
+
+    /* One shared time column for the whole page, as wide as the
+     * widest time it has to carry (ranges included), so single
+     * times and ranges stay in one aligned column and the title
+     * column only narrows on the days that need the room. */
+    int colw = 124;
+    for (int i = 0; i < ntod + ntom; i++) {
+        const cal_event_t *ev = i < ntod ? tod[i] : tom[i - ntod];
+        if (ev->all_day) {
+            continue;
+        }
+        char tb[40];
+        md_time_text(ev, tb, sizeof(tb));
+        int w = text_w(tb, &font_label);
+        if (w > colw) {
+            colw = w;
+        }
+    }
+    if (colw > 236) {
+        colw = 236;
+    }
+    int title_x = 18 + colw + 12;
+    int title_w = right - 28 - title_x;
+
+    /* Next up (iter-15): the first of today's events whose end is
+     * still ahead of the clock. All-day events sort first and their
+     * end is the day's end, so they count as upcoming all day,
+     * ahead of the timed ones. One event carries the dot. */
+    int nextup = -1;
+    for (int i = 0; i < ntod; i++) {
+        struct tm et;
+        localtime_r(&tod[i]->end, &et);
+        long end_min = minutes_of(et.tm_year + 1900, et.tm_mon + 1, et.tm_mday, et.tm_hour, et.tm_min);
+        if (end_min > now_min) {
+            nextup = i;
+            break;
+        }
+    }
+
+    int y = md_section(0, 0, MD_TODAY_MAX, tod, ntod, 52, colw, title_x, title_w, right, nextup);
+    /* The gap before Tomorrow is a section break, clearly larger
+     * than the fixed pitch between rows (iter-15, round 12). */
+    md_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, y + 14, colw, title_x, title_w, right, -1);
 }
 
 static void render(void)
@@ -2343,6 +2581,8 @@ static void render(void)
     }
     /* 0 fresh, 1 stale chip, 2 unavailable (plan 4.6) */
     int bucket = !s_have_wx ? 2 : (real && age >= 720) ? 2 : (real && age >= 90) ? 1 : 0;
+    s_md_bucket = bucket;   /* the My Day page resolves its Pippa look and */
+    s_real_clock = real;    /* its freshness line from the same verdicts */
 
     char key[96];
     snprintf(key, sizeof(key), "%d|%d|%ld|%d|%d|%d", page, bucket,
@@ -3038,12 +3278,39 @@ void ui_refresh_clock(void)
 
 void ui_show_calendar(void)
 {
-    /* Fresh calendar data was parsed into cal.c: repaint. Like
-     * ui_show_weather with good data, it also brings the main screen
-     * up when it is not already showing. */
+    /* Fresh calendar data was parsed into cal.c: record when (the
+     * UI clock is the board's clock, set by the weather feed before
+     * fetches run), for the My Day page's freshness line (iter-15),
+     * then repaint. Like ui_show_weather with good data, it also
+     * brings the main screen up when it is not already showing. */
+    struct tm t;
+    bool real;
+    if (clock_now(&t, &real)) {
+        s_cal_fetched = true;
+        s_cal_fetch_min = minutes_of(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min);
+        s_cal_fetch_h = t.tm_hour;
+        s_cal_fetch_mi = t.tm_min;
+        s_cal_fetch_wday = t.tm_wday;
+        s_cal_fetch_day = days_from_civil(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
+        s_cal_fetch_failed = false;
+    }
     if (lv_screen_active() != scr_main && s_have_wx) {
         lv_screen_load(scr_main);
     }
+    s_force = true;
+    render();
+}
+
+void ui_calendar_fetch_failed(void)
+{
+    /* A fetch failed: with a success behind it, the data on screen
+     * is stale from now on (iter-15); with none, the page already
+     * says the calendar has not loaded yet, so there is nothing to
+     * mark. */
+    if (!s_cal_fetched) {
+        return;
+    }
+    s_cal_fetch_failed = true;
     s_force = true;
     render();
 }
@@ -3143,6 +3410,8 @@ void ui_test_dump(const char *path)
      * showed, "time|title|place" per row, so the sim checks can
      * assert on the agenda's words like the outfit pages'. */
     fprintf(f, "myday_state=%s\n", s_md_state);
+    fprintf(f, "myday_fresh=%s\n", s_md_fresh);
+    fprintf(f, "myday_nextup=%d\n", s_md_nextup);
     fprintf(f, "myday_today_n=%d\nmyday_tom_n=%d\n", s_md_n[0], s_md_n[1]);
     for (int r = 0; r < MD_TODAY_MAX; r++) {
         fprintf(f, "myday_today%d=%s\n", r, s_md_rows[r]);

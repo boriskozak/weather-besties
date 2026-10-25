@@ -226,6 +226,19 @@ static void fixture_cal(bool with_events)
     }
 }
 
+/* Records the fixture fetch at a fixed 7:02 AM on the sim clock, so
+ * the My Day freshness line renders deterministically ("Updated
+ * 7:02 AM") whatever the scenario clock says (iter-15). The clock
+ * is restored before anything renders for keeps. */
+static void fixture_fetched(void)
+{
+    struct tm save = now_tm;
+    now_tm.tm_hour = 7;
+    now_tm.tm_min = 2;
+    ui_show_calendar();
+    now_tm = save;
+}
+
 int main(int argc, char **argv)
 {
     const char *out = argc > 1 ? argv[1] : "out";
@@ -430,13 +443,14 @@ int main(int argc, char **argv)
     show();
     ui_set_calendar_configured(true);
     fixture_cal(true);
+    fixture_fetched();
     ui_test_set_page(2);
     pump(10);
     save(out, "40_myday");
     dump(out, "40_myday");
 
     fixture_cal(false);
-    ui_show_calendar();
+    fixture_fetched();
     pump(10);
     save(out, "41_myday_empty");
     dump(out, "41_myday_empty");
