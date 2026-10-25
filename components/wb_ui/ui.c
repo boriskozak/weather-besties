@@ -293,11 +293,18 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * the cards cost) */
 #define MD_SUB_H 11     /* the place-line space reserved in every row block
                          * (iter-19: 16 in iter-18) */
-#define MD_LOC_OFF 23   /* the place line hangs this far below its title
+#define MD_LOC_OFF 22   /* the place line hangs this far below its title
                          * line's top: iter-17's offset (24), tightened
-                         * one pixel in iter-19; it is the distance at
-                         * which the place text clears the title's
-                         * descenders (measured on the renders) */
+                         * one pixel in iter-19 and one more in iter-22;
+                         * it is the distance at which the place text
+                         * clears the title's descenders (measured on
+                         * the renders) */
+#define MD_TAG_OFF 18   /* a tag-only detail line (a row with tags but
+                         * no place) sits 4 above the place line's
+                         * offset (iter-22): there is no place text to
+                         * align with, only the title's descenders to
+                         * clear, and those are guarded per-letter by
+                         * md_desc_over in the pill's own zone */
 #define MD_SEC_EXTRA 0  /* extra air before the Tomorrow header, on top of
                          * MD_GAP (iter-21: spent; both headers now take
                          * the same MD_HDR_ADV, the round-17 note that
@@ -329,11 +336,21 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * bottom was the card's bottom edge, half on the border. While the
  * feed is stale the cards keep iter-20's tighter frame
  * (MD_CARD_PAD_S, MD_TAG_AIR_S) — the restored Today header plus
- * the banner is what that state spends its room on instead. */
+ * the banner is what that state spends its room on instead.
+ * Iter-22 (round 18): the air under a pill is measured to the
+ * card's OUTER border. LVGL insets a card's children by its
+ * border, so the fill left under a pill is the content height
+ * plus the pad, minus the pill's span, minus the border twice —
+ * iter-21's content-box accounting passed a pill that visually
+ * hung on the edge (0-1 px of fill). The content rule now
+ * reserves 4 px of fill beyond the border on the pill's bottom
+ * and right, computed per card from its border width (see
+ * md_section), and the stale frame spends its pad entirely
+ * (MD_CARD_PAD_S 0): the pad counts twice in a card's height
+ * but only once in the pill's air, so a smaller pad is the
+ * cheaper frame for the same guaranteed air. */
 #define MD_CARD_PAD 2
-#define MD_CARD_PAD_S 1
-#define MD_TAG_AIR 2    /* air under a tag group inside its card */
-#define MD_TAG_AIR_S 1
+#define MD_CARD_PAD_S 0
 #define MD_MUTE_HI 96   /* the stale mute for highlighted elements
                          * (iter-21): at the plain cards' keep of 150
                          * the NOW/NEXT tints and pills still read
@@ -356,7 +373,10 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * band starts at 50 and the difference funds the restored card
  * padding; the accent bar still clears the ink by a measured
  * gap (checked). */
-#define MD_TOP_Y 50
+#define MD_TOP_Y 49   /* iter-22: one more pixel goes to the cards'
+                         * pill air; the accent bar's top (MD_TOP_Y + 2)
+                         * still clears the title ink (ends y=45) by a
+                         * measured 4 px, the check's floor */
 /* The stale banner (iter-20, round 16: the footer stamp read as
  * squeezed small print and the stale rows kept their live
  * colours): a warn bar at the top of the list area, font_body on
@@ -367,7 +387,10 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * bar slims to 24 (its text ink measures 19 px), which is where
  * the header's room comes from. */
 #define MD_BANNER_H 24
-#define MD_BANNER_ADV (MD_BANNER_H + 2)   /* the banner's advance, below the header */
+#define MD_BANNER_ADV (MD_BANNER_H + 4)   /* the banner's advance, below the header
+                         * (iter-22, round 18: the bar sat flush on the
+                         * first card; the advance leaves a visible
+                         * 4 px of page between the two) */
 #define MD_CAT_Y 64     /* Pippa's top on the populated page (iter-19:
                          * iter-15 put her at 120; the mockup stands
                          * her at the title line, and down at 120 her
@@ -2051,8 +2074,13 @@ static void build_myday_page(lv_obj_t *scr)
         hide(md_tag[r]);
         /* Iter-17: the time steps down to font_body in ink2. At
          * font_label it was the heaviest type in the row, louder
-         * than the event it belonged to (round 14). */
-        md_time[r] = label(row, &font_body, "");
+         * than the event it belonged to (round 14). Iter-22
+         * (round 18): one more step down, to font_small — the
+         * size the other pages use for their secondary times, so
+         * the guardrail is the product's own legibility floor —
+         * in COL_TIME's lighter tone. The title is now
+         * unambiguously the row's primary type. */
+        md_time[r] = label(row, &font_small, "");
         lv_obj_set_style_text_color(md_time[r], C(COL_INK2), 0);
         lv_obj_set_pos(md_time[r], MD_TIME_X, 0);   /* width set by render_myday */
         /* All-day events wear a navy pill in the time column (the
@@ -2988,9 +3016,10 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
     hide(md_none[sec]);
     /* Iter-21: the card frame (pad, and the air under a tag group)
      * is restored on fresh data; while stale the cards keep
-     * iter-20's tighter frame (see the constants). */
+     * iter-20's tighter frame (see the constants). Iter-22: the
+     * stale frame's pad is spent entirely (MD_CARD_PAD_S 0) to
+     * fund the outer-border pill air in that state. */
     int pad = s_md_stale ? MD_CARD_PAD_S : MD_CARD_PAD;
-    int air = s_md_stale ? MD_TAG_AIR_S : MD_TAG_AIR;
     int lh = (int)lv_font_get_line_height(&font_label);
     int shown = 0;
     bool next_used = false;   /* the NEXT tag goes to one row only */
@@ -3068,23 +3097,37 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
             lines = 2;
         }
         int group_w = (status ? status_w : 0) + (status && named ? 10 : 0) + (named ? name_w : 0);
-        int detail_top = (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF;
+        int cardw = right - 28;
+        /* Iter-22 (round 18): the border this row's card will wear
+         * (md_card_style's own selection) and the tag group's
+         * inset from the card's right edge. The inset is the plain
+         * 6 on a borderless card; a bordered card needs more,
+         * because LVGL insets children by the border: with the
+         * inset at 4 + 2*bw the last pill's right edge keeps
+         * exactly 4 px of fill beyond the OUTER border, the edge
+         * the eye measures to (iter-21 measured to the content
+         * box and passed pills with 0-1 px of fill). */
+        int bw = status == 2 ? 3 : (status == 3 || past) ? 2 : 0;
+        int ginset = bw > 1 ? 4 + 2 * bw : 6;
+        int group_x = cardw - ginset - group_w;
+        /* A row with a place keeps the place line's offset; a
+         * tag-only row's detail line rides 2 higher (MD_TAG_OFF):
+         * no place text to align with, and the title's descenders
+         * are guarded per-letter by the zone check below. */
+        int detail_top = (lines - 1) * MD_TITLE_STEP + (ev->location[0] ? MD_LOC_OFF : MD_TAG_OFF);
         int pill_top = detail_top + 2;
         if (group_w > 0) {
             bool deep = false;
             if (ev->all_day) {
-                /* An all-day title is centred in its space (the
-                 * placement below), so its last line's letters sit
-                 * at an offset: measure the pill zone in the
-                 * line's own coordinates. */
+                /* Iter-22: the all-day title starts at its pill
+                 * (the placement below), so its letters sit at
+                 * the pill's own offset: measure the pill zone in
+                 * the line's own coordinates. */
                 int sp_x = MD_TIME_X + text_w("ALL DAY", &font_chip) + MD_PILL_PAD + 8;
-                int sp_w = (right - 28) - sp_x - 8;
-                int llw = md_last_line_w(ev->summary, sp_w);
-                int off = sp_x + (sp_w - llw) / 2;
-                deep = md_desc_over(ev->summary, sp_w, (right - 28) - 8 - group_w - off,
-                                    (right - 28) - 8 - off);
+                int sp_w = cardw - sp_x - 8;
+                deep = md_desc_over(ev->summary, sp_w, group_x - sp_x, group_x + group_w - sp_x);
             } else {
-                int gx = title_w - group_w;
+                int gx = title_w + 6 - ginset - group_w;
                 if (status && md_desc_over(ev->summary, row_title_w, gx, gx + status_w)) {
                     deep = true;
                 }
@@ -3118,11 +3161,21 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
                 content = loc_bottom;
             }
         }
-        if (group_w > 0 && pill_top + MD_PILL_H + air > content) {
+        if (group_w > 0) {
             /* Iter-21 (round 17, fix 1): a tag group counts its
              * air too — a pill whose bottom was the content's
-             * bottom sat half on the card's border. */
-            content = pill_top + MD_PILL_H + air;
+             * bottom sat half on the card's border. Iter-22
+             * (round 18): the air is 4 px of fill measured to the
+             * card's OUTER border. The pill renders at
+             * pad + pill_top (LVGL insets children by the
+             * border), the card stands content + 2*pad tall, so
+             * the fill under the pill works out to
+             * content + pad - pill_top - MD_PILL_H - 2*bw:
+             * reserve the 4 and solve for the content. */
+            int need = pill_top + MD_PILL_H + 4 + 2 * bw - pad;
+            if (need > content) {
+                content = need;
+            }
         }
         if (content < MD_MEDAL) {
             content = MD_MEDAL;
@@ -3132,7 +3185,6 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
             break;   /* out of page: the rest folds into "+N more" */
         }
         int r = slot0 + shown;
-        int cardw = right - 28;
         if (ev->all_day) {
             hide(md_time[r]);
             lv_obj_set_size(md_pill[r], text_w("ALL DAY", &font_chip) + MD_PILL_PAD, MD_PILL_H);
@@ -3168,14 +3220,13 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
         snprintf(s_md_icons[r], sizeof(s_md_icons[r]), "%s", EV_ICON_NAMES[cat]);
 #endif
         /* The tag group on the detail line (iter-20): right-
-         * aligned at the title column's end (the card's inner
-         * edge on an all-day row, whose title centres instead),
+         * aligned at the card's end by the inset computed above
+         * (iter-22: inset from the OUTER edge, border included),
          * the status tag first when a row carries both. NEXT
          * wears the status pink, NOW the deep green (round 16:
          * the two were indistinguishable), DONE the muted grey
          * with ink text; everything mutes while the feed is
          * stale, and a DONE row's pills dim with their row. */
-        int group_x = ev->all_day ? cardw - 8 - group_w : title_x + title_w - group_w;
         int pill_y = pad + pill_top;
         if (status) {
             int base = status == 1 ? COL_MD_DONE_BG : status == 2 ? COL_MD_NOW_BG : COL_ACCENT;
@@ -3234,10 +3285,15 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
             /* Iter-20 (round 16): the all-day title centres in
              * the space between the ALL DAY pill and the card's
              * edge, instead of starting at the pill and leaving
-             * the card's right half an empty peach stretch. */
+             * the card's right half an empty peach stretch.
+             * Iter-22 (round 18): back to the concept's own
+             * layout — the title starts right after its pill,
+             * left-aligned, so the page's titles read down one
+             * consistent left grid instead of one centred title
+             * floating off it. */
             int sp_x = MD_TIME_X + text_w("ALL DAY", &font_chip) + MD_PILL_PAD + 8;
             lv_obj_set_width(md_name[r], cardw - sp_x - 8);
-            lv_obj_set_style_text_align(md_name[r], LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_set_style_text_align(md_name[r], LV_TEXT_ALIGN_LEFT, 0);
             lv_obj_set_pos(md_name[r], sp_x, pad);
         } else {
             lv_obj_set_width(md_name[r], row_title_w);
@@ -3248,7 +3304,13 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
             int loc_x = ev->all_day
                             ? MD_TIME_X + text_w("ALL DAY", &font_chip) + MD_PILL_PAD + 8
                             : title_x;
-            int loc_w = (ev->all_day ? cardw - loc_x - 8 : title_w) - (group_w > 0 ? group_w + 10 : 0);
+            /* Iter-22: the place text's right end keeps its
+             * 10 px from the tag group's left edge, which itself
+             * moved by the border-aware inset — the timed column
+             * gives back (ginset - 6), the all-day column (whose
+             * old inset was 8) takes (ginset + 2) as its base. */
+            int loc_w = (ev->all_day ? cardw - loc_x - (ginset + 2) : title_w - (ginset - 6)) -
+                        (group_w > 0 ? group_w + 10 : 0);
             lv_label_set_text(md_loc[r], ev->location);
             lv_obj_set_width(md_loc[r], loc_w);
             lv_obj_set_style_text_color(md_loc[r], s_md_stale ? md_mute(COL_INK, 185) : C(COL_INK), 0);
@@ -3299,9 +3361,11 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
  * inside the card. Below Pippa's feet (MD_FEET_Y) the pair may run
  * to the page's right edge, the mockup's full-width row; higher
  * up, beside her, they share the list's width instead. A name tag
- * rides at the place line's right end, so the title keeps the
- * card's whole width (the mockup's CLEO corner, lowered a line:
- * at the title's own line it would crowd a full-width title).
+ * rides on the place line, attached just after the place text
+ * (iter-22; iter-20 put it at the line's right end), so the title
+ * keeps the card's whole width (the mockup's CLEO corner, lowered
+ * a line: at the title's own line it would crowd a full-width
+ * title).
  * Returns the y below the cards, or -1 when the pair would run
  * past MD_LIST_BOTTOM — render_myday then falls back to the
  * stacked section, whose own fold keeps the page's invariants. */
@@ -3316,7 +3380,7 @@ static int md_section_half(const cal_event_t **evs, int y, int right, const char
     int pad = s_md_stale ? MD_CARD_PAD_S : MD_CARD_PAD;
     int lh = (int)lv_font_get_line_height(&font_label);
     int card_h = 0;
-    int hs[2], tys[2], lys[2], tws[2], tag_ws[2];
+    int hs[2], tys[2], lys[2], tws[2], tag_ws[2], tag_xs[2], tag_tops[2];
     char namebufs[2][8];
     bool nameds[2];
     for (int i = 0; i < 2; i++) {
@@ -3338,21 +3402,52 @@ static int md_section_half(const cal_event_t **evs, int y, int right, const char
          * descenders, digits, a colon, AM/PM, so the place ink
          * keeps its clearance where a title needs MD_LOC_OFF's
          * 23; iter-21: 23 on fresh data, a looser stack toward
-         * the concept). */
-        tys[i] = pad + lines * MD_TITLE_STEP + (s_md_stale ? 3 : 4);
-        lys[i] = tys[i] + (s_md_stale ? 21 : 23);
+         * the concept; iter-22: the stale stack tightens to 18
+         * and the stale time rides 2 higher, the fresh stack
+         * gives back 2 the same way (21, and the time 1 higher)
+         * — the funding for the outer-border pill air below,
+         * safe because the time line carries no descenders and
+         * its ink now steps down with the rest of the page's
+         * times). */
+        tys[i] = pad + lines * MD_TITLE_STEP + (s_md_stale ? 1 : 3);
+        lys[i] = tys[i] + (s_md_stale ? 18 : 21);
         int need = ev->location[0] ? lys[i] + 25 : tys[i] + 30;
+        tag_xs[i] = tag_tops[i] = 0;
         if (nameds[i]) {
             /* The tag rides the place line (iter-20 put it there;
              * iter-21 anchors it TO that line, top at the line's
              * own top + 2 like a full card's — it used to hang
              * 3 above the line, which read as floating at the
              * card's corner once the card grew around it), and
-             * the card's content counts the tag's air below it. */
-            int tag_top = s_md_stale ? lys[i] - 3 : lys[i] + 2;
-            int tag_bottom = tag_top + MD_PILL_H + (s_md_stale ? MD_TAG_AIR_S : MD_TAG_AIR);
-            if (tag_bottom > need) {
-                need = tag_bottom;
+             * the card's content counts the tag's air below it.
+             * Iter-22 (round 18): the tag ATTACHES to its line —
+             * a fixed 8 px after the line's own text ends (the
+             * place text, or the time text, or the ALL DAY pill
+             * when the event has no place) — instead of aligning
+             * to the card's right edge, where it read as a stray
+             * corner chip detached from its line. The place
+             * label keeps its width reservation, so even a
+             * clipped place text leaves the tag inside the card
+             * with fill to spare. Below the tag the card counts
+             * 4 px of fill to its outer edge (the half cards are
+             * borderless, so the edge itself), the full cards'
+             * iter-22 rule. */
+            int line_top = ev->location[0] ? lys[i] : tys[i];
+            tag_tops[i] = s_md_stale ? line_top - 3 : line_top + 2;
+            if (ev->location[0]) {
+                int locw = cardw - MD_HALF_TITLE_X - 8 - (tag_ws[i] + 10);
+                int tw = text_w(ev->location, &font_small);
+                tag_xs[i] = MD_HALF_TITLE_X + (tw < locw ? tw : locw) + 8;
+            } else if (ev->all_day) {
+                tag_xs[i] = MD_HALF_TITLE_X + text_w("ALL DAY", &font_chip) + MD_PILL_PAD + 8;
+            } else {
+                char tb2[40];
+                md_time_text(ev, tb2, sizeof(tb2));
+                tag_xs[i] = MD_HALF_TITLE_X + text_w(tb2, &font_small) + 8;
+            }
+            int tag_need = tag_tops[i] + MD_PILL_H + 4 - pad;
+            if (tag_need > need) {
+                need = tag_need;
             }
         }
         hs[i] = need + pad;
@@ -3424,7 +3519,7 @@ static int md_section_half(const cal_event_t **evs, int y, int right, const char
             lv_obj_set_style_bg_opa(md_tag[r], LV_OPA_COVER, 0);
             lv_obj_set_style_text_color(md_tag_lbl[r], s_md_stale ? md_mute(COL_INK, 185) : C(COL_INK), 0);
             lv_obj_set_style_text_opa(md_tag_lbl[r], LV_OPA_COVER, 0);
-            lv_obj_set_pos(md_tag[r], cardw - 8 - tag_ws[i], s_md_stale ? lys[i] - 3 : lys[i] + 2);
+            lv_obj_set_pos(md_tag[r], tag_xs[i], tag_tops[i]);
             show_obj(md_tag[r]);
 #ifdef WB_SIM
             snprintf(s_md_nametag, sizeof(s_md_nametag), "%s", namebufs[i]);
@@ -3777,7 +3872,8 @@ static void render_myday(const struct tm *now)
      * widest time it has to carry (ranges included), so single
      * times and ranges stay in one aligned column and the title
      * column only narrows on the days that need the room. Iter-17
-     * measures it in the time's own font (font_body now). */
+     * measures it in the time's own font (font_small since
+     * iter-22, so the column narrows with the type). */
     int colw = 124;
     for (int i = 0; i < ntod + ntom; i++) {
         const cal_event_t *ev = i < ntod ? tod[i] : tom[i - ntod];
@@ -3786,7 +3882,7 @@ static void render_myday(const struct tm *now)
         }
         char tb[40];
         md_time_text(ev, tb, sizeof(tb));
-        int w = text_w(tb, &font_body);
+        int w = text_w(tb, &font_small);
         if (w > colw) {
             colw = w;
         }
