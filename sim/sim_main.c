@@ -186,8 +186,8 @@ static void fixture_cal(bool with_events)
     if (with_events) {
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-1\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
-                      "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Soccer practice\r\n"
-                      "LOCATION:Roosevelt Field\\, north gate\r\nEND:VEVENT\r\n",
+                      "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's soccer practice\r\n"
+                      "LOCATION:Roosevelt Field\r\nEND:VEVENT\r\n",
                       d0, d0);
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-2\r\nDTSTART;VALUE=DATE:%s\r\nDTEND;VALUE=DATE:%s\r\n"

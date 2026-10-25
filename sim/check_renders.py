@@ -1303,8 +1303,8 @@ def main():
           f"40_myday: today row 1 is the all-day picture day with the ALL DAY pill ({md['myday_today0']})")
     check(md["myday_today1"] == "10:00-10:45 AM|Lila's library story time|",
           f"40_myday: today row 2 is Lila's library story time with its end time ({md['myday_today1']})")
-    check(md["myday_today2"] == "3:30-4:30 PM|Soccer practice|Roosevelt Field, north gate",
-          f"40_myday: today row 3 is soccer with its end time, escaped comma unescaped ({md['myday_today2']})")
+    check(md["myday_today2"] == "3:30-4:30 PM|Cleo's soccer practice|Roosevelt Field",
+          f"40_myday: today row 3 is soccer with its end time ({md['myday_today2']})")
     check(md["myday_today3"] == "4:00-4:45 PM|Video call with Grandma|",
           f"40_myday: today row 4 is the UTC call at 4 PM local with its end time ({md['myday_today3']})")
     check(md["myday_tom0"] == "8:00-9:00 AM|School bake sale|Watchung School gym",
@@ -1334,7 +1334,7 @@ def main():
           f"40_myday: tomorrow header shows its date ({md['myday_tom_date']})")
     check(md["myday_nametag"] == "CLEO" and md["myday_nametag_row"] == "Cleo's piano lesson",
           f"40_myday: CLEO name tag on the piano row (tag={md['myday_nametag']!r}, row={md['myday_nametag_row']!r})")
-    check(md["myday_nametags"] == "LILA:Lila's library story time;CLEO:Cleo's piano lesson",
+    check(md["myday_nametags"] == "LILA:Lila's library story time;CLEO:Cleo's soccer practice;CLEO:Cleo's piano lesson",
           f"40_myday: LILA and CLEO name tags across the page ({md['myday_nametags']!r})")
     check(md["myday_dimmed"] == "",
           f"40_myday: no past rows dimmed in the morning ({md['myday_dimmed']!r})")
@@ -1369,7 +1369,7 @@ def main():
           f"43_myday_stale: populated data under the stale stamp (state={md43['myday_state']}, {md43['myday_today_n']}/{md43['myday_tom_n']})")
     check(md43["myday_fresh"] == "Calendar is 8 hours old · from 7:02 AM",
           f"43_myday_stale: freshness line in its stale form, age spelled out ({md43['myday_fresh']})")
-    check(md43["myday_nextup"] == "Video call with Grandma" and md43["myday_nowup"] == "Soccer practice"
+    check(md43["myday_nextup"] == "Video call with Grandma" and md43["myday_nowup"] == "Cleo's soccer practice"
           and md43["myday_done"] == "Lila's library story time" and md43["myday_dimmed"] == "Lila's library story time",
           f"43_myday_stale: Grandma next, soccer now, story time done (nextup={md43['myday_nextup']!r}, nowup={md43['myday_nowup']!r}, done={md43['myday_done']!r})")
     check(md43["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano" and md43["myday_half"] == "1",
@@ -1385,7 +1385,7 @@ def main():
           f"45_myday_late: populated with a fresh afternoon fetch (state={md45['myday_state']}, fresh={md45['myday_fresh']})")
     check(md45["myday_nextup"] == "Video call with Grandma",
           f"45_myday_late: NEXT tag on the Grandma call ({md45['myday_nextup']})")
-    check(md45["myday_nowup"] == "Soccer practice",
+    check(md45["myday_nowup"] == "Cleo's soccer practice",
           f"45_myday_late: NOW tag on soccer practice, in progress at 3:45 ({md45['myday_nowup']})")
     check(md45["myday_done"] == "Lila's library story time" and md45["myday_dimmed"] == "Lila's library story time",
           f"45_myday_late: story time DONE and dimmed as past (done={md45['myday_done']!r})")
@@ -1393,6 +1393,16 @@ def main():
           f"45_myday_late: tomorrow rows unchanged in the afternoon ({md45['myday_tom1']})")
     check(md45["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano" and md45["myday_half"] == "1",
           f"45_myday_late: same icons and half cards in the afternoon (icons={md45['myday_icons']}, half={md45['myday_half']})")
+    # Iter-20 dumps: the stale flag the banner and the muting key
+    # off, and the outfit the populated page resolved — the
+    # message states must resolve the same look (round 16 caught
+    # the message states wearing the fall kit on a snow day).
+    check(md["myday_stale"] == "0" and md45["myday_stale"] == "0" and md43["myday_stale"] == "1",
+          f"myday_stale set only on the stale render (40={md['myday_stale']}, 43={md43['myday_stale']}, 45={md45['myday_stale']})")
+    for name, d in (("40_myday", md), ("41_myday_empty", md41), ("42_myday_unconfigured", md42),
+                    ("43_myday_stale", md43), ("44_myday_never", md44), ("45_myday_late", md45)):
+        check(d["myday_cat_look"] == "snow",
+              f"{name}: Pippa wears the day's snow look in every state (myday_cat_look={d['myday_cat_look']!r})")
 
     # Pixels: the agenda is its own page (not the forecast), its
     # band carries the rows, Pippa stands at the right of the
@@ -1409,33 +1419,41 @@ def main():
         frac = non_bg_fraction(img, (72, 120, 230, 348))
         check(frac > 0.10, f"{name}: full Pippa beside the message ({frac:.1%} non-background, need > 10%)")
 
-    # Iter-17 pixels, iter-18 zones and fills, iter-19 geometry:
-    # the tags and states the dumps name must also be on screen.
-    # NEXT pink beside the title it tags (story time in the
-    # morning, the Grandma call in the afternoon), NOW pink beside
-    # soccer in the afternoon, DONE's muted grey beside the
-    # finished story time, and the name tags in their own colours
-    # (LILA teal, CLEO lavender). Iter-19 moved the story row's
-    # two tags onto its title's LAST line (the medallion column
-    # narrowed the title column; both tags reserved beside line 1
-    # wrapped the title to three lines), and CLEO rides the piano
-    # half card's place line. The past row's ink actually dimmed
-    # (full-ink pixels gone from its title zone in the afternoon
-    # renders); the stale stamp big and warn-coloured in the
-    # protected footer zone, clear of the last card; no
-    # weather-stale chip in the afternoon renders (their weather
-    # is fresh); no footer line at all in the never state.
-    # Iter-19 pixels: a saturated medallion inside every fixture
-    # card's left zone, and the fresh "Updated" line as ink in
-    # the tab-bar row on the fresh renders only.
+    # Iter-17 pixels, iter-18 zones and fills, iter-19 geometry,
+    # iter-20 rules: the tags and states the dumps name must also
+    # be on screen. Iter-20 (round 16) in pixels:
+    # - the page title's band is clear: its ink ends well above
+    #   the Today header's accent bar, and no accent-pink pixel
+    #   sits in the title band on any populated render;
+    # - every tag rides its row's DETAIL line: pill fills in the
+    #   detail bands, (almost) none in the title bands;
+    # - NOW is deep green, NEXT pink, the two never confused;
+    # - the DONE row's title stays legible (a floor of dark ink,
+    #   dimmer than the morning's) while its TIME is dimmer than
+    #   the title (the dimming moved onto the time and the
+    #   medallion, whose saturation collapses on the past row);
+    # - stale is a banner at the list's top in the warn colours
+    #   and the cards mute (pill-zone saturation a fraction of
+    #   the fresh renders'), with no warn text left in the old
+    #   footer zone;
+    # - fresh "Updated" stands in the tab-bar row at font_small
+    #   height (its ink spans 18+ rows) on the fresh renders
+    #   only, never in warn colours.
     def is_next_pink(r, g, b):
         return r > 200 and 60 < g < 120 and b > 120
+
+    def is_now_green(r, g, b):
+        return abs(r - 30) <= 16 and abs(g - 125) <= 18 and abs(b - 70) <= 16
 
     def is_cleo_fill(r, g, b):
         return abs(r - 216) <= 12 and abs(g - 204) <= 12 and abs(b - 242) <= 12
 
     def is_lila_fill(r, g, b):
         return abs(r - 181) <= 12 and abs(g - 223) <= 12 and abs(b - 213) <= 12
+
+    def is_lila_pale(r, g, b):
+        # The name tag on a past row rides at 50% over the card.
+        return abs(r - 213) <= 8 and abs(g - 230) <= 8 and abs(b - 222) <= 8
 
     def is_done_fill(r, g, b):
         return abs(r - 226) <= 10 and abs(g - 223) <= 10 and abs(b - 219) <= 10
@@ -1455,56 +1473,150 @@ def main():
     def is_tab_ink(r, g, b):
         return r < 150 and g < 150 and b < 170
 
+    def ink_rows(img, box, pred):
+        px = img.load()
+        rows = [y for y in range(box[1], box[3])
+                if any(pred(*px[x, y]) for x in range(box[0], box[2]))]
+        return rows
+
+    def mean_sat(img, box):
+        px = img.load()
+        vals = [max(px[x, y]) - min(px[x, y])
+                for y in range(box[1], box[3]) for x in range(box[0], box[2])]
+        return sum(vals) / len(vals)
+
+    def ink_stats(img, box):
+        # (pixels darker than 150, mean luminance of the ink)
+        px = img.load()
+        tot = 0
+        dark = 0
+        lsum = 0.0
+        for y in range(box[1], box[3]):
+            for x in range(box[0], box[2]):
+                r, g, b = px[x, y]
+                lum = 0.299 * r + 0.587 * g + 0.114 * b
+                if lum < 200:
+                    tot += 1
+                    lsum += lum
+                    if lum < 150:
+                        dark += 1
+        return dark, (lsum / tot if tot else 255.0)
+
     img = Image.open(os.path.join(OUT, "40_myday.png"))
-    n = count_where(img, (430, 130, 560, 172), is_next_pink)
-    check(n > 400, f"40_myday: NEXT pill drawn beside Lila's story time ({n} pink px, need > 400)")
-    n = count_where(img, (545, 132, 635, 172), is_lila_fill)
-    check(n > 400, f"40_myday: LILA name tag in teal beside the story time title ({n} fill px, need > 400)")
+    img43 = Image.open(os.path.join(OUT, "43_myday_stale.png"))
+    img45 = Image.open(os.path.join(OUT, "45_myday_late.png"))
+
+    # The title's own band: ink bottom vs the Today accent bar's
+    # top, self-calibrated per render, plus a hard zero on accent
+    # pink inside the band.
+    for name, im in (("40_myday", img), ("45_myday_late", img45)):
+        rows = ink_rows(im, (28, 0, 300, 58), is_full_ink)
+        bar = ink_rows(im, (28, 50, 40, 110),
+                       lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
+        gap = bar[0] - rows[-1] - 1 if rows and bar else -1
+        check(gap >= 4, f"{name}: clear air between the title ink and the Today bar ({gap} px, need >= 4)")
+    for name, im in (("40_myday", img), ("43_myday_stale", img43), ("45_myday_late", img45)):
+        n = count_where(im, (0, 0, 640, 58),
+                        lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
+        check(n == 0, f"{name}: no accent bar strikes through the title band ({n} px, need 0)")
+
+    # Tags on the detail lines, never the title lines.
+    n = count_where(img, (273, 164, 614, 196), is_next_pink)
+    check(n > 400, f"40_myday: NEXT pill on the story row's detail line ({n} pink px, need > 400)")
+    n = count_where(img, (273, 164, 614, 196), is_lila_fill)
+    check(n > 400, f"40_myday: LILA tag on the story row's detail line ({n} fill px, need > 400)")
+    n = count_where(img, (273, 138, 614, 164), is_next_pink) + count_where(img, (273, 138, 614, 164), is_lila_fill)
+    check(n < 50, f"40_myday: no tags on the story row's title line ({n} px, need < 50)")
+    n = count_where(img, (273, 222, 614, 250), is_cleo_fill)
+    check(n > 400, f"40_myday: CLEO tag on the soccer row's detail line ({n} fill px, need > 400)")
+    n = count_where(img, (273, 196, 614, 222), is_cleo_fill)
+    check(n < 100, f"40_myday: no tag on the soccer row's title line ({n} px, need < 100)")
     n = count_where(img, (660, 320, 780, 380), is_cleo_fill)
     check(n > 400, f"40_myday: CLEO name tag in lavender in the piano half card ({n} fill px, need > 400)")
-    lib40 = count_where(img, (270, 108, 480, 170), is_full_ink)
-    check(lib40 > 400, f"40_myday: story time title at full ink in the morning ({lib40} px, need > 400)")
-    # One medallion per fixture card, in the card's left zone
-    # (the piano medallion sits in the second half card).
-    for zone, what in (((34, 62, 82, 114), "camera in the Picture Day card"),
-                       ((34, 112, 82, 172), "book in the story time card"),
-                       ((34, 170, 82, 228), "soccer ball in the soccer card"),
-                       ((34, 226, 82, 284), "tablet in the Grandma call card"),
-                       ((34, 282, 82, 368), "cupcake in the bake sale half card"),
-                       ((402, 282, 450, 368), "piano in the piano half card")):
+    n = count_where(img45, (273, 164, 614, 196), is_done_fill)
+    check(n > 400, f"45_myday_late: DONE pill on the story row's detail line ({n} fill px, need > 400)")
+    n = count_where(img45, (500, 164, 614, 196), is_lila_pale)
+    check(n > 400, f"45_myday_late: LILA tag beside DONE on the detail line ({n} fill px, need > 400)")
+
+    # NOW green vs NEXT pink.
+    n = count_where(img45, (444, 226, 519, 251), is_now_green)
+    check(n > 400, f"45_myday_late: NOW pill in deep green beside soccer ({n} green px, need > 400)")
+    n = count_where(img45, (444, 226, 519, 251), is_next_pink)
+    check(n == 0, f"45_myday_late: NOW pill carries no NEXT pink ({n} px, need 0)")
+    n = count_where(img45, (273, 278, 614, 312), is_next_pink)
+    check(n > 400, f"45_myday_late: NEXT pill in pink on the Grandma row's detail line ({n} pink px, need > 400)")
+
+    # DONE readability: the title keeps a floor of dark ink,
+    # dimmer than the morning's same title; the time is dimmer
+    # than the title.
+    dark40, mean40 = ink_stats(img, (273, 140, 600, 168))
+    dark45, mean45 = ink_stats(img45, (273, 140, 600, 168))
+    check(dark45 > 1500, f"45_myday_late: DONE title still legible ({dark45} dark px, need > 1500)")
+    check(mean45 > mean40 + 20,
+          f"45_myday_late: DONE title dimmed vs the morning ({mean45:.0f} vs {mean40:.0f} mean ink luminance)")
+    darkt45, meant45 = ink_stats(img45, (92, 140, 262, 168))
+    check(darkt45 < 100 and meant45 > mean45 + 30,
+          f"45_myday_late: the past row's time dimmed harder than its title ({darkt45} dark px, {meant45:.0f} vs {mean45:.0f})")
+
+    # One medallion per fixture card in 40, at the new 48 px
+    # (the zones are 48 wide), and the past row's medallion
+    # visibly dimmed in 45.
+    for zone, what in (((36, 84, 84, 134), "camera in the Picture Day card"),
+                       ((36, 142, 84, 192), "book in the story time card"),
+                       ((36, 200, 84, 248), "soccer ball in the soccer card"),
+                       ((36, 254, 84, 302), "tablet in the Grandma call card"),
+                       ((36, 342, 84, 390), "cupcake in the bake sale half card"),
+                       ((404, 342, 452, 390), "piano in the piano half card")):
         n = count_where(img, zone, is_saturated)
-        check(n > 300, f"40_myday: medallion present, {what} ({n} saturated px, need > 300)")
-    n = count_where(img, (630, 432, 795, 474), is_tab_ink)
-    check(n > 150, f"40_myday: fresh Updated line inked in the tab-bar row ({n} px, need > 150)")
-    img45 = Image.open(os.path.join(OUT, "45_myday_late.png"))
-    n = count_where(img45, (430, 128, 530, 170), is_done_fill)
-    check(n > 400, f"45_myday_late: DONE pill in muted grey beside story time ({n} fill px, need > 400)")
-    n = count_where(img45, (443, 168, 533, 206), is_next_pink)
-    check(n > 400, f"45_myday_late: NOW pill drawn beside soccer practice ({n} pink px, need > 400)")
-    n = count_where(img45, (433, 207, 531, 252), is_next_pink)
-    check(n > 400, f"45_myday_late: NEXT pill drawn beside the Grandma call ({n} pink px, need > 400)")
-    lib45 = count_where(img45, (270, 108, 480, 170), is_full_ink)
-    check(lib45 < 40, f"45_myday_late: story time title dimmed, no full ink left ({lib45} px, need < 40)")
-    n = count_where(img45, (630, 432, 795, 474), is_tab_ink)
-    check(n > 150, f"45_myday_late: fresh Updated line inked in the tab-bar row ({n} px, need > 150)")
-    n = count_where(img45, (500, 48, 795, 92), is_warn_bg)
-    check(n == 0, f"45_myday_late: no weather-stale chip, the weather is fresh ({n} px, need 0)")
-    img43 = Image.open(os.path.join(OUT, "43_myday_stale.png"))
-    n = count_where(img43, (480, 394, 790, 422), is_warn_tx)
-    check(n > 300, f"43_myday_stale: freshness stamp stepped up in warn colour ({n} px, need > 300)")
-    n = count_where(img43, (250, 360, 430, 392), is_warn_tx)
-    check(n == 0, f"43_myday_stale: stale stamp clear of the last row's location zone ({n} px, need 0)")
-    n = count_where(img43, (500, 48, 795, 92), is_warn_bg)
-    check(n == 0, f"43_myday_stale: no weather-stale chip, only the calendar is stale ({n} px, need 0)")
-    n = count_where(img43, (630, 432, 795, 474), is_tab_ink)
-    check(n == 0, f"43_myday_stale: no Updated line in the tab-bar row, the stale form stays in the footer zone ({n} px, need 0)")
+        check(n > 400, f"40_myday: medallion present, {what} ({n} saturated px, need > 400)")
+    rows = ink_rows(img, (36, 80, 84, 140), is_saturated)
+    check(len(rows) >= 44, f"40_myday: medallion stands 48 px tall ({len(rows)} saturated rows, need >= 44)")
+    n = count_where(img45, (36, 142, 84, 192), is_saturated)
+    check(n < 400, f"45_myday_late: the past row's medallion takes the dimming ({n} saturated px, need < 400)")
+    n = count_where(img45, (36, 200, 84, 248), is_saturated)
+    check(n > 400, f"45_myday_late: the NOW row's medallion stays saturated ({n} saturated px, need > 400)")
+
+    # Fresh "Updated" in the tab-bar row at font_small height.
+    for name, im in (("40_myday", img), ("45_myday_late", img45)):
+        rows = ink_rows(im, (620, 424, 790, 472), is_tab_ink)
+        extent = (rows[-1] - rows[0] + 1) if rows else 0
+        n = count_where(im, (620, 424, 790, 472), is_tab_ink)
+        check(n > 150 and extent >= 18,
+              f"{name}: fresh Updated line at font_small in the tab-bar row ({n} px over {extent} rows, need > 150 px and >= 18 rows)")
+        n = count_where(im, (620, 424, 790, 472), is_warn_tx)
+        check(n == 0, f"{name}: no warn colour in the fresh line ({n} px, need 0)")
     img41 = Image.open(os.path.join(OUT, "41_myday_empty.png"))
-    n = count_where(img41, (630, 432, 795, 474), is_tab_ink)
-    check(n > 150, f"41_myday_empty: fresh Updated line inked in the tab-bar row ({n} px, need > 150)")
-    n = count_where(img, (480, 388, 790, 422), is_warn_tx)
-    check(n == 0, f"40_myday: no warn colour in the fresh stamp ({n} px, need 0)")
+    rows = ink_rows(img41, (620, 424, 790, 472), is_tab_ink)
+    extent = (rows[-1] - rows[0] + 1) if rows else 0
+    check(extent >= 18, f"41_myday_empty: fresh Updated line at font_small in the tab-bar row ({extent} rows, need >= 18)")
+    n = count_where(img43, (620, 424, 790, 472), is_tab_ink)
+    check(n == 0, f"43_myday_stale: no Updated line in the tab-bar row while stale ({n} px, need 0)")
+
+    # Stale: the banner in the warn colours at the list's top,
+    # the cards muted, nothing warn-coloured left in the old
+    # footer zone, and no weather-stale chip (the zone starts
+    # past the banner's right edge).
+    n = count_where(img43, (28, 58, 614, 88), is_warn_bg)
+    check(n > 3000, f"43_myday_stale: warn banner across the list's top ({n} bg px, need > 3000)")
+    n = count_where(img43, (28, 58, 614, 88), is_warn_tx)
+    check(n > 300, f"43_myday_stale: banner text in warn ink ({n} px, need > 300)")
+    for name, im in (("40_myday", img), ("45_myday_late", img45)):
+        n = count_where(im, (28, 58, 614, 88), is_warn_bg)
+        check(n == 0, f"{name}: no warn banner while fresh ({n} px, need 0)")
+    n = count_where(img43, (480, 394, 790, 422), is_warn_tx)
+    check(n == 0, f"43_myday_stale: no stale stamp left in the old footer zone ({n} px, need 0)")
+    ratio = mean_sat(img43, (445, 236, 522, 261)) / mean_sat(img45, (444, 226, 519, 251))
+    check(ratio < 0.70, f"43_myday_stale: the NOW pill is muted under stale ({ratio:.2f} of fresh saturation, need < 0.70)")
+    ratio = mean_sat(img43, (526, 291, 609, 317)) / mean_sat(img45, (527, 281, 608, 307))
+    check(ratio < 0.70, f"43_myday_stale: the NEXT pill is muted under stale ({ratio:.2f} of fresh saturation, need < 0.70)")
+    for name, im in (("43_myday_stale", img43), ("45_myday_late", img45)):
+        n = count_where(im, (630, 48, 795, 92), is_warn_bg)
+        check(n == 0, f"{name}: no weather-stale chip, only the calendar can be stale ({n} px, need 0)")
     img44 = Image.open(os.path.join(OUT, "44_myday_never.png"))
-    frac = non_bg_fraction(img44, (28, 384, 790, 422))
+    # The zone starts below the message Pippa's boot shadow
+    # (iter-20: at 1.25x her fringe reaches y=389); a freshness
+    # line, if one were drawn, would ink this band.
+    frac = non_bg_fraction(img44, (28, 392, 790, 422))
     check(frac < 0.005, f"44_myday_never: footer zone empty, no freshness line ({frac:.2%} non-background, need < 0.5%)")
 
     if failures:
