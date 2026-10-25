@@ -1561,27 +1561,32 @@ def main():
 
     # The title's own band: ink bottom vs the Today accent bar's
     # top, plus a hard zero on accent pink inside the band.
+    # Iter-24: the band ends at the first header's top (MD_TOP_Y
+    # 46; the bar starts at 48) — iter-23's y<50 window caught the
+    # header's own first ink rows once the band moved up.
     for name, im in (("40_myday", img), ("45_myday_late", img45)):
-        rows = ink_rows(im, (20, 0, 200, 50), is_full_ink)
+        rows = ink_rows(im, (20, 0, 200, 46), is_full_ink)
         bar = ink_rows(im, (20, 40, 44, 84),
                        lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
         gap = bar[0] - rows[-1] - 1 if rows and bar else -1
         check(gap >= 4, f"{name}: clear air between the title ink and the Today bar ({gap} px, need >= 4)")
     for name, im in (("40_myday", img), ("43_myday_stale", img43), ("45_myday_late", img45)):
-        n = count_where(im, (0, 0, 640, 50),
+        n = count_where(im, (0, 0, 640, 48),
                         lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
         check(n == 0, f"{name}: no accent bar strikes through the title band ({n} px, need 0)")
 
     # Header air (owner, fix 7a): each section header's dense ink
     # bottom vs the top of the element under it (first card, or
-    # the banner under Today's header while stale).
+    # the banner under Today's header while stale). Iter-24: the
+    # element under Today's header now starts at y=72 in every
+    # state (first card fresh, banner stale).
     for name, im in (("40_myday", img), ("45_myday_late", img45), ("43_myday_stale", img43)):
-        bot = dense_bottom(im, (44, 46, 175, 76), is_full_ink, 10)
-        gap = 75 - 1 - bot if bot is not None else -1
+        bot = dense_bottom(im, (44, 46, 175, 72), is_full_ink, 10)
+        gap = 72 - 1 - bot if bot is not None else -1
         check(gap >= 2, f"{name}: air between the Today header and what follows it ({gap} px, need >= 2)")
-    for name, im, box, top in (("40_myday", img, (44, 292, 215, 322), 324),
-                               ("45_myday_late", img45, (44, 312, 215, 342), 344),
-                               ("43_myday_stale", img43, (44, 327, 215, 353), 355)):
+    for name, im, box, top in (("40_myday", img, (44, 307, 215, 333), 333),
+                               ("45_myday_late", img45, (44, 338, 215, 364), 364),
+                               ("43_myday_stale", img43, (44, 342, 215, 368), 368)):
         bot = dense_bottom(im, box, is_full_ink, 10)
         gap = top - 1 - bot if bot is not None else -1
         check(gap >= 2, f"{name}: air between the Tomorrow header and its first card ({gap} px, need >= 2)")
@@ -1597,19 +1602,19 @@ def main():
     check(n > 400, f"40_myday: CLEO tag on the soccer row's detail line ({n} fill px, need > 400)")
     n = count_where(img, (273, 191, 614, 214), is_cleo_fill)
     check(n < 100, f"40_myday: no tag on the soccer row's title line ({n} px, need < 100)")
-    n = count_where(img, (560, 365, 690, 405), is_cleo_fill)
-    check(n > 400, f"40_myday: CLEO name tag in lavender in the piano half card ({n} fill px, need > 400)")
+    n = count_where(img, (660, 350, 790, 395), is_cleo_fill)
+    check(n > 400, f"40_myday: CLEO name tag in lavender at the piano half card's title block ({n} fill px, need > 400)")
     n = count_where(img45, (273, 155, 614, 196), is_done_fill)
     check(n > 400, f"45_myday_late: DONE pill on the story row's detail line ({n} fill px, need > 400)")
     n = count_where(img45, (500, 155, 614, 196), is_lila_pale)
     check(n > 400, f"45_myday_late: LILA tag beside DONE on the detail line ({n} fill px, need > 400)")
 
     # NOW green vs NEXT pink.
-    n = count_where(img45, (444, 225, 519, 252), is_now_green)
+    n = count_where(img45, (425, 232, 500, 266), is_now_green)
     check(n > 400, f"45_myday_late: NOW pill in deep green beside soccer ({n} green px, need > 400)")
-    n = count_where(img45, (444, 225, 519, 252), is_next_pink)
+    n = count_where(img45, (425, 232, 500, 266), is_next_pink)
     check(n == 0, f"45_myday_late: NOW pill carries no NEXT pink ({n} px, need 0)")
-    n = count_where(img45, (273, 275, 614, 315), is_next_pink)
+    n = count_where(img45, (273, 295, 614, 335), is_next_pink)
     check(n > 400, f"45_myday_late: NEXT pill in pink on the Grandma row's detail line ({n} pink px, need > 400)")
 
     # Pills inside their cards, measured to the OUTER border
@@ -1623,25 +1628,33 @@ def main():
     # rects against hardcoded card bottoms taken from the
     # layout's content box, which is inset by the border, and
     # passed a NEXT pill with 0 px of fill under it.
-    # Iter-23 (round 19): the minima are per card class — 4 px
-    # of pale fill under a saturated pill read as none to two
-    # panels running, so BORDERED cards (NOW/NEXT/DONE) now
-    # guarantee 8 px below and 6 to the right on fresh data and
-    # 7 below while stale (the stale frame's banner leaves room
-    # for 7 of the 8); borderless cards and the half cards keep
-    # iter-22's 4. The one borderless stacked card (40's soccer
-    # row) has no visible bottom edge at its centre — the next
-    # white card abuts it — so its bottom fill is measured at
+    # Iter-24 (round 20): the table also walks UP from each
+    # pill's top across its own span to the card title's lowest
+    # ink row — the round's hard bug was a pill touching the
+    # title's ink, which no below/right walk could see. Minima:
+    # fresh bordered cards keep iter-23's 8 below / 6 right and
+    # add 6 clear of the title ink; the stale frame's budget
+    # (published in the iter-24 FIX-REPORT) funds 5 below with
+    # the same no-contact rule against the title's BASE ink
+    # (clearance is asserted against solid ink >= 6 on fresh and
+    # plain no-touch while stale; the DONE row's titles render
+    # dimmed at LV_OPA_70, so their ink walk uses a relative
+    # darkness predicate against the card fill). Half-card tags
+    # sit at the title block's right end (fix 6) and keep 4
+    # below / 4 right fresh, 3 below while stale. The one
+    # borderless stacked card (40's soccer row) is measured at
     # the card's left edge column, where the rounded corners
-    # separate the cards, plus the corner's 2 px arc allowance.
-    def pill_fill(im, rgb, tol, box, fill):
+    # separate the abutting cards, plus the corner's 2 px arc
+    # allowance. Every row of the table prints, so the numbers
+    # land in the run log.
+    def pill_fill(im, rgb, tol, box, fill, ftol=8):
         r = pill_rect(im, rgb, tol, box)
         if not r:
             return None, -1, -1
         px = im.load()
 
         def isf(p):
-            return abs(p[0] - fill[0]) <= 8 and abs(p[1] - fill[1]) <= 8 and abs(p[2] - fill[2]) <= 8
+            return abs(p[0] - fill[0]) <= ftol and abs(p[1] - fill[1]) <= ftol and abs(p[2] - fill[2]) <= ftol
 
         cx = (r[0] + r[2]) // 2
         cy = (r[1] + r[3]) // 2
@@ -1653,37 +1666,56 @@ def main():
             fr += 1
         return r, fb, fr
 
+    def pill_clear(im, r, fill, dim=False):
+        px = im.load()
+        if dim:
+            fl = (299 * fill[0] + 587 * fill[1] + 114 * fill[2]) / 1000
+
+            def isink(p):
+                return (299 * p[0] + 587 * p[1] + 114 * p[2]) / 1000 < fl - 60
+        else:
+            def isink(p):
+                return is_full_ink(*p)
+        for y in range(r[1] - 1, max(r[1] - 49, 0), -1):
+            if any(isink(px[x, y]) for x in range(r[0] + 2, r[2] - 1)):
+                return r[1] - y - 1
+        return None
+
     MINT = (222, 246, 230)
-    WHITE = (255, 255, 255)
+    PLAIN = (255, 242, 230)
     DONEF = (246, 238, 238)
     SDONE = (230, 226, 222)
     SHIGH = (213, 218, 205)
-    SPLAIN = (238, 234, 230)
-    for name, im, rgb, tol, box, fill, last, minb, minr in (
-            ("40_myday NEXT", img, (230, 68, 123), 8, (430, 145, 545, 195), MINT, False, 8, 0),
-            ("40_myday LILA", img, (180, 222, 213), 6, (530, 145, 617, 195), MINT, True, 8, 6),
-            ("40_myday half CLEO", img, (222, 206, 246), 6, (590, 360, 700, 410), WHITE, False, 4, 0),
-            ("45_myday_late DONE", img45, (222, 218, 222), 5, (430, 140, 540, 190), DONEF, False, 8, 0),
-            ("45_myday_late LILA", img45, (213, 230, 222), 6, (530, 145, 617, 190), DONEF, True, 8, 6),
-            ("45_myday_late NOW", img45, (24, 125, 65), 8, (435, 215, 530, 260), MINT, False, 8, 0),
-            ("45_myday_late CLEO", img45, (222, 206, 246), 8, (520, 215, 617, 260), MINT, True, 8, 6),
-            ("45_myday_late NEXT", img45, (230, 68, 123), 8, (515, 270, 617, 320), MINT, True, 8, 6),
-            ("45_myday_late half CLEO", img45, (222, 206, 246), 6, (590, 375, 700, 424), WHITE, False, 4, 0),
-            ("43_myday_stale DONE", img43, (213, 214, 205), 5, (430, 160, 540, 204), SDONE, False, 7, 0),
-            ("43_myday_stale LILA", img43, (205, 218, 213), 6, (530, 165, 617, 208), SDONE, True, 7, 6),
-            ("43_myday_stale NOW", img43, (139, 174, 148), 10, (435, 230, 530, 275), SHIGH, False, 7, 0),
-            ("43_myday_stale CLEO", img43, (213, 202, 222), 8, (520, 230, 617, 275), SHIGH, True, 7, 6),
-            ("43_myday_stale NEXT", img43, (213, 153, 164), 10, (515, 285, 617, 330), SHIGH, True, 7, 6),
-            ("43_myday_stale half CLEO", img43, (213, 202, 222), 8, (590, 380, 700, 424), SPLAIN, False, 4, 0)):
-        rect, fb, fr = pill_fill(im, rgb, tol, box, fill)
+    SPLAIN = (238, 226, 213)
+    for name, im, rgb, tol, box, fill, ftol, last, minb, minr, minclr, dim in (
+            ("40_myday NEXT", img, (230, 68, 123), 8, (400, 150, 520, 200), MINT, 8, False, 8, 0, 6, False),
+            ("40_myday LILA", img, (180, 222, 213), 6, (495, 150, 600, 200), MINT, 8, True, 8, 6, 6, False),
+            ("40_myday half CLEO", img, (222, 206, 246), 6, (640, 340, 790, 400), PLAIN, 5, True, 4, 4, 6, False),
+            ("45_myday_late DONE", img45, (222, 218, 222), 6, (405, 158, 520, 195), DONEF, 8, False, 8, 0, 6, False),
+            ("45_myday_late LILA", img45, (213, 230, 222), 6, (495, 150, 600, 200), DONEF, 8, True, 8, 6, 6, False),
+            ("45_myday_late NOW", img45, (24, 125, 65), 8, (400, 225, 510, 275), MINT, 8, False, 8, 0, 6, False),
+            ("45_myday_late CLEO", img45, (222, 206, 246), 8, (485, 225, 600, 275), MINT, 8, True, 8, 6, 6, False),
+            ("45_myday_late NEXT", img45, (230, 68, 123), 8, (480, 290, 600, 340), MINT, 8, True, 8, 6, 6, False),
+            ("45_myday_late half CLEO", img45, (222, 206, 246), 6, (640, 370, 790, 425), PLAIN, 5, True, 4, 4, 6, False),
+            ("43_myday_stale DONE", img43, (213, 214, 205), 6, (405, 176, 520, 214), SDONE, 8, False, 5, 0, 0, True),
+            ("43_myday_stale LILA", img43, (205, 218, 213), 6, (495, 170, 600, 215), SDONE, 8, True, 5, 6, 0, True),
+            ("43_myday_stale NOW", img43, (139, 174, 148), 10, (400, 235, 510, 285), SHIGH, 8, False, 5, 0, 0, False),
+            ("43_myday_stale CLEO", img43, (213, 202, 222), 8, (485, 235, 600, 285), SHIGH, 8, True, 5, 6, 0, False),
+            ("43_myday_stale NEXT", img43, (213, 153, 164), 10, (480, 298, 600, 345), SHIGH, 8, True, 5, 6, 0, False),
+            ("43_myday_stale half CLEO", img43, (213, 202, 222), 8, (640, 370, 790, 425), SPLAIN, 5, True, 3, 4, 2, False)):
+        rect, fb, fr = pill_fill(im, rgb, tol, box, fill, ftol)
+        clr = pill_clear(im, rect, fill, dim) if rect else None
+        print(f"  pill {name}: below={fb} right={fr} title_clear={clr}")
         check(rect is not None and rect[4] > 400 and fb >= minb,
               f"{name}: pill keeps fill below to the outer border ({rect[4] if rect else 0} fill px, {fb} px below, need >= {minb})")
         if last:
             check(rect is not None and fr >= minr,
                   f"{name}: pill keeps fill to the outer border on its right ({fr} px, need >= {minr})")
+        check(clr is not None and clr >= minclr,
+              f"{name}: pill clears the title ink above it ({clr} px clear, need >= {minclr})")
     # 40's soccer CLEO, the borderless stacked card: bottom fill
     # at the left edge column (see the note above).
-    rect = pill_rect(img, (222, 206, 246), 8, (520, 200, 617, 250))
+    rect = pill_rect(img, (222, 206, 246), 8, (490, 215, 617, 260))
     if rect:
         px = img.load()
         edge = None
@@ -1698,29 +1730,27 @@ def main():
         fb = -1
     check(rect is not None and rect[4] > 400 and fb >= 4,
           f"40_myday CLEO: pill keeps fill below to the outer border ({rect[4] if rect else 0} fill px, {fb} px below at the edge column, need >= 4)")
-    rect, fb, fr = pill_fill(img, (222, 206, 246), 8, (520, 200, 617, 250), WHITE)
+    rect, fb, fr = pill_fill(img, (222, 206, 246), 8, (490, 215, 617, 260), PLAIN, 6)
     check(rect is not None and fr >= 4,
           f"40_myday CLEO: pill keeps fill to the outer border on its right ({fr} px, need >= 4)")
+    clr = pill_clear(img, rect, PLAIN) if rect else None
+    print(f"  pill 40_myday CLEO (soccer): title_clear={clr}")
+    check(clr is not None and clr >= 6,
+          f"40_myday CLEO: pill clears the title ink above it ({clr} px clear, need >= 6)")
 
-    # Half-card tag anchoring (fix 6) and attachment (iter-22,
-    # fix 3): the piano CLEO pill rides the "Music school" line
-    # and follows its text with a small fixed gap, instead of
-    # right-aligning to the card's edge where it read as a stray
-    # corner chip. The gap is measured from the place text's
-    # last ink column to the pill's left edge.
-    for name, im, rgb, tol, box, locbox in (
-            ("40_myday", img, (222, 206, 246), 6, (560, 360, 720, 410), (464, 370, 599, 398)),
-            ("43_myday_stale", img43, (213, 202, 222), 8, (560, 378, 720, 424), (464, 394, 599, 420))):
-        rect = pill_rect(im, rgb, tol, box)
-        px = im.load()
-        loc_right = -1
-        for yy in range(locbox[1], locbox[3]):
-            for xx in range(locbox[0], locbox[2]):
-                if is_full_ink(*px[xx, yy]):
-                    loc_right = max(loc_right, xx)
-        gap = rect[0] - loc_right - 1 if rect and loc_right >= 0 else -1
-        check(rect is not None and 4 <= gap <= 16,
-              f"{name}: piano CLEO attached after the place text ({gap} px gap, need 4..16)")
+    # Half-card tag placement (iter-24, round 20, fix 6): the
+    # piano CLEO sits at the title block's right end (its table
+    # row above measures the fill around it and its clearance of
+    # the title ink), and it has LEFT the "Music school" line:
+    # no tag lavender anywhere on the place line's band.
+    for name, im, rgb, tol, placebox in (
+            ("40_myday", img, (222, 206, 246), 6, (464, 366, 680, 390)),
+            ("45_myday_late", img45, (222, 206, 246), 6, (464, 397, 680, 421)),
+            ("43_myday_stale", img43, (213, 202, 222), 8, (464, 398, 680, 421))):
+        n = count_where(im, placebox,
+                        lambda r, g, b, c=rgb, t=tol + 4: abs(r - c[0]) <= t and abs(g - c[1]) <= t and abs(b - c[2]) <= t)
+        check(n == 0,
+              f"{name}: no name tag on the piano card's place line ({n} lavender px, need 0)")
 
     # DONE readability: the title keeps a floor of dark ink,
     # dimmer than the morning's same title; the time is dimmer
@@ -1755,25 +1785,26 @@ def main():
     # no daypart line colour on the plain cards' top edges, no
     # peach line on the all-day card's edges; the bands are the
     # separation.
-    n = count_where(img, (40, 191, 614, 195), is_tile_line) + count_where(img, (40, 250, 614, 254), is_tile_line)
+    n = count_where(img, (40, 195, 614, 199), is_tile_line) + count_where(img, (40, 253, 614, 257), is_tile_line)
     check(n == 0, f"40_myday: plain cards carry no border line ({n} line px, need 0)")
-    n = count_where(img, (100, 250, 600, 254), is_white)
-    check(n > 1000, f"40_myday: the Grandma row's band is plain tile white ({n} white px, need > 1000)")
-    n = count_where(img, (100, 76, 594, 80), is_peach_line) + count_where(img, (100, 123, 594, 127), is_peach_line)
+    n = count_where(img, (100, 288, 500, 292),
+                    lambda r, g, b: abs(r - 255) <= 4 and abs(g - 242) <= 4 and abs(b - 230) <= 4)
+    check(n > 1000, f"40_myday: the Grandma row's band is the plain soft tint ({n} tint px, need > 1000)")
+    n = count_where(img, (100, 72, 594, 76), is_peach_line) + count_where(img, (100, 120, 594, 124), is_peach_line)
     check(n == 0, f"40_myday: the all-day band carries no hard border ({n} line px, need 0)")
 
     # One medallion per fixture card in 40, at 48 px, and the
     # past row's medallion visibly dimmed in 45.
-    for zone, what in (((36, 80, 84, 128), "camera in the Picture Day card"),
-                       ((36, 136, 84, 184), "book in the story time card"),
-                       ((36, 197, 84, 245), "soccer ball in the soccer card"),
-                       ((36, 256, 84, 304), "tablet in the Grandma call card"),
-                       ((36, 350, 84, 398), "cupcake in the bake sale half card"),
-                       ((408, 336, 464, 392), "piano in the piano half card")):
+    for zone, what in (((33, 72, 86, 124), "camera in the Picture Day card"),
+                       ((33, 133, 86, 185), "book in the story time card"),
+                       ((33, 200, 86, 252), "soccer ball in the soccer card"),
+                       ((33, 255, 86, 307), "tablet in the Grandma call card"),
+                       ((33, 336, 86, 388), "cupcake in the bake sale half card"),
+                       ((407, 336, 462, 388), "piano in the piano half card")):
         n = count_where(img, zone, is_saturated)
         check(n > 400, f"40_myday: medallion present, {what} ({n} saturated px, need > 400)")
-    rows = ink_rows(img, (36, 76, 84, 130), is_saturated)
-    check(len(rows) >= 44, f"40_myday: medallion stands 48 px tall ({len(rows)} saturated rows, need >= 44)")
+    rows = ink_rows(img, (33, 72, 86, 124), is_saturated)
+    check(len(rows) >= 48, f"40_myday: medallion stands 52 px tall ({len(rows)} saturated rows, need >= 48)")
     n = count_where(img45, (36, 136, 84, 184), is_saturated)
     check(n < 400, f"45_myday_late: the past row's medallion takes the dimming ({n} saturated px, need < 400)")
     n = count_where(img45, (36, 197, 84, 245), is_saturated)
@@ -1810,9 +1841,9 @@ def main():
     # Stale (fix 3): the Today header STANDS and the warn banner
     # is directly below it; nothing warn-coloured in the fresh
     # renders' banner zone or left in the old footer zone.
-    n = count_where(img43, (28, 76, 617, 100), is_warn_bg)
+    n = count_where(img43, (28, 72, 617, 94), is_warn_bg)
     check(n > 3000, f"43_myday_stale: warn banner below the Today header ({n} bg px, need > 3000)")
-    n = count_where(img43, (28, 76, 617, 100), is_full_ink)
+    n = count_where(img43, (28, 72, 617, 94), is_full_ink)
     check(n > 300, f"43_myday_stale: banner text in the page ink ({n} px, need > 300)")
     n = count_where(img43, (20, 48, 44, 80),
                     lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
@@ -1820,11 +1851,21 @@ def main():
     n = count_where(img43, (44, 50, 175, 75), is_full_ink)
     check(n > 200, f"43_myday_stale: the word Today stands while stale ({n} ink px, need > 200)")
     rows = ink_rows(img43, (28, 60, 617, 110), is_warn_bg)
-    bot = dense_bottom(img43, (44, 46, 175, 76), is_full_ink, 10)
+    bot = dense_bottom(img43, (44, 46, 175, 72), is_full_ink, 10)
     check(rows and bot is not None and rows[0] > bot,
           f"43_myday_stale: banner top (y={rows[0] if rows else -1}) below the header ink (bottom y={bot})")
+    # Banner gap (iter-24, fix 3): page background between the
+    # banner's bottom and the first card's top, at least 4 px.
+    gaprows = 0
+    if rows:
+        px43 = img43.load()
+        y = rows[-1] + 1
+        while y < 110 and all(px43[x, y] == (255, 246, 238) for x in range(100, 500, 40)):
+            gaprows += 1
+            y += 1
+    check(gaprows >= 4, f"43_myday_stale: page air between the banner and the first card ({gaprows} bg rows, need >= 4)")
     for name, im in (("40_myday", img), ("45_myday_late", img45)):
-        n = count_where(im, (28, 76, 617, 100), is_warn_bg)
+        n = count_where(im, (28, 72, 617, 94), is_warn_bg)
         check(n == 0, f"{name}: no warn banner while fresh ({n} px, need 0)")
     n = count_where(img43, (480, 394, 790, 422), is_warn_tx)
     check(n == 0, f"43_myday_stale: no stale stamp left in the old footer zone ({n} px, need 0)")
@@ -1833,16 +1874,44 @@ def main():
     # and the highlighted tints and pills sit at the muted
     # plain cards' level — the muted peach card is the page's
     # own reference for "not live".
-    ratio = mean_sat(img43, (440, 243, 480, 257)) / mean_sat(img45, (440, 228, 480, 242))
+    ratio = mean_sat(img43, (440, 252, 480, 266)) / mean_sat(img45, (440, 244, 480, 258))
     check(ratio < 0.50, f"43_myday_stale: the NOW pill is muted under stale ({ratio:.2f} of fresh saturation, need < 0.50)")
-    ratio = mean_sat(img43, (525, 299, 565, 312)) / mean_sat(img45, (525, 287, 565, 300))
+    ratio = mean_sat(img43, (520, 307, 570, 325)) / mean_sat(img45, (520, 302, 570, 320))
     check(ratio < 0.50, f"43_myday_stale: the NEXT pill is muted under stale ({ratio:.2f} of fresh saturation, need < 0.50)")
-    peach = mean_sat(img43, (300, 144, 420, 149))
-    for what, zone in (("NOW card tint", (300, 262, 410, 267)), ("NEXT card tint", (300, 315, 420, 320)),
-                       ("NOW pill", (440, 243, 480, 257)), ("NEXT pill", (525, 299, 565, 312))):
+    peach = mean_sat(img43, (300, 130, 420, 135))
+    for what, zone in (("NOW card tint", (300, 272, 410, 277)), ("NEXT card tint", (300, 334, 420, 339)),
+                       ("NOW pill", (440, 252, 480, 266)), ("NEXT pill", (525, 315, 565, 329))):
         s = mean_sat(img43, zone)
         check(s <= peach * 1.15,
               f"43_myday_stale: {what} muted to the plain cards' level ({s:.1f} vs muted peach {peach:.1f} saturation, need <= peach x 1.15)")
+
+    # Stale parity (iter-24, round 20, fix 3): Tomorrow's plain
+    # fills mute to the same measured level as Today's rows. In
+    # iter-23 the Tomorrow fills rendered at luminance ~243
+    # against Today's ~223-227 band; the check pins Tomorrow's
+    # bake card inside that band, saturation at or under the
+    # peach card's, and clearly muted against its fresh self.
+    def lum_sat(im, box):
+        px = im.load()
+        ls = ss = n = 0
+        for y in range(box[1], box[3]):
+            for x in range(box[0], box[2]):
+                r, g, b = px[x, y]
+                ls += (299 * r + 587 * g + 114 * b) / 1000
+                mx, mn = max(r, g, b), min(r, g, b)
+                ss += 0 if mx == 0 else (mx - mn) * 255 / mx
+                n += 1
+        return ls / n, ss / n
+
+    bake_l, bake_s = lum_sat(img43, (340, 380, 390, 400))
+    done_l, _ = lum_sat(img43, (100, 196, 250, 210))
+    peach_l, peach_s = lum_sat(img43, (100, 134, 220, 146))
+    fresh_l, _ = lum_sat(img45, (340, 380, 390, 400))
+    print(f"  stale parity: bake lum {bake_l:.1f} sat {bake_s:.1f}; DONE lum {done_l:.1f}; peach lum {peach_l:.1f} sat {peach_s:.1f}; fresh bake lum {fresh_l:.1f}")
+    check(abs(bake_l - done_l) <= 6 and bake_s <= peach_s + 4,
+          f"43_myday_stale: Tomorrow mutes to Today's level (bake lum {bake_l:.0f} vs DONE card {done_l:.0f}, sat {bake_s:.0f} vs peach {peach_s:.0f})")
+    check(bake_l < fresh_l - 10,
+          f"43_myday_stale: Tomorrow's fill really muted vs fresh (lum {bake_l:.0f} vs {fresh_l:.0f}, need 10+ darker)")
     for name, im in (("43_myday_stale", img43), ("45_myday_late", img45)):
         n = count_where(im, (630, 48, 795, 92), is_warn_bg)
         check(n == 0, f"{name}: no weather-stale chip, only the calendar can be stale ({n} px, need 0)")
@@ -1866,6 +1935,20 @@ def main():
         bal = abs((rows[0] - 54) - (423 - rows[-1])) if rows else 99
         check(rows and bal <= 8,
               f"{name}: message group vertically balanced (air above {rows[0] - 54 if rows else -1} px, below {423 - rows[-1] if rows else -1} px)")
+
+    # Pippa one size (iter-24, round 20, fix 5): the same drawn
+    # height in the populated and message states, so she never
+    # visibly grows or shrinks switching between them.
+    def cat_ink_h(im, box):
+        rows = ink_rows(im, box, lambda r, g, b: abs(r - 251) + abs(g - 246) + abs(b - 238) > 40)
+        return (rows[-1] - rows[0] + 1) if rows else 0
+
+    hp = cat_ink_h(img, (595, 55, 795, 330))
+    img41p = Image.open(os.path.join(OUT, "41_myday_empty.png"))
+    hm = cat_ink_h(img41p, (520, 54, 795, 424))
+    print(f"  Pippa ink height: populated {hp}, message {hm}")
+    check(hp >= 250 and abs(hp - hm) <= 2,
+          f"41_myday_empty: Pippa one drawn height in every state (populated {hp} vs message {hm} ink rows, need equal within 2)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

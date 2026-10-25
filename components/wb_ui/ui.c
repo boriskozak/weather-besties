@@ -79,6 +79,14 @@
 #define COL_MD_MINT 0xDCF4E6
 #define COL_MD_MINT_LINE 0x63CFAC
 #define COL_MD_DONE_CARD 0xF0EFE9
+/* Iter-24 (round 20): a plain card is no longer the app's tile
+ * white. At pure white on the cream page, the band's edge read as
+ * an outline — the concept's plain rows carry no outline at all,
+ * only a soft tint. The plain fill is now a warm tint a step off
+ * the page: a band, not a box. Highlighted cards (NOW, NEXT,
+ * DONE, the all-day peach) keep their borders; plain rows, full
+ * and half, stay borderless on this tint. */
+#define COL_MD_PLAIN 0xFBF3E4
 /* Iter-20 (round 16: NOW and NEXT read as the same signal): the
  * NOW pill is a deep green with white text and the NOW card's
  * border is a deeper green at a heavier weight, so "happening
@@ -279,12 +287,20 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * the owner asked back; plain rows are borderless
                          * bands now, so separation reads from the tint
                          * changes and the padding inside each card) */
-#define MD_PILL_H 28    /* one pill system (iter-17): ALL DAY, the status
+#define MD_PILL_H 23    /* one pill system (iter-17): ALL DAY, the status
                          * tags (iter-18) and the name tags. Iter-20
                          * round 16 fit pass: exactly font_chip's line
-                         * height, where 30 left the pill's text a
+                         * height (28), where 30 left the pill's text a
                          * point of air above and below it did not
-                         * need */
+                         * need. Iter-24 (round 20): 23 — font_chip's
+                         * ink measures about 20 px, so the words keep
+                         * their air inside the pill (the label's
+                         * 28 px line box overflows invisibly), and
+                         * the 5 px fund the tag row's move down to
+                         * the unified detail offset (MD_LOC_OFF)
+                         * with a measured 6 px clear of the title's
+                         * ink, the fix for the pill-over-title
+                         * contact */
 #define MD_PILL_PAD 20  /* horizontal padding inside every pill (iter-20:
                          * 24 in iter-19; the detail line now carries
                          * a place and a tag group side by side, and
@@ -300,22 +316,37 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * the cards cost) */
 #define MD_SUB_H 11     /* the place-line space reserved in every row block
                          * (iter-19: 16 in iter-18) */
-#define MD_LOC_OFF 21   /* the place line hangs this far below its title
+#define MD_LOC_OFF 28   /* the place line hangs this far below its title
                          * line's top: iter-17's offset (24), tightened
                          * one pixel in iter-19, one more in iter-22, and
                          * one more in iter-23 to fund the bordered
                          * cards' deeper pill air (MD_PILL_AIR); it is
                          * the distance at which the place text
                          * clears the title's descenders (measured on
-                         * the renders) */
-#define MD_TAG_OFF 14   /* a tag-only detail line (a row with tags but
-                         * no place) sits above the place line's
-                         * offset (iter-22: 18; iter-23: 14, the same
-                         * pill-air funding as MD_LOC_OFF): there is
-                         * no place text to align with, only the
-                         * title's descenders to clear, and those are
-                         * guarded per-letter by md_desc_over in the
-                         * pill's own zone */
+                         * the renders). Iter-24 (round 20): back UP to
+                         * 27 — iter-23's funding trade had quietly
+                         * spent the title's own clearance: at 21 the
+                         * detail line's pills stood inside the title's
+                         * descender fringe (the NEXT pill covered the
+                         * last letter of "Grandma" on the renders).
+                         * At 28 a tag row's pills start 30 below the
+                         * title's top, clear of the solid ink (23-24
+                         * deep, measured) by 6 with the descender
+                         * drop on top; the place text's ink (about
+                         * 18 deep at font_small from its own top)
+                         * keeps its air before the card's bottom at
+                         * the +21 reserve in md_section */
+#define MD_TAG_OFF 28   /* a tag-only detail line (a row with tags but
+                         * no place): iter-24 unifies it with the
+                         * place line's offset (iter-22: 18; iter-23:
+                         * 14, the same pill-air funding as
+                         * MD_LOC_OFF). A single-line bordered card
+                         * now stands the two-line height, its tag
+                         * row at the full location-line offset, so
+                         * no pill ever rides up into the title's
+                         * ink; the descenders are still guarded
+                         * per-letter by md_desc_over in the pill's
+                         * own zone */
 #define MD_PILL_AIR 8   /* fill below a tag pill on a BORDERED card,
                          * measured to the outer border (iter-23,
                          * round 19): iter-22's 4 px of pale fill under
@@ -323,10 +354,13 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * all to two panels in a row, so the bordered
                          * cards (NOW, NEXT, DONE) now keep 8. The
                          * borderless cards keep iter-22's 4. */
-#define MD_PILL_AIR_S 7 /* the stale frame's version: the banner
-                         * plus the restored header leave room for 7
-                         * of the 8 (measured: the stale fixture day
-                         * ends at the same last row as iter-22) */
+#define MD_PILL_AIR_S 5 /* the stale frame's version (iter-24,
+                         * round 20): the banner plus the restored
+                         * header plus the unified detail offset
+                         * leave room for 5 of the 8 in that state;
+                         * the stale day's full vertical budget is
+                         * published in the iter-24 report. The fresh
+                         * frame keeps the full 8 (MD_PILL_AIR) */
 #define MD_SEC_EXTRA 0  /* extra air before the Tomorrow header, on top of
                          * MD_GAP (iter-21: spent; both headers now take
                          * the same MD_HDR_ADV, the round-17 note that
@@ -336,11 +370,17 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * and the tab bar (iter-21, round 17: at 248 the
                          * group sat low-centre and the screen read
                          * bottom-heavy on the words side) */
-#define MD_MSG_SCALE 336 /* the message states' Pippa, scaled (iter-21:
+#define MD_MSG_SCALE 290 /* the message states' Pippa, scaled (iter-21:
                           * a touch larger than iter-20's 320, and she
                           * stands on the RIGHT now, the populated page's
                           * side, words on the left — one stance for
-                          * every state of the page) */
+                          * every state of the page). Iter-24 (round
+                          * 20): the populated page's own scale
+                          * (MD_CAT_SCALE) — she drew 299 px tall in
+                          * the message states against 258 on the
+                          * populated page, a visible size change
+                          * between states of one page; now one drawn
+                          * height (258) everywhere */
 /* Iter-19 card geometry: a card's content is its title block (or
  * the medallion, or the place label's bottom, whichever reaches
  * lowest), framed by MD_CARD_PAD above and below. The medallion is
@@ -371,7 +411,12 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * (MD_CARD_PAD_S 0): the pad counts twice in a card's height
  * but only once in the pill's air, so a smaller pad is the
  * cheaper frame for the same guaranteed air. */
-#define MD_CARD_PAD 2
+#define MD_CARD_PAD 1   /* iter-24 (round 20): 2 in iter-21 at the
+                         * owner's ask; one of the two now funds the
+                         * tag row's move to the unified detail
+                         * offset with the fresh frame's pill air
+                         * intact. The stale frame's pad stays spent
+                         * entirely (below) */
 #define MD_CARD_PAD_S 0
 #define MD_MUTE_HI 96   /* the stale mute for highlighted elements
                          * (iter-21): at the plain cards' keep of 150
@@ -380,10 +425,17 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * measured saturation level with the muted
                          * plain cards */
 #define MD_CARD_RAD 14
-#define MD_MEDAL 48
-#define MD_MEDAL_X 8
-#define MD_TIME_X (MD_MEDAL_X + MD_MEDAL + 8)
-#define MD_HALF_TITLE_X (MD_MEDAL_X + MD_MEDAL + 8)   /* a half card's text column */
+#define MD_MEDAL 52     /* iter-24 (round 20): 48 in iter-19; the discs
+                         * grow to 52 and the glyphs inside scale with
+                         * them (the medallion image scale derives from
+                         * this constant), funded from the medallion's
+                         * own slot — its left offset gives up 3 and
+                         * the gap after it 1 — so the time and title
+                         * columns keep their exact offsets and the
+                         * widest title keeps its slack */
+#define MD_MEDAL_X 5
+#define MD_TIME_X (MD_MEDAL_X + MD_MEDAL + 7)
+#define MD_HALF_TITLE_X (MD_MEDAL_X + MD_MEDAL + 7)   /* a half card's text column */
 #define MD_HALF_GAP 8   /* between Tomorrow's two half-width cards */
 /* Iter-20 (round 16, the header collision): the page title gets
  * its own band. The h1's ink (measured on the renders) runs to
@@ -395,10 +447,13 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * band starts at 50 and the difference funds the restored card
  * padding; the accent bar still clears the ink by a measured
  * gap (checked). */
-#define MD_TOP_Y 49   /* iter-22: one more pixel goes to the cards'
-                         * pill air; the accent bar's top (MD_TOP_Y + 2)
-                         * still clears the title ink (ends y=45) by a
-                         * measured 4 px, the check's floor */
+#define MD_TOP_Y 46   /* iter-24 (round 20): the page title rides
+                         * 2 px higher (y=4 in the build) and the band
+                         * starts at 46; the accent bar's top
+                         * (MD_TOP_Y + 2) still clears the title's
+                         * dense ink (ends y=43 at the new stance) by
+                         * the check's 4 px floor, and the 3 px fund
+                         * the cards' taller tag rows */
 /* The stale banner (iter-20, round 16: the footer stamp read as
  * squeezed small print and the stale rows kept their live
  * colours): a warn bar at the top of the list area, font_body.
@@ -409,11 +464,15 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * text ink measures 19 px), which is where the header's room
  * comes from. Iter-23: its colours leave the app warn pair for
  * COL_MD_BANNER_BG and the page ink (see the colour's note). */
-#define MD_BANNER_H 24
+#define MD_BANNER_H 22  /* iter-24 (round 20): 24 in iter-21; the bar
+                         * slims 2 px (its text ink measures 19), which
+                         * with the advance below leaves a wider
+                         * visible gap before the first card */
 #define MD_BANNER_ADV (MD_BANNER_H + 4)   /* the banner's advance, below the header
                          * (iter-22, round 18: the bar sat flush on the
                          * first card; the advance leaves a visible
-                         * 4 px of page between the two) */
+                         * 4 px of page between the two, measured on
+                         * the renders in every round since) */
 #define MD_CAT_Y 64     /* Pippa's top on the populated page (iter-19:
                          * iter-15 put her at 120; the mockup stands
                          * her at the title line, and down at 120 her
@@ -2023,10 +2082,13 @@ static void build_myday_page(lv_obj_t *scr)
 
     lv_obj_t *t = label(page_myday, &font_h1, "My Day");
     lv_obj_set_style_text_color(t, C(COL_INK), 0);
-    /* Iter-20: the title rides 4 px higher, so its ink (to about
-     * y=54) clears the first section header at MD_TOP_Y with real
-     * air — the title's own band, no shared descender zone. */
-    lv_obj_set_pos(t, 28, 6);
+    /* Iter-20: the title rides 4 px higher, so its ink clears the
+     * first section header at MD_TOP_Y with real air — the
+     * title's own band, no shared descender zone. Iter-24: 2 px
+     * higher still (its dense ink ends about y=43), funding
+     * MD_TOP_Y's move to 46; the accent bar keeps its measured
+     * 4 px of air below the ink (checked). */
+    lv_obj_set_pos(t, 28, 4);
 
     /* The date rides the title line, right-aligned, the way the
      * outfit pages keep their weather block at the top right: the
@@ -2794,22 +2856,24 @@ static void md_card_style(lv_obj_t *card, int status, bool all_day, bool past, b
         fill = COL_MD_DONE_CARD;
         line = s_md_line_hex;
     } else {
-        fill = COL_TILE;
+        /* Iter-24 (round 20): the plain fill is the page's own
+         * soft tint (COL_MD_PLAIN), not the tile white — borderless
+         * bands, per the concept; only highlighted cards are
+         * outlined boxes. */
+        fill = COL_MD_PLAIN;
         line = s_md_line_hex;
         bw = 0;
     }
     if (stale) {
         int keep = (status == 2 || status == 3) ? MD_MUTE_HI : 150;
-        if (status == 0 && !all_day && !past) {
-            /* Iter-23 (round 19): a plain white card muted at 150
-             * washed almost to the page colour and read as
-             * missing next to the tinted cards; plain cards keep
-             * 190 of themselves while stale, so Tomorrow's pair
-             * mutes to the same level as any plain card on the
-             * page instead of vanishing. The tinted and DONE
-             * cards keep their deeper mute. */
-            keep = 190;
-        }
+        /* Iter-24 (round 20) supersedes iter-23's plain-card keep
+         * of 190: at 190 a stale plain card (Tomorrow's pair above
+         * all) still measured fresher than every row on Today —
+         * one stale treatment, judged as a whole page, wants every
+         * non-highlight fill at the same depth. The plain fill is
+         * a tint now, not white, so at 150 the band still reads
+         * against the page (measured on the renders) instead of
+         * washing to it the way white did. */
         lv_obj_set_style_bg_color(card, md_mute(fill, keep), 0);
         lv_obj_set_style_border_color(card, md_mute(line, keep), 0);
     } else {
@@ -3201,8 +3265,18 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
                  * fringe it clears is a muted descender's last
                  * antialiased row or two against a muted pill,
                  * and the 2 px fund the restored header + banner
-                 * in that state. Fresh rows keep the full 4. */
-                pill_top += s_md_stale ? 2 : 4;
+                 * in that state. Fresh rows keep the full 4.
+                 * Iter-24 (round 20): the drops are 7 fresh and
+                 * 2 stale. Measured on the renders, the title's
+                 * solid ink runs 23-24 deep and a descender's
+                 * fringe 29-30, so at the unified detail offset
+                 * (pill top 30 below the title's top) a fresh
+                 * group needs +7 to keep a full 6 px between the
+                 * fringe and the pill; the stale frame's tighter
+                 * budget (published in the iter-24 report) funds
+                 * +2 there, which keeps the muted fringe a clear
+                 * row off the pill. */
+                pill_top += s_md_stale ? 2 : 7;
             }
         }
         /* The card's content: the title's lines at MD_TITLE_STEP,
@@ -3216,7 +3290,12 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
          * above and below. */
         int content = lines * MD_TITLE_STEP + MD_SUB_H;
         if (ev->location[0]) {
-            int loc_bottom = (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF + 25;
+            /* Iter-24: the reserve under the place line is 21, not
+             * 25 — the place ink measures about 18 deep from the
+             * line's top at font_small, so its air survives; the
+             * label's transparent tail may clip, its ink never
+             * does. The 4 px join the pill-air funding. */
+            int loc_bottom = (lines - 1) * MD_TITLE_STEP + MD_LOC_OFF + 21;
             if (loc_bottom > content) {
                 content = loc_bottom;
             }
@@ -3243,8 +3322,14 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
                 content = need;
             }
         }
-        if (content < MD_MEDAL) {
-            content = MD_MEDAL;
+        /* The medallion floor (iter-24): the disc is centred in
+         * the card, so the content needs the disc's height less
+         * the frame's own pads — a card standing exactly the
+         * disc's height (52) carries it with its rim kissing the
+         * card's top and bottom edges at the centre point, the
+         * all-day card's stance in the concept. */
+        if (content < MD_MEDAL - 2 * pad) {
+            content = MD_MEDAL - 2 * pad;
         }
         int card_h = content + 2 * pad;
         if (y + card_h > MD_LIST_BOTTOM && shown > 0) {
@@ -3427,11 +3512,13 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
  * inside the card. Below Pippa's feet (MD_FEET_Y) the pair may run
  * to the page's right edge, the mockup's full-width row; higher
  * up, beside her, they share the list's width instead. A name tag
- * rides on the place line, attached just after the place text
- * (iter-22; iter-20 put it at the line's right end), so the title
- * keeps the card's whole width (the mockup's CLEO corner, lowered
- * a line: at the title's own line it would crowd a full-width
- * title).
+ * rides the title line, after the title's own text (iter-24, the
+ * concept's placement; iter-22 had it on the place line, attached
+ * just after the place text, where it read as the location's
+ * label). A title too long to share its line — the piano
+ * fixture's ends 319 px into the 368 card — puts the tag at the
+ * title block's right end, just below the title's ink; the place
+ * line remains only as the last fallback.
  * Returns the y below the cards, or -1 when the pair would run
  * past MD_LIST_BOTTOM — render_myday then falls back to the
  * stacked section, whose own fold keeps the page's invariants. */
@@ -3447,6 +3534,7 @@ static int md_section_half(const cal_event_t **evs, int y, int right, const char
     int lh = (int)lv_font_get_line_height(&font_label);
     int card_h = 0;
     int hs[2], tys[2], lys[2], tws[2], tag_ws[2], tag_xs[2], tag_tops[2];
+    bool tag_title[2], tag_blk[2];
     char namebufs[2][8];
     bool nameds[2];
     for (int i = 0; i < 2; i++) {
@@ -3475,12 +3563,65 @@ static int md_section_half(const cal_event_t **evs, int y, int right, const char
          * safe because the time line carries no descenders and
          * its ink now steps down with the rest of the page's
          * times). Iter-23: the fresh place offset tightens one
-         * more (21 to 20), part of the pill-air funding. */
-        tys[i] = pad + lines * MD_TITLE_STEP + (s_md_stale ? 1 : 3);
-        lys[i] = tys[i] + (s_md_stale ? 18 : 20);
-        int need = ev->location[0] ? lys[i] + 25 : tys[i] + 30;
+         * more (21 to 20), part of the pill-air funding.
+         * Iter-24 (round 20): the stack tightens once more (time
+         * offset 2 fresh / 0 stale, place offset 16, the place
+         * reserve 19 like the full cards') — with the name tag
+         * gone from the place line (below) its height no longer
+         * binds the card, and the savings fund Today's taller
+         * tag rows in the shared page budget. */
+        tys[i] = pad + lines * MD_TITLE_STEP + (s_md_stale ? 0 : 2);
+        lys[i] = tys[i] + 16;
+        int need = ev->location[0] ? lys[i] + 19 : tys[i] + 30;
         tag_xs[i] = tag_tops[i] = 0;
-        if (nameds[i]) {
+        tag_title[i] = false;
+        tag_blk[i] = false;
+        if (nameds[i] && lines == 1) {
+            /* Iter-24 (round 20): the name tag rides the TITLE
+             * line, 8 px after the title's own advance — the
+             * concept's placement. Iter-22 had lowered it to the
+             * place line, where it read as a label for the
+             * location instead of the event. It rides the title
+             * line only when the title fits on one line and the
+             * tag still ends inside the card with fill to spare;
+             * a longer title falls back to the place line below. */
+            int tx = MD_HALF_TITLE_X + text_w(ev->summary, &font_label) + 8;
+            if (tx + tag_ws[i] <= cardw - 4) {
+                tag_title[i] = true;
+                tag_xs[i] = tx;
+                tag_tops[i] = pad;
+            }
+        }
+        if (nameds[i] && !tag_title[i] && lines == 1) {
+            /* Iter-24: the second choice is the title block's
+             * right end, just below the title's ink — the spot
+             * the time line offered, moved right and down until
+             * it clears every letter. A half card is 368 wide
+             * and the piano fixture's title ink ends 319 into
+             * it, so its tag cannot share the title line at the
+             * page's type sizes, and a tag after the time text
+             * still sits under the title's last letters (their
+             * ink band reaches past it). At the block's right
+             * end the tag stands clear of the title above
+             * (descenders guarded per-letter over its span),
+             * clear of the place text below-left, and off the
+             * "Music school" line entirely. The card's content
+             * counts it like any tag (below). */
+            int tx = cardw - 4 - tag_ws[i];
+            int tt = pad + (s_md_stale ? 27 : 30);
+            if (md_desc_over(ev->summary, title_w, tx - MD_HALF_TITLE_X,
+                             tx + tag_ws[i] - MD_HALF_TITLE_X)) {
+                tt += 3;
+            }
+            tag_blk[i] = true;
+            tag_xs[i] = tx;
+            tag_tops[i] = tt;
+            int tag_need = tt + MD_PILL_H + 4 - pad;
+            if (tag_need > need) {
+                need = tag_need;
+            }
+        }
+        if (nameds[i] && !tag_title[i] && !tag_blk[i]) {
             /* The tag rides the place line (iter-20 put it there;
              * iter-21 anchors it TO that line, top at the line's
              * own top + 2 like a full card's — it used to hang
@@ -3569,7 +3710,12 @@ static int md_section_half(const cal_event_t **evs, int y, int right, const char
         }
         if (ev->location[0]) {
             lv_label_set_text(md_loc[r], ev->location);
-            lv_obj_set_width(md_loc[r], cardw - MD_HALF_TITLE_X - 8 - (nameds[i] ? tag_ws[i] + 10 : 0));
+            /* Iter-24: the place label reserves room for the tag
+             * only when the tag fell back to its line; on the
+             * title line or at the title block's right end the
+             * place text runs the card's width. */
+            lv_obj_set_width(md_loc[r], cardw - MD_HALF_TITLE_X - 8 -
+                                            (nameds[i] && !tag_title[i] && !tag_blk[i] ? tag_ws[i] + 10 : 0));
             lv_obj_set_style_text_color(md_loc[r], s_md_stale ? md_mute(COL_INK, 185) : C(COL_INK), 0);
             lv_obj_set_style_text_opa(md_loc[r], LV_OPA_90, 0);
             lv_obj_set_pos(md_loc[r], MD_HALF_TITLE_X, lys[i]);
