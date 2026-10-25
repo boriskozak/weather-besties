@@ -87,6 +87,13 @@
  * pink pill and the soft mint card. */
 #define COL_MD_NOW_BG 0x1E7D46
 #define COL_MD_NOW_LINE 0x2E9E6B
+/* Iter-23 (round 19): the stale banner leaves the app's warn
+ * colours (a saturated amber strip with orange-brown text read as
+ * pasted on, against the page's soft tints) for a paler apricot —
+ * the warn background mixed halfway to the page cream — with the
+ * text in the page's own ink. The size and the word "old" still
+ * carry the warning; the colours now belong to the page. */
+#define COL_MD_BANNER_BG 0xFFF0DA
 
 #define C(hex) lv_color_hex(hex)
 
@@ -293,18 +300,33 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * the cards cost) */
 #define MD_SUB_H 11     /* the place-line space reserved in every row block
                          * (iter-19: 16 in iter-18) */
-#define MD_LOC_OFF 22   /* the place line hangs this far below its title
+#define MD_LOC_OFF 21   /* the place line hangs this far below its title
                          * line's top: iter-17's offset (24), tightened
-                         * one pixel in iter-19 and one more in iter-22;
-                         * it is the distance at which the place text
+                         * one pixel in iter-19, one more in iter-22, and
+                         * one more in iter-23 to fund the bordered
+                         * cards' deeper pill air (MD_PILL_AIR); it is
+                         * the distance at which the place text
                          * clears the title's descenders (measured on
                          * the renders) */
-#define MD_TAG_OFF 18   /* a tag-only detail line (a row with tags but
-                         * no place) sits 4 above the place line's
-                         * offset (iter-22): there is no place text to
-                         * align with, only the title's descenders to
-                         * clear, and those are guarded per-letter by
-                         * md_desc_over in the pill's own zone */
+#define MD_TAG_OFF 14   /* a tag-only detail line (a row with tags but
+                         * no place) sits above the place line's
+                         * offset (iter-22: 18; iter-23: 14, the same
+                         * pill-air funding as MD_LOC_OFF): there is
+                         * no place text to align with, only the
+                         * title's descenders to clear, and those are
+                         * guarded per-letter by md_desc_over in the
+                         * pill's own zone */
+#define MD_PILL_AIR 8   /* fill below a tag pill on a BORDERED card,
+                         * measured to the outer border (iter-23,
+                         * round 19): iter-22's 4 px of pale fill under
+                         * a saturated pill read as no separation at
+                         * all to two panels in a row, so the bordered
+                         * cards (NOW, NEXT, DONE) now keep 8. The
+                         * borderless cards keep iter-22's 4. */
+#define MD_PILL_AIR_S 7 /* the stale frame's version: the banner
+                         * plus the restored header leave room for 7
+                         * of the 8 (measured: the stale fixture day
+                         * ends at the same last row as iter-22) */
 #define MD_SEC_EXTRA 0  /* extra air before the Tomorrow header, on top of
                          * MD_GAP (iter-21: spent; both headers now take
                          * the same MD_HDR_ADV, the round-17 note that
@@ -379,13 +401,14 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * measured 4 px, the check's floor */
 /* The stale banner (iter-20, round 16: the footer stamp read as
  * squeezed small print and the stale rows kept their live
- * colours): a warn bar at the top of the list area, font_body on
- * the app's warn colours. While it shows, the cards render muted,
- * so the list itself cannot be mistaken for live data. Iter-21:
- * the banner no longer takes the Today header's place — the
- * header stays and the banner stands directly below it — and the
- * bar slims to 24 (its text ink measures 19 px), which is where
- * the header's room comes from. */
+ * colours): a warn bar at the top of the list area, font_body.
+ * While it shows, the cards render muted, so the list itself
+ * cannot be mistaken for live data. Iter-21: the banner no longer
+ * takes the Today header's place — the header stays and the
+ * banner stands directly below it — and the bar slims to 24 (its
+ * text ink measures 19 px), which is where the header's room
+ * comes from. Iter-23: its colours leave the app warn pair for
+ * COL_MD_BANNER_BG and the page ink (see the colour's note). */
 #define MD_BANNER_H 24
 #define MD_BANNER_ADV (MD_BANNER_H + 4)   /* the banner's advance, below the header
                          * (iter-22, round 18: the bar sat flush on the
@@ -396,9 +419,22 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * her at the title line, and down at 120 her
                          * feet block the Tomorrow half cards, which
                          * pass below them at this height) */
-#define MD_FEET_Y 308   /* below this y the page is clear of her ink:
+#define MD_CAT_SCALE 290 /* Pippa's scale on the populated page
+                         * (iter-23, round 19): the concept stands her
+                         * at about 55% of the screen height beside a
+                         * list ending near 62% of the width, but at
+                         * native size she stood 228 px (47%) beside a
+                         * list ending at 77%. 290 (of 256 = 1.0) is
+                         * the largest scale whose narrowed list still
+                         * holds the widest fixture title ("Video call
+                         * with Grandma", 334 px of advance) on one
+                         * line with 4 px to spare: she renders 258 px
+                         * tall (54%) and the list ends at 74%. */
+#define MD_FEET_Y 322   /* below this y the page is clear of her ink:
                          * a Tomorrow section starting here may run
-                         * its half cards to the page's right edge */
+                         * its half cards to the page's right edge
+                         * (iter-23: her feet at the new scale,
+                         * MD_CAT_Y + 228 * MD_CAT_SCALE / 256) */
 /* The protected footer zone (iter-18, round 15: the stale stamp
  * shared the last row's location band and the two read as one
  * jumbled line). The freshness line is bottom-anchored so its box
@@ -2142,6 +2178,11 @@ static void build_myday_page(lv_obj_t *scr)
      * source are set by render_myday (her width sets the list's
      * right edge, so the two never collide). */
     md_cat = lv_image_create(page_myday);
+    lv_image_set_pivot(md_cat, 0, 0);   /* iter-23: she scales up on the
+                                         * populated page (MD_CAT_SCALE);
+                                         * pin the pivot like the
+                                         * medallions', so the scale
+                                         * cannot shift her */
     hide(md_cat);
 
     /* The freshness line (iter-15): right-aligned above the tab
@@ -2181,7 +2222,13 @@ static void build_myday_page(lv_obj_t *scr)
      * spaces intact (measured on the renders, checked) — rather
      * than keep the bigger face and crush it. */
     md_tabfresh = label(page_myday, &font_tiny, "");
-    lv_obj_set_style_text_color(md_tabfresh, C(COL_INK), 0);
+    /* Iter-23 (round 19): the one stamp treatment — the concept's
+     * quiet grey (COL_TIME's grey-blue), not the full ink the tab
+     * labels wear. In iter-22 the same style read quiet in the
+     * morning render and loud in the afternoon one; at this tone
+     * it stays a footnote in both. Both fresh states share this
+     * single label and style, so they cannot drift apart. */
+    lv_obj_set_style_text_color(md_tabfresh, C(COL_TIME), 0);
     lv_obj_set_style_text_letter_space(md_tabfresh, 0, 0);
     lv_obj_set_width(md_tabfresh, 152);
     lv_obj_set_style_text_align(md_tabfresh, LV_TEXT_ALIGN_RIGHT, 0);
@@ -2196,11 +2243,11 @@ static void build_myday_page(lv_obj_t *scr)
     md_banner = box(page_myday);
     lv_obj_set_style_radius(md_banner, 12, 0);
     lv_obj_set_style_bg_opa(md_banner, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(md_banner, C(COL_WARN_BG), 0);
+    lv_obj_set_style_bg_color(md_banner, C(COL_MD_BANNER_BG), 0);
     lv_obj_set_size(md_banner, UI_W - 56, MD_BANNER_H);
     lv_obj_set_pos(md_banner, 28, MD_TOP_Y);
     md_banner_lbl = label(md_banner, &font_body, "");
-    lv_obj_set_style_text_color(md_banner_lbl, C(COL_WARN_TX), 0);
+    lv_obj_set_style_text_color(md_banner_lbl, C(COL_INK), 0);
     lv_obj_center(md_banner_lbl);
     hide(md_banner);
 
@@ -2753,6 +2800,16 @@ static void md_card_style(lv_obj_t *card, int status, bool all_day, bool past, b
     }
     if (stale) {
         int keep = (status == 2 || status == 3) ? MD_MUTE_HI : 150;
+        if (status == 0 && !all_day && !past) {
+            /* Iter-23 (round 19): a plain white card muted at 150
+             * washed almost to the page colour and read as
+             * missing next to the tinted cards; plain cards keep
+             * 190 of themselves while stale, so Tomorrow's pair
+             * mutes to the same level as any plain card on the
+             * page instead of vanishing. The tinted and DONE
+             * cards keep their deeper mute. */
+            keep = 190;
+        }
         lv_obj_set_style_bg_color(card, md_mute(fill, keep), 0);
         lv_obj_set_style_border_color(card, md_mute(line, keep), 0);
     } else {
@@ -3106,9 +3163,12 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
          * inset at 4 + 2*bw the last pill's right edge keeps
          * exactly 4 px of fill beyond the OUTER border, the edge
          * the eye measures to (iter-21 measured to the content
-         * box and passed pills with 0-1 px of fill). */
+         * box and passed pills with 0-1 px of fill). Iter-23
+         * (round 19): the bordered inset grows to 6 + 2*bw, so
+         * the last pill keeps 6 px of fill on its right — the
+         * horizontal half of the deeper pill air (MD_PILL_AIR). */
         int bw = status == 2 ? 3 : (status == 3 || past) ? 2 : 0;
-        int ginset = bw > 1 ? 4 + 2 * bw : 6;
+        int ginset = bw > 1 ? 6 + 2 * bw : 6;
         int group_x = cardw - ginset - group_w;
         /* A row with a place keeps the place line's offset; a
          * tag-only row's detail line rides 2 higher (MD_TAG_OFF):
@@ -3171,8 +3231,14 @@ static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs,
              * border), the card stands content + 2*pad tall, so
              * the fill under the pill works out to
              * content + pad - pill_top - MD_PILL_H - 2*bw:
-             * reserve the 4 and solve for the content. */
-            int need = pill_top + MD_PILL_H + 4 + 2 * bw - pad;
+             * reserve the air and solve for the content. Iter-23
+             * (round 19): on bordered cards the reserve is
+             * MD_PILL_AIR (8 fresh, MD_PILL_AIR_S while stale) —
+             * 4 px of pale fill under a saturated pill read as
+             * none to two panels running. Borderless cards keep
+             * the 4. */
+            int air = bw > 1 ? (s_md_stale ? MD_PILL_AIR_S : MD_PILL_AIR) : 4;
+            int need = pill_top + MD_PILL_H + air + 2 * bw - pad;
             if (need > content) {
                 content = need;
             }
@@ -3408,9 +3474,10 @@ static int md_section_half(const cal_event_t **evs, int y, int right, const char
          * — the funding for the outer-border pill air below,
          * safe because the time line carries no descenders and
          * its ink now steps down with the rest of the page's
-         * times). */
+         * times). Iter-23: the fresh place offset tightens one
+         * more (21 to 20), part of the pill-air funding. */
         tys[i] = pad + lines * MD_TITLE_STEP + (s_md_stale ? 1 : 3);
-        lys[i] = tys[i] + (s_md_stale ? 18 : 21);
+        lys[i] = tys[i] + (s_md_stale ? 18 : 20);
         int need = ev->location[0] ? lys[i] + 25 : tys[i] + 30;
         tag_xs[i] = tag_tops[i] = 0;
         if (nameds[i]) {
@@ -3854,9 +3921,15 @@ static void render_myday(const struct tm *now)
     }
     const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
     lv_image_set_src(md_cat, spr);
-    lv_obj_set_pos(md_cat, 778 - (int)spr->header.w, MD_CAT_Y);
+    /* Iter-23 (round 19): she stands at MD_CAT_SCALE, not native
+     * size — the concept's near-full-height stance. Her scaled
+     * width sets the list's right edge, exactly as her native
+     * width did, so the two never collide. */
+    lv_image_set_scale(md_cat, MD_CAT_SCALE);
+    int cat_w = (int)spr->header.w * MD_CAT_SCALE / 256;
+    lv_obj_set_pos(md_cat, 778 - cat_w, MD_CAT_Y);
     show_obj(md_cat);
-    int right = 778 - (int)spr->header.w - 8;
+    int right = 778 - cat_w - 8;
     /* While stale the banner narrows to the list's own width and
      * stands below the Today header (iter-21), not over Pippa. */
     if (s_md_stale) {

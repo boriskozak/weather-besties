@@ -52,6 +52,82 @@ def bands(sums, thresh):
     return out
 
 
+def soften_ring(crop):
+    """Recolour a medallion's navy outline ring to a pale tint of
+    its own disc (iter-23, round 19: the sheet's dark rings read
+    as a sticker-sheet hardness next to the concept's soft,
+    near-ringless discs). The ring is found by an angular sweep:
+    at every angle the disc's outermost dark run is the ring,
+    however a glyph may touch it further in, so the run is capped
+    at 5 px and a glyph outline crossing the rim keeps its colour
+    below the cap. A fringe pass then blends the ring's
+    antialiased inner edge toward the new colour. The disc keeps
+    a visible edge against light cards: the tint is the disc
+    colour mixed 30% toward white and pulled back 6%, clearly
+    darker than the disc, far lighter than the navy."""
+    import math
+    from collections import Counter
+
+    px = crop.load()
+    c = (SIZE - 1) / 2
+
+    def lum(r, g, b):
+        return 0.299 * r + 0.587 * g + 0.114 * b
+
+    counts = Counter()
+    for y in range(SIZE):
+        for x in range(SIZE):
+            r, g, b, a = px[x, y]
+            if a >= 128 and lum(r, g, b) >= 150 and not (r >= 247 and g >= 247 and b >= 247):
+                counts[(r // 16, g // 16, b // 16)] += 1
+    bucket = counts.most_common(1)[0][0]
+    tot = [0, 0, 0]
+    n = 0
+    for y in range(SIZE):
+        for x in range(SIZE):
+            r, g, b, a = px[x, y]
+            if a >= 128 and (r // 16, g // 16, b // 16) == bucket:
+                tot[0] += r
+                tot[1] += g
+                tot[2] += b
+                n += 1
+    tint = [t / n for t in tot]
+    ring = tuple(int(round((v + (255 - v) * 0.30) * 0.94)) for v in tint)
+
+    recoloured = set()
+    for step in range(720):
+        th = step * math.pi / 360
+        dx, dy = math.cos(th), math.sin(th)
+        run = 0.0
+        r = 47.5
+        while r >= 38:
+            x = int(round(c + dx * r))
+            y = int(round(c + dy * r))
+            pr, pg, pb, pa = px[x, y]
+            if run > 0:
+                if lum(pr, pg, pb) < 175 and run <= 5.0:
+                    recoloured.add((x, y))
+                    run += 0.5
+                else:
+                    break
+            elif pa >= 128 and lum(pr, pg, pb) < 160:
+                recoloured.add((x, y))
+                run = 0.5
+            r -= 0.5
+    for x, y in recoloured:
+        px[x, y] = ring + (px[x, y][3],)
+    for y in range(SIZE):
+        for x in range(SIZE):
+            r_, g_, b_, a = px[x, y]
+            if (x, y) in recoloured or a < 128:
+                continue
+            if ((x - c) ** 2 + (y - c) ** 2) ** 0.5 < 41.5:
+                continue
+            if 130 <= lum(r_, g_, b_) < 190:
+                px[x, y] = tuple(int(round(v + (t - v) * 0.6)) for v, t in zip((r_, g_, b_), ring)) + (a,)
+    return crop
+
+
 def main():
     sheet = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SHEET
     im = Image.open(sheet).convert("RGB")
@@ -83,6 +159,7 @@ def main():
         r = SIZE / 2 * (d / side) + 1.5   # just outside the navy outline
         ImageDraw.Draw(mask).ellipse((SIZE / 2 - r, SIZE / 2 - r, SIZE / 2 + r, SIZE / 2 + r), fill=255)
         crop.putalpha(mask)
+        crop = soften_ring(crop)
         crop.save(os.path.join(OUT, key + ".png"))
         contact.paste(crop, ((i % 4) * SIZE, (i // 4) * SIZE), crop)
         print(f"{key:9s} centre ({ccx:.0f},{ccy:.0f}) diameter {d:.0f}")
