@@ -1,0 +1,46 @@
+avail=1
+bucket=0
+look=2
+look_name=snow
+ntiles=4
+tiles=Long sleeves|Long pants|Winter coat|Warm boots
+chips=Warm hat|Gloves
+advice=Wear long sleeves. Bring your winter coat. Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
+advice_shown=Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
+wx1=33° now
+wx_icon=0
+stale_banner=0
+stale_checks=enabled
+checks=0
+title=Let's get dressed!
+compare=Warmer than yesterday
+myday_state=events
+myday_fresh=Calendar from 7:02 AM
+myday_nextup=Soccer practice
+myday_nametag=CLEO
+myday_nametag_row=Cleo's piano lesson
+myday_dimmed=Library story time
+myday_tom_date=Wed, Oct 28
+myday_today_n=4
+myday_tom_n=2
+myday_today0=ALL DAY|Picture Day|
+myday_today1=10:00-10:45 AM|Library story time|
+myday_today2=3:30-4:30 PM|Soccer practice|Roosevelt Field, north gate
+myday_today3=4:00-4:45 PM|Video call with Grandma|
+myday_tom0=8:00-9:00 AM|School bake sale|Watchung School gym
+myday_tom1=4:00-4:30 PM|Cleo's piano lesson|Music school
+myday_tom2=
+fc0_tiles=Long sleeves|Long pants|Rain jacket|Rain boots
+fc0_labels=Long sleeves|Long pants|Rain jacket|Rain boots
+fc1_tiles=Dress|Light jacket|Tights|Dress shoes
+fc1_labels=Dress|Light jacket|Tights|Dress shoes
+fc2_tiles=Dress|Light jacket|Tights|Dress shoes
+fc2_labels=Dress|Light jacket|Tights|Dress shoes
+info_begin
+WiFi: HomeWiFi
+Town: Upper Montclair, New Jersey
+Updated: 7:30 AM
+Address: 192.168.1.42
+Version: 2.0.0
+info_end
+speed_label=Speed test: off

@@ -203,7 +203,7 @@ static void fixture_cal(bool with_events)
                       d0, d0);
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-5\r\nDTSTART;TZID=America/New_York:%sT160000\r\n"
-                      "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Piano les\r\n son\r\n"
+                      "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's piano les\r\n son\r\n"
                       "LOCATION:Music school\r\nEND:VEVENT\r\n",
                       d1, d1);
         n += snprintf(ics + n, sizeof(ics) - n,
@@ -226,17 +226,23 @@ static void fixture_cal(bool with_events)
     }
 }
 
-/* Records the fixture fetch at a fixed 7:02 AM on the sim clock, so
- * the My Day freshness line renders deterministically ("Updated
- * 7:02 AM") whatever the scenario clock says (iter-15). The clock
- * is restored before anything renders for keeps. */
-static void fixture_fetched(void)
+/* Records the fixture fetch at a fixed time on the sim clock, so
+ * the My Day freshness line renders deterministically whatever
+ * the scenario clock says (iter-15). The clock is restored before
+ * anything renders for keeps. */
+static void fixture_fetched_at(int hour, int min)
 {
     struct tm save = now_tm;
-    now_tm.tm_hour = 7;
-    now_tm.tm_min = 2;
+    now_tm.tm_hour = hour;
+    now_tm.tm_min = min;
     ui_show_calendar();
     now_tm = save;
+}
+
+/* The usual pin: a 7:02 AM fetch ("Updated 7:02 AM"). */
+static void fixture_fetched(void)
+{
+    fixture_fetched_at(7, 2);
 }
 
 int main(int argc, char **argv)
@@ -436,15 +442,25 @@ int main(int argc, char **argv)
     /* Iter-14: the My Day page, third screen. The populated state
      * (fixture events on both days), the configured-but-clear state,
      * and the no-calendar-link state, all on the brief_morning clock
-     * (Tue Oct 27 2026). */
+     * (Tue Oct 27 2026). Iter-17 adds three more: the link set but
+     * nothing ever loaded, a stale feed, and a late-afternoon view
+     * (past events dimmed, the next one tagged). */
     setenv("TZ", "America/New_York", 1);
     tzset();
     load(sc, "brief_morning");
     show();
     ui_set_calendar_configured(true);
+    ui_test_set_page(2);
+    /* The never-loaded state (iter-17) must be captured before any
+     * fetch is recorded in this process: once ui_show_calendar has
+     * run, the page can never go back to never-fetched. The feed
+     * store is still empty here, so there is no data either. */
+    pump(10);
+    save(out, "44_myday_never");
+    dump(out, "44_myday_never");
+
     fixture_cal(true);
     fixture_fetched();
-    ui_test_set_page(2);
     pump(10);
     save(out, "40_myday");
     dump(out, "40_myday");
@@ -459,6 +475,27 @@ int main(int argc, char **argv)
     pump(10);
     save(out, "42_myday_unconfigured");
     dump(out, "42_myday_unconfigured");
+
+    /* Stale (iter-17): the same populated page at 3:45 PM with the
+     * last good fetch still the 7:02 AM one, over six hours old,
+     * so the freshness line takes its warn form. */
+    ui_set_calendar_configured(true);
+    fixture_cal(true);
+    fixture_fetched();
+    now_tm.tm_hour = 15;
+    now_tm.tm_min = 45;
+    ui_refresh_clock();
+    pump(10);
+    save(out, "43_myday_stale");
+    dump(out, "43_myday_stale");
+
+    /* Late (iter-17): the same 3:45 PM clock with a fresh 3:02 PM
+     * fetch, isolating the afternoon behaviour: story time is over
+     * and dimmed, soccer (3:30-4:30) carries NEXT. */
+    fixture_fetched_at(15, 2);
+    pump(10);
+    save(out, "45_myday_late");
+    dump(out, "45_myday_late");
     ui_test_set_page(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);
