@@ -18,6 +18,7 @@ LV_IMAGE_DECLARE(img_pippa_heart_2);
 LV_IMAGE_DECLARE(img_pippa_heart_3);
 LV_IMAGE_DECLARE(img_pippa_heart_4);
 LV_IMAGE_DECLARE(img_pippa_heart_5);
+LV_IMAGE_DECLARE(img_pippa_head);   /* head crop for boot/setup/error */
 
 /* Static variants, in draw order. PIPPA_NONE means "no Pippa on
  * stage" (the pink-cat choice keeps the previous layered cat). */

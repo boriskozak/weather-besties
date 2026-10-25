@@ -205,8 +205,13 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
     uint32_t extras = 0;
     if (f_dep <= 38 || has_snow) extras |= EX_HAT;
     if (f_dep <= 35 || has_snow || ice || bike_bus_cold) extras |= EX_GLOVES;
-    if (is_rain && !thunder && (out->layer == LAYER_WARM_COAT || out->layer == LAYER_WINTER_COAT || rain_h >= 3)) {
-        extras |= EX_UMBRELLA;   /* never on a thunder day: the advice says stay inside */
+    if (is_rain && !thunder && (out->layer == LAYER_WARM_COAT || out->layer == LAYER_WINTER_COAT || rain_h >= 3 ||
+                                (first_rain >= 0 && first_rain <= dep_hour && out->feet == FEET_SNEAKERS))) {
+        extras |= EX_UMBRELLA;   /* never on a thunder day: the advice says stay inside. The last
+                                  * clause keeps the extras set consistent with sentence B, which
+                                  * says "Bring your umbrella" for all-day rain on a sneakers day
+                                  * even when a rain jacket (not a coat) is the layer: an item the
+                                  * words advise must exist as a checkable extra, and vice versa. */
     }
     bool dry = rain_h == 0 && snow_h == 0 && !ice && !thunder;
     if (uv >= 7 && dry && f_max >= 65) extras |= EX_SUNGLASSES;

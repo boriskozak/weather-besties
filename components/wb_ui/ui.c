@@ -71,8 +71,10 @@ static int s_page;
 static uint32_t s_last_touch;   /* lv_tick of the last press (auto-return timer) */
 static bool s_page_touched;     /* a manual page exists to revert from */
 
-/* Garment check-offs, keyed to the outfit's target date (plan 3.3). */
-static uint8_t s_checks;
+/* Garment check-offs, keyed to the outfit's target date (plan 3.3).
+ * Bits 0..3 are the main tiles; bits 4..9 are the extras chip slots
+ * (see EXTRA_ORDER below). All-done requires every bit of both. */
+static uint16_t s_checks;
 static int s_check_y, s_check_m, s_check_d;
 static long s_check_date;   /* outfit date the check marks belong to (-2 = adopt, test hook) */
 static bool s_force = true;
@@ -105,8 +107,28 @@ static lv_obj_t *cat_layer[WB_C2_COUNT];
 static lv_obj_t *cat_flame[9];
 static lv_obj_t *pippa_img;
 static lv_obj_t *sparkle[3];
-static lv_obj_t *tile[4], *tile_icon[4], *tile_label[4], *tile_check[4], *tile_check_mark[4], *tile_badge[4];
-static bool s_tile_layer[4];   /* tile i is the extra layer (amber frame + star badge) */
+static lv_obj_t *tile[4], *tile_icon[4], *tile_label[4], *tile_check[4], *tile_check_mark[4], *tile_caption[4];
+static bool s_tile_layer[4];   /* tile i is the extra layer (amber frame + "Extra layer" caption) */
+
+/* Extras check-off chips: one per advised extra (outfit_t.extras), in a
+ * strip under the tile grid. Slot order is EXTRA_ORDER; chip j toggles
+ * s_checks bit 4 + j, exactly like a tile, and all-done waits for the
+ * chips too. The main tiles keep their 2x2 grid; the strip is what
+ * buys the vertical room (the tile height below is uniform across
+ * every scenario, chips or not, so tiles never change size). */
+#define TILE_W 238
+#define TILE_H 104
+#define X_SLOTS 6
+#define X_STRIP_Y 322   /* strip top; the advice row stays at y 358 */
+static lv_obj_t *xchip[X_SLOTS], *xchip_icon[X_SLOTS], *xchip_label[X_SLOTS], *xchip_check[X_SLOTS],
+    *xchip_mark[X_SLOTS];
+static int s_xn;                /* chips on the outfit currently shown */
+static int s_xgar[X_SLOTS];     /* garment id per chip slot */
+static const struct {
+    uint32_t bit;
+    int garment;
+} EXTRA_ORDER[X_SLOTS] = {{EX_HAT, WARM_HAT},     {EX_GLOVES, GLOVES},   {EX_UMBRELLA, UMBRELLA},
+                          {EX_SUNGLASSES, SUNGLASSES}, {EX_WATER, WATER_BOTTLE}, {EX_SCARF, SCARF}};
 static bool s_done_hold;       /* all tiles checked: hold the happy cat + sparkles */
 static lv_obj_t *prog_chip, *lbl_prog;
 static lv_obj_t *lbl_no_data, *lbl_no_data2;
@@ -210,20 +232,18 @@ static void on_setup_btn(lv_event_t *e)
     fire(UI_ACT_SETUP);
 }
 
+/* The character mark on the boot / setup / wifi-error screens: Pippa's
+ * head, cropped from her dress sprite by the asset pipeline
+ * (tools/make_pippa_assets.py). One character everywhere; the old mark
+ * was a different cat head with different eye colors. */
 static void cats_pair(lv_obj_t *parent, int y, bool center)
 {
-    lv_obj_t *row = box(parent);
-    lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(row, 18, 0);
-    lv_obj_t *a = lv_image_create(row);
-    lv_image_set_src(a, &img_cat_black);
-    lv_obj_t *b = lv_image_create(row);
-    lv_image_set_src(b, &img_cat_pink);
+    lv_obj_t *a = lv_image_create(parent);
+    lv_image_set_src(a, &img_pippa_head);
     if (center) {
-        lv_obj_align(row, LV_ALIGN_TOP_MID, 0, y);
+        lv_obj_align(a, LV_ALIGN_TOP_MID, 0, y);
     } else {
-        lv_obj_set_pos(row, 0, y);
+        lv_obj_set_pos(a, 0, y);
     }
 }
 
@@ -1010,7 +1030,7 @@ static void build_tiles(lv_obj_t *page)
     for (int i = 0; i < 4; i++) {
         lv_obj_t *t = box(page);
         tile[i] = t;
-        lv_obj_set_size(t, 238, 116);
+        lv_obj_set_size(t, TILE_W, TILE_H);
         lv_obj_set_style_radius(t, 22, 0);
         lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(t, C(COL_TILE), 0);
@@ -1020,7 +1040,7 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_add_event_cb(t, on_tile, LV_EVENT_CLICKED, (void *)(intptr_t)i);
 
         tile_icon[i] = lv_image_create(t);
-        lv_obj_set_pos(tile_icon[i], 10, 10);
+        lv_obj_set_pos(tile_icon[i], 10, 4);
 
         tile_label[i] = label(t, &font_label, "");
         lv_obj_set_style_text_color(tile_label[i], C(COL_INK), 0);
@@ -1036,12 +1056,15 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_set_style_bg_color(tile_check[i], lv_color_white(), 0);
         lv_obj_set_style_bg_opa(tile_check[i], LV_OPA_COVER, 0);
 
-        /* Star badge marking the extra-layer tile (set visible in render). */
-        tile_badge[i] = lv_image_create(t);
-        lv_image_set_src(tile_badge[i], &img_x_sparkle);
-        lv_image_set_scale(tile_badge[i], 128);   /* 48 px art -> 24 px badge */
-        lv_obj_set_pos(tile_badge[i], 8, 8);
-        hide(tile_badge[i]);
+        /* "Extra layer" caption on the layer tile (set visible in
+         * render, positioned under the garment label there). The words
+         * are the signal; the amber frame is the one subtle emphasis
+         * kept with them. The old star badge said nothing in words and
+         * read as a permanent selected state, so it is gone. */
+        tile_caption[i] = label(t, &font_small, "Extra layer");
+        lv_obj_set_style_text_color(tile_caption[i], C(COL_WARN_TX), 0);
+        lv_obj_set_pos(tile_caption[i], 116, 0);
+        hide(tile_caption[i]);
         lv_obj_set_style_transform_pivot_x(tile_check[i], 18, 0);
         lv_obj_set_style_transform_pivot_y(tile_check[i], 18, 0);
 
@@ -1049,6 +1072,93 @@ static void build_tiles(lv_obj_t *page)
         lv_obj_set_style_text_color(tile_check_mark[i], lv_color_white(), 0);
         lv_obj_center(tile_check_mark[i]);
         hide(tile_check_mark[i]);
+    }
+}
+
+/* ------------------------------------------------------------------ extras chips */
+
+/* Same checked language as the tiles: pale green fill + green disc when
+ * checked, white tile + white disc with a gray ring when not. */
+static void set_xchip_visual(int j, bool checked)
+{
+    if (checked) {
+        lv_obj_set_style_bg_color(xchip[j], C(COL_OK_BG), 0);
+        lv_obj_set_style_border_color(xchip[j], C(COL_OK_LINE), 0);
+        lv_obj_set_style_bg_color(xchip_check[j], C(COL_OK), 0);
+        lv_obj_set_style_bg_opa(xchip_check[j], LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(xchip_check[j], C(COL_OK), 0);
+        show_obj(xchip_mark[j]);
+    } else {
+        lv_obj_set_style_bg_color(xchip[j], C(COL_TILE), 0);
+        lv_obj_set_style_border_color(xchip[j], C(s_page == 1 ? COL_TILE_LINE_E : COL_TILE_LINE_M), 0);
+        lv_obj_set_style_bg_color(xchip_check[j], lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(xchip_check[j], LV_OPA_COVER, 0);
+        lv_obj_set_style_border_color(xchip_check[j], C(COL_RING_OFF), 0);
+        hide(xchip_mark[j]);
+    }
+}
+
+static void on_xchip(lv_event_t *e)
+{
+    intptr_t j = (intptr_t)lv_event_get_user_data(e);
+    if (j < 0 || j >= s_xn) {
+        return;
+    }
+    s_checks ^= (uint16_t)(1u << (4 + j));
+    set_xchip_visual((int)j, (s_checks >> (4 + j)) & 1);
+    /* Pop the check circle, same as a tile tap. */
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, xchip_check[j]);
+    lv_anim_set_exec_cb(&a, check_scale_exec);
+    lv_anim_set_values(&a, 153, 256);
+    lv_anim_set_duration(&a, 150);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+    s_force = true;
+    render();   /* progress count / all-done state follow the checks */
+}
+
+static void build_xchips(lv_obj_t *page)
+{
+    for (int j = 0; j < X_SLOTS; j++) {
+        lv_obj_t *c = box(page);
+        xchip[j] = c;
+        lv_obj_set_height(c, 34);
+        lv_obj_set_style_radius(c, 17, 0);
+        lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(c, C(COL_TILE), 0);
+        lv_obj_set_style_border_width(c, 3, 0);
+        lv_obj_set_style_border_color(c, C(COL_TILE_LINE_M), 0);
+        lv_obj_add_flag(c, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(c, on_xchip, LV_EVENT_CLICKED, (void *)(intptr_t)j);
+
+        xchip_icon[j] = lv_image_create(c);
+        lv_image_set_pivot(xchip_icon[j], 0, 0);   /* scale from the corner, not the center:
+                                                    * the 56 px widget would otherwise center
+                                                    * its shrunken glyph on the chip's bottom */
+        lv_image_set_scale(xchip_icon[j], 118);   /* 56 px art -> about 26 px */
+        lv_obj_set_pos(xchip_icon[j], 7, 4);
+
+        xchip_label[j] = label(c, &font_small, "");
+        lv_obj_set_style_text_color(xchip_label[j], C(COL_INK), 0);
+        lv_obj_set_pos(xchip_label[j], 40, 5);
+
+        xchip_check[j] = box(c);
+        lv_obj_set_size(xchip_check[j], 22, 22);
+        lv_obj_set_style_radius(xchip_check[j], LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_border_width(xchip_check[j], 3, 0);
+        lv_obj_set_style_border_color(xchip_check[j], C(COL_RING_OFF), 0);
+        lv_obj_set_style_bg_color(xchip_check[j], lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(xchip_check[j], LV_OPA_COVER, 0);
+        lv_obj_set_style_transform_pivot_x(xchip_check[j], 11, 0);
+        lv_obj_set_style_transform_pivot_y(xchip_check[j], 11, 0);
+
+        xchip_mark[j] = label(xchip_check[j], &font_small, LV_SYMBOL_OK);
+        lv_obj_set_style_text_color(xchip_mark[j], lv_color_white(), 0);
+        lv_obj_center(xchip_mark[j]);
+        hide(xchip_mark[j]);
+        hide(c);
     }
 }
 
@@ -1161,6 +1271,7 @@ static void build_outfit_page(lv_obj_t *scr)
 
     build_cat(page_outfit);
     build_tiles(page_outfit);
+    build_xchips(page_outfit);
 
     lbl_no_data = label(page_outfit, &font_label, "I can't check the weather right now.");
     lv_obj_set_style_text_color(lbl_no_data, C(COL_INK), 0);
@@ -1655,8 +1766,26 @@ static void render(void)
             s_check_date = od;
         }
     }
-    int mask = avail ? (o.ntiles >= 4 ? 0xF : (1 << o.ntiles) - 1) : 0;
-    bool all_done = avail && o.ntiles > 0 && (s_checks & mask) == mask;
+    /* The outfit's advised extras, in chip-slot order. The chips are
+     * derived from the same extras bitmask the advice icon and the
+     * cat's worn extras come from, so words, icons and chips cannot
+     * disagree about what was advised. */
+    s_xn = 0;
+    if (avail) {
+        for (int j = 0; j < X_SLOTS; j++) {
+            if (o.extras & EXTRA_ORDER[j].bit) {
+                s_xgar[s_xn++] = EXTRA_ORDER[j].garment;
+            }
+        }
+    }
+    /* All-done means every checkable thing is checked: the main tiles
+     * AND the extras chips. It used to fire on tiles alone, certifying
+     * a lay-out whose hat / gloves / umbrella were never laid out. */
+    int check_mask = 0;
+    if (avail && o.ntiles > 0) {
+        check_mask = ((1 << o.ntiles) - 1) | (s_xn > 0 ? (((1 << s_xn) - 1) << 4) : 0);
+    }
+    bool all_done = check_mask != 0 && (s_checks & check_mask) == check_mask;
     if (all_done && !s_celebrating) {
         celebrate();
     } else if (!all_done) {
@@ -1756,7 +1885,10 @@ static void render(void)
         expr_show(s_expr == 1 ? WB_C2_PUZZLED : -1);
     }
 
-    /* Tiles or the no-data message. */
+    /* Tiles or the no-data message. The grid is fixed: every tile is
+     * TILE_W x TILE_H in the same 2x2 cells whatever the garment
+     * count, so a 3-garment day leaves the fourth cell empty instead
+     * of stretching its last tile across the row. */
     if (avail) {
         hide(lbl_no_data);
         hide(lbl_no_data2);
@@ -1767,46 +1899,80 @@ static void render(void)
             }
             show_obj(tile[i]);
             int x = i % 2 == 0 ? 284 : 534;
-            int y = i < 2 ? 108 : 236;
-            int w = (o.ntiles == 3 && i == 2) ? 488 : 238;
+            int y = i < 2 ? 104 : 216;
             lv_obj_set_pos(tile[i], x, y);
-            lv_obj_set_size(tile[i], w, 116);
+            lv_obj_set_size(tile[i], TILE_W, TILE_H);
             lv_image_set_src(tile_icon[i], GARMENT_96[o.tile_kind[i]]);
             lv_label_set_text(tile_label[i], garment_label(o.tile_kind[i]));
-            lv_obj_set_width(tile_label[i], w - 116);
+            lv_obj_set_width(tile_label[i], TILE_W - 116);
             lv_obj_set_style_text_font(tile_label[i], &font_label, 0);   /* always the label font */
             s_tile_layer[i] = o.tile_kind[i] >= HOODIE && o.tile_kind[i] <= WINTER_COAT;
-            if (s_tile_layer[i]) {
-                show_obj(tile_badge[i]);
-            } else {
-                hide(tile_badge[i]);
-            }
-            lv_obj_set_pos(tile_check[i], w - 48, 12);
+            lv_obj_set_pos(tile_check[i], TILE_W - 48, 8);
             lv_obj_update_layout(tile[i]);
             int th = lv_obj_get_height(tile_label[i]);
-            lv_obj_set_y(tile_label[i], (116 - th) / 2);
+            if (s_tile_layer[i]) {
+                /* Garment label + "Extra layer" caption as one block,
+                 * anchored to the tile's bottom: centering the block
+                 * would push a one-line label ("Hoodie") up into the
+                 * check disc's band and let the disc eat its last
+                 * letter. The layer says what it is, in words. */
+                int cap_h = lv_font_get_line_height(&font_small);
+                int block = th + 3 + cap_h;
+                int top = TILE_H - 6 - block;
+                if (top < 4) {
+                    top = 4;
+                }
+                lv_obj_set_y(tile_label[i], top);
+                lv_obj_set_pos(tile_caption[i], 116, top + th + 3);
+                show_obj(tile_caption[i]);
+            } else {
+                lv_obj_set_y(tile_label[i], (TILE_H - th) / 2);
+                hide(tile_caption[i]);
+            }
             set_tile_check_visual(i, (s_checks >> i) & 1);
+        }
+        /* Extras chips, one row in the strip under the grid. */
+        int xx = 284;
+        for (int j = 0; j < X_SLOTS; j++) {
+            if (j >= s_xn) {
+                hide(xchip[j]);
+                continue;
+            }
+            const char *txt = garment_label(s_xgar[j]);
+            lv_label_set_text(xchip_label[j], txt);
+            lv_image_set_src(xchip_icon[j], GARMENT_56[s_xgar[j]]);
+            int w = text_w(txt, &font_small) + 75;
+            lv_obj_set_size(xchip[j], w, 34);
+            lv_obj_set_pos(xchip[j], xx, X_STRIP_Y);
+            lv_obj_set_pos(xchip_check[j], w - 29, 6);
+            xx += w + 10;
+            show_obj(xchip[j]);
+            set_xchip_visual(j, (s_checks >> (4 + j)) & 1);
         }
     } else {
         for (int i = 0; i < 4; i++) {
             hide(tile[i]);
+        }
+        for (int j = 0; j < X_SLOTS; j++) {
+            hide(xchip[j]);
         }
         show_obj(lbl_no_data);
         show_obj(lbl_no_data2);
     }
 
     /* Progress pill (fresh data only; the stale chip owns the slot
-     * otherwise). "2 of 4 ready" while a check-off is in progress. */
+     * otherwise). "2 of 5 ready" while a check-off is in progress;
+     * the count covers the extras chips as well as the tiles. */
     if (avail && bucket == 0 && !all_done) {
         int checked_n = 0;
-        for (int i = 0; i < o.ntiles; i++) {
-            if ((s_checks >> i) & 1) {
+        for (int b = 0; b < 10; b++) {
+            if ((check_mask >> b) & 1 && (s_checks >> b) & 1) {
                 checked_n++;
             }
         }
         if (checked_n > 0) {
             char pbuf[32];
-            snprintf(pbuf, sizeof(pbuf), "%d of %d ready", checked_n, o.ntiles);
+            snprintf(pbuf, sizeof(pbuf), "%d of %d ready", checked_n, o.ntiles + s_xn);
             lv_label_set_text(lbl_prog, pbuf);
             lv_obj_set_size(prog_chip, text_w(pbuf, &font_small) + 32, 40);
             lv_obj_set_width(lbl_prog, LV_SIZE_CONTENT);
@@ -1974,7 +2140,7 @@ void ui_show_weather(const wx_t *wx)
 }
 
 #ifdef WB_SIM
-void ui_test_set_checks(uint8_t mask)
+void ui_test_set_checks(uint16_t mask)
 {
     s_checks = mask;
     s_check_date = -2;   /* adopt the current outfit date without clearing */

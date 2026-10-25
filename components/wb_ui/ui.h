@@ -66,8 +66,9 @@ void ui_set_cat_choice(int choice);
 void ui_set_cat_cb(ui_cat_cb_t cb);
 
 #ifdef WB_SIM
-/* Desktop-renderer test hooks. */
-void ui_test_set_checks(uint8_t mask);
+/* Desktop-renderer test hooks. Check mask: bits 0..3 = main tiles,
+ * bits 4..9 = extras chip slots (ui.c EXTRA_ORDER order). */
+void ui_test_set_checks(uint16_t mask);
 void ui_test_set_page(int page);
 void ui_test_set_pippa_frame(int frame);   /* pin Pippa's heart animation to a frame, -1 releases */
 #endif

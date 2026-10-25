@@ -85,9 +85,10 @@ def main():
         check(frac > 0.10, f"{name}: cat stage is {frac:.1%} non-background (need > 10%)")
 
     # Tile icons: tile 1 of the morning page must carry garment pixels, not
-    # just white tile.
+    # just white tile. (Tile grid: cells at (284,104) and (534,216),
+    # every tile 238x104, icon at tile + (10,4), 96 px.)
     img = Image.open(os.path.join(OUT, "20_morning.png"))
-    frac = non_bg_fraction(img, (294, 118, 390, 214))
+    frac = non_bg_fraction(img, (294, 108, 390, 204))
     check(frac > 0.10, f"20_morning: tile 1 icon box is {frac:.1%} non-white (need > 10%)")
 
     # Scenarios that must differ, differ.
@@ -134,6 +135,60 @@ def main():
     check(pink > 1000, f"23b_evening_all_done_heart: Pippa pink dress in stage ({pink} px, need > 1000)")
     check(stage_sha("23b_evening_all_done_heart.png") != stage_sha("23_evening_all_done.png"),
           "23b heart frame stage differs from the static all-done stage")
+
+    # Fix 1: the extra-layer tile names itself in words. The "Extra
+    # layer" caption is COL_WARN_TX (138,75,0); three panel rounds
+    # failed the layer question while it was marked by border+star
+    # alone. 20_morning's layer tile is tile 3 (Warm coat), the
+    # bottom-left cell (284,216)-(522,320); tile 1 must NOT carry it.
+    def is_caption(r, g, b):
+        return 105 < r < 170 and 50 < g < 100 and b < 45
+
+    img = Image.open(os.path.join(OUT, "20_morning.png"))
+    cap = count_where(img, (284, 216, 522, 320), is_caption)
+    check(cap > 40, f"20_morning: 'Extra layer' caption pixels on the layer tile ({cap}, need > 40)")
+    cap1 = count_where(img, (284, 104, 522, 208), is_caption)
+    check(cap1 < 10, f"20_morning: no caption on a non-layer tile ({cap1}, need < 10)")
+
+    # Fix 2: advised extras are checkable chips in the strip under the
+    # grid (284,322)-(772,356). 28_snow advises hat + gloves + scarf,
+    # so the strip must carry chip content; 25_stale advises no extras,
+    # so the strip must be empty there.
+    img = Image.open(os.path.join(OUT, "28_snow.png"))
+    frac = non_bg_fraction(img, (284, 322, 772, 356))
+    check(frac > 0.08, f"28_snow: extras chip strip is {frac:.1%} filled (need > 8%)")
+    img = Image.open(os.path.join(OUT, "25_stale.png"))
+    frac = non_bg_fraction(img, (284, 322, 772, 356))
+    check(frac < 0.02, f"25_stale: no extras advised, chip strip empty ({frac:.1%}, need < 2%)")
+
+    # Fix 2, gating: 23_evening_all_done could only reach all-done by
+    # checking the umbrella chip too (the sim checks tiles + chip), so
+    # the chip's green check disc (COL_OK 47,168,102) must show in the
+    # strip; and 21_evening (nothing checked) must not show one.
+    def is_ok_green(r, g, b):
+        return 30 < r < 70 and 150 < g < 190 and 80 < b < 125
+
+    img = Image.open(os.path.join(OUT, "23_evening_all_done.png"))
+    greens = count_where(img, (284, 322, 772, 356), is_ok_green)
+    check(greens > 30, f"23_evening_all_done: checked umbrella chip disc in strip ({greens} px, need > 30)")
+    img = Image.open(os.path.join(OUT, "21_evening.png"))
+    greens = count_where(img, (284, 322, 772, 356), is_ok_green)
+    check(greens < 10, f"21_evening: umbrella chip present but unchecked ({greens} green px, need < 10)")
+
+    # Fix 3: 29_hot has 3 garments and must keep the 2x2 grid: the
+    # bottom-right cell stays page background (the third tile used to
+    # stretch full-width across it), and tile 3 keeps its icon in the
+    # bottom-left cell at the standard size.
+    def is_page_cream(r, g, b):
+        return abs(r - 251) <= 8 and abs(g - 246) <= 8 and abs(b - 238) <= 8
+
+    img = Image.open(os.path.join(OUT, "29_hot.png"))
+    cell = img.crop((538, 220, 768, 316)).convert("RGB")
+    px = list(cell.getdata())
+    cream = sum(1 for p in px if is_page_cream(*p)) / len(px)
+    check(cream > 0.95, f"29_hot: empty grid cell is {cream:.1%} page background (need > 95%)")
+    frac = non_bg_fraction(img, (294, 220, 390, 316))
+    check(frac > 0.10, f"29_hot: tile 3 icon box is {frac:.1%} non-white (need > 10%)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

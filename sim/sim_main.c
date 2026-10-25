@@ -174,11 +174,14 @@ int main(int argc, char **argv)
     show();
     save(out, "21_evening");
 
-    ui_test_set_checks(0x3); /* first two garments laid out */
+    ui_test_set_checks(0x3); /* first two garments laid out (2 of 5: the
+                              * umbrella extra is a checkable chip too) */
     pump(10);
     save(out, "22_evening_2_checked");
 
-    ui_test_set_checks(0xF); /* everything laid out */
+    ui_test_set_checks(0x1F); /* everything laid out: 4 tiles + the
+                               * umbrella chip (bit 4). All-done must not
+                               * fire on the tiles alone any more. */
     pump(10);
     save(out, "23_evening_all_done");
 
