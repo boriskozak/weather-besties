@@ -1166,6 +1166,10 @@ void ui_close_settings(void)
 
 static void on_long_press(lv_event_t *e)
 {
+    /* Fallback only (iter-28): the Settings hold is timed at the indev
+     * level by hold_tick, which fires first (1200 ms < LVGL's 1500 ms)
+     * and swallows the press. If LVGL's own long press ever does get
+     * dispatched to a page, opening Settings again is a no-op. */
     (void)e;
     ui_open_settings();
 }
@@ -1285,8 +1289,33 @@ static void init_asset_tables(void)
 #define SWIPE_MIN_PX 80
 #define TAP_SLOP_PX 30
 
+/* Settings opens on a deliberate hold, timed here at the indev level
+ * (iter-28). The object-level LV_EVENT_LONG_PRESSED path is dead on the
+ * real panel: LVGL runs indev callbacks before object dispatch for
+ * LONG_PRESSED and drops the object event entirely if a callback asked
+ * to stop processing, and the swipe guard below used to do exactly that
+ * whenever the instantaneous point sat >TAP_SLOP_PX from the press
+ * point when the timer elapsed. A resting finger on the GT911 wanders
+ * tens of pixels inside 1.5 s, so the dispatch was vetoed every time
+ * (the sim's exact pointer never wanders, so it could not show this).
+ * LVGL also restarts its own long-press clock whenever the wandering
+ * point crosses onto a different child object. So the hold is timed
+ * from the PRESSED bookkeeping instead, with a radius sized for panel
+ * jitter rather than tap precision: a real swipe crosses it within a
+ * few polls and stays out, jitter only strays briefly. */
+#define HOLD_MS 1200
+#define HOLD_SLOP_PX 60
+#define HOLD_OUT_POLLS 3   /* consecutive out-of-radius polls that spoil a hold */
+
 static lv_point_t s_press_at;
 static bool s_swiped;
+
+static lv_indev_t *s_hold_indev;
+static uint32_t s_hold_since;
+static bool s_hold_armed;
+static bool s_hold_done;   /* fired or spoiled for this press */
+static bool s_hold_fired;  /* this press opened Settings */
+static int s_hold_out;     /* consecutive polls outside HOLD_SLOP_PX */
 
 static int32_t moved_px(lv_indev_t *in, int32_t *dx, int32_t *dy)
 {
@@ -1299,6 +1328,44 @@ static int32_t moved_px(lv_indev_t *in, int32_t *dx, int32_t *dy)
 
 static void set_page(int p);
 
+/* Polled hold detector for the Settings gesture: a press that stays
+ * down for HOLD_MS without leaving the jitter radius opens Settings,
+ * wherever on the main pages it landed (tiles and Pippa included,
+ * since only the indev stream is consulted). Firing also swallows the
+ * rest of the press, so the lift-off cannot tap the tile underneath. */
+static void hold_tick(lv_timer_t *t)
+{
+    (void)t;
+    if (!s_hold_armed || s_hold_done || s_hold_indev == NULL) {
+        return;
+    }
+    if (lv_indev_get_state(s_hold_indev) != LV_INDEV_STATE_PRESSED) {
+        s_hold_armed = false;   /* released (or swallowed) without RELEASED reaching us */
+        return;
+    }
+    if (lv_screen_active() != scr_main ||
+        !lv_obj_has_flag(settings, LV_OBJ_FLAG_HIDDEN)) {
+        s_hold_done = true;   /* holds only count on the main pages, Settings closed */
+        return;
+    }
+    lv_point_t p;
+    lv_indev_get_point(s_hold_indev, &p);
+    if (LV_ABS(p.x - s_press_at.x) > HOLD_SLOP_PX ||
+        LV_ABS(p.y - s_press_at.y) > HOLD_SLOP_PX) {
+        if (++s_hold_out >= HOLD_OUT_POLLS) {
+            s_hold_done = true;   /* dragged away and stayed away: a swipe or drag */
+        }
+        return;
+    }
+    s_hold_out = 0;
+    if (lv_tick_elaps(s_hold_since) >= HOLD_MS) {
+        s_hold_done = true;
+        s_hold_fired = true;
+        ui_open_settings();
+        lv_indev_wait_release(s_hold_indev);   /* lift-off must not click through */
+    }
+}
+
 static void on_indev(lv_event_t *e)
 {
     lv_indev_t *in = lv_event_get_target(e);
@@ -1309,8 +1376,15 @@ static void on_indev(lv_event_t *e)
         lv_indev_get_point(in, &s_press_at);
         s_swiped = false;
         s_last_touch = lv_tick_get();
+        s_hold_indev = in;
+        s_hold_since = s_last_touch;
+        s_hold_armed = true;
+        s_hold_done = false;
+        s_hold_fired = false;
+        s_hold_out = 0;
         break;
     case LV_EVENT_RELEASED:
+        s_hold_armed = false;
         moved_px(in, &dx, &dy);
         if (lv_screen_active() == scr_main && lv_obj_has_flag(settings, LV_OBJ_FLAG_HIDDEN) &&
             LV_ABS(dx) >= SWIPE_MIN_PX && LV_ABS(dx) > LV_ABS(dy) * 3 / 2) {
@@ -1320,9 +1394,8 @@ static void on_indev(lv_event_t *e)
         break;
     case LV_EVENT_CLICKED:
     case LV_EVENT_SHORT_CLICKED:
-    case LV_EVENT_LONG_PRESSED:
-        if (s_swiped || moved_px(in, &dx, &dy) > TAP_SLOP_PX) {
-            lv_indev_stop_processing(in);   /* a swipe, not a tap or a long press */
+        if (s_hold_fired || s_swiped || moved_px(in, &dx, &dy) > TAP_SLOP_PX) {
+            lv_indev_stop_processing(in);   /* a swipe (or a spent hold), not a tap */
         }
         break;
     default:
@@ -4852,10 +4925,11 @@ void ui_init(const char *names)
     build_main();
     build_settings();
     for (lv_indev_t *in = lv_indev_get_next(NULL); in; in = lv_indev_get_next(in)) {
-        lv_indev_add_event_cb(in, on_indev, LV_EVENT_ALL, NULL);   /* swipes */
+        lv_indev_add_event_cb(in, on_indev, LV_EVENT_ALL, NULL);   /* swipes + hold */
     }
     lv_sysmon_hide_performance(lv_display_get_default());   /* LVGL shows it by default */
     lv_timer_create(clock_tick, 1000, NULL);
+    lv_timer_create(hold_tick, 50, NULL);   /* Settings hold gesture (iter-28) */
     s_built = true;
     lv_screen_load(scr_boot);
 }
