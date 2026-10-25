@@ -53,11 +53,17 @@ void ui_show_connecting(const char *ssid);
 void ui_show_wifi_error(const char *ssid, const char *detail);
 
 void ui_show_weather(const wx_t *wx);
+void ui_show_calendar(void);   /* fresh kids-calendar data was parsed (cal.c) */
+/* Whether a kids-calendar link is configured at all: the My Day page
+ * shows its "ask a grown-up" state when it is not. The firmware sets
+ * this from settings (cal_url non-empty); the sim defaults to false
+ * and opts in per scenario. */
+void ui_set_calendar_configured(bool on);
 void ui_set_footer(const char *place, const char *status, bool warn);  /* place: kept for callers, shown in Settings */
 void ui_set_info(const ui_info_t *info);
 void ui_open_settings(void);
 void ui_close_settings(void);
-void ui_show_page(int page);   /* 0 = today, 1 = tomorrow, 2 = next days */
+void ui_show_page(int page);   /* 0 = today, 1 = tomorrow, 2 = my day, 3 = next days */
 void ui_refresh_clock(void);
 
 /* Cat choice from Settings: 0 = black cat, 1 = pink cat, 2 = take turns. */

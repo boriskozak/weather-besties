@@ -5,7 +5,7 @@ UI_DIR   := $(ROOT)/components/wb_ui
 CJSON    := cjson
 
 SRC := $(shell find $(LVGL_DIR)/src -name '*.c') \
-       $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(wildcard $(UI_DIR)/assets/*.c) \
+       $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(UI_DIR)/cal.c $(wildcard $(UI_DIR)/assets/*.c) \
        $(CJSON)/cJSON.c sim_main.c
 OBJ := $(patsubst %.c,build/%.o,$(subst $(ROOT)/,root/,$(SRC)))
 
@@ -49,7 +49,7 @@ clean:
 WASI_SDK ?= /home/claude/wasm/wasi-sdk-33.0-x86_64-linux
 WCC      := $(WASI_SDK)/bin/clang --target=wasm32-wasip1 --sysroot=$(WASI_SDK)/share/wasi-sysroot
 WEB_SRC  := $(shell find $(LVGL_DIR)/src -name '*.c') \
-            $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(UI_DIR)/wb_request.c \
+            $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(UI_DIR)/cal.c $(UI_DIR)/wb_request.c \
             $(wildcard $(UI_DIR)/assets/*.c) $(CJSON)/cJSON.c web/emu_main.c
 WEB_OBJ  := $(patsubst %.c,build-web/%.o,$(subst $(ROOT)/,root/,$(WEB_SRC)))
 WEB_CFLAGS := -O2 -MMD -MP -I$(ROOT)/components -I$(LVGL_DIR) -I$(UI_DIR) -I$(CJSON) -Iweb \

@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "board.h"
+#include "cal.h"
 #include "esp_crt_bundle.h"
 #include "esp_event.h"
 #include "esp_heap_caps.h"
@@ -59,6 +60,34 @@ static void fmt_clock(char *buf, size_t n, int hour, int min)
 {
     int h12 = hour % 12 ? hour % 12 : 12;
     snprintf(buf, n, "%d:%02d %s", h12, min, hour < 12 ? "AM" : "PM");
+}
+
+/* Point the C library at the weather location's offset, so the
+ * calendar parser's mktime/localtime read ICS local times in the
+ * same zone the screen shows (net_local_time above does the sum by
+ * hand and does not care). Fixed offset only, no DST rules of its
+ * own: it is re-set from the fresh offset on every fetch, so it
+ * tracks the location through DST changes. */
+static void set_local_tz(int utc_offset_s)
+{
+    static int applied = 0x7fffffff;
+    if (utc_offset_s == applied) {
+        return;
+    }
+    applied = utc_offset_s;
+    /* A POSIX TZ offset is what you add to local time to get UTC:
+     * the opposite sign of the usual "UTC+x" offset. */
+    int posix = -utc_offset_s;
+    int sign = posix < 0 ? -1 : 1;
+    int a = posix < 0 ? -posix : posix;
+    char tz[24];
+    if (a % 3600 == 0) {
+        snprintf(tz, sizeof(tz), "WB%d", sign * (a / 3600));
+    } else {
+        snprintf(tz, sizeof(tz), "WB%d:%02d", sign * (a / 3600), (a % 3600) / 60);
+    }
+    setenv("TZ", tz, 1);
+    tzset();
 }
 
 /* ------------------------------------------------------------------ ui glue */
@@ -263,8 +292,34 @@ static bool fetch_weather(void)
     s_wx = fresh;
     s_utc_offset = s_wx.utc_offset_s;
     s_have_offset = true;
+    set_local_tz(s_utc_offset);
     ESP_LOGI(TAG, "now %.1f (feels %.1f) code %d, %d periods", s_wx.temp, s_wx.feels, s_wx.code, s_wx.nperiods);
     return true;
+}
+
+/* The kids calendar (My Day page), fetched on the weather cadence.
+ * The link is a secret, so it is never logged; failures are logged
+ * like weather failures, without it. When a fetch fails the older
+ * parsed data simply stays on screen. */
+static void fetch_calendar(void)
+{
+    if (!S->cal_url[0]) {
+        return;
+    }
+    char *body;
+    size_t len;
+    if (!net_http_get(S->cal_url, &body, &len)) {
+        ESP_LOGW(TAG, "calendar fetch failed");
+        return;
+    }
+    bool ok = cal_parse(body, len);
+    free(body);
+    if (!ok) {
+        ESP_LOGW(TAG, "calendar did not parse");
+        return;
+    }
+    ESP_LOGI(TAG, "calendar: %d events", cal_count());
+    UI_LOCKED(ui_show_calendar());
 }
 
 static void show_weather(bool fresh_ok, const char *last_update)
@@ -366,6 +421,7 @@ static void net_task(void *arg)
                 fmt_clock(last, sizeof(last), s_wx.hour, s_wx.minute);
             }
             show_weather(true, last);
+            fetch_calendar();
         } else {
             fails++;
             if (have) {

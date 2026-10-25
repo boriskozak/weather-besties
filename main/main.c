@@ -80,6 +80,7 @@ void app_main(void)
     ui_set_action_cb(net_ui_action, NULL);
     ui_set_time_cb(net_local_time);
     ui_set_speed_cb(speed_cb);
+    ui_set_calendar_configured(S.cal_url[0] != 0);
     lv_timer_create(power_timer, 1000, NULL);
     lv_refr_now(NULL);
     board_lvgl_unlock();

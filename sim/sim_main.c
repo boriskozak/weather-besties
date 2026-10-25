@@ -13,6 +13,7 @@
 #include <time.h>
 
 #include "cJSON.h"
+#include "cal.h"
 #include "lvgl.h"
 #include "ui.h"
 #include "wx.h"
@@ -152,6 +153,79 @@ static void show(void)
     pump(10);
 }
 
+/* ------------------------------------------------------------------ My Day fixtures (iter-14)
+ * Invented events only (this repo is public), built relative to the
+ * sim clock currently loaded, so the Today/Tomorrow sections land on
+ * the rendered dates. The renderer process runs in the scenario's
+ * zone, like the board, so cal.c's mktime/localtime agree with the
+ * page. File order is scrambled on purpose: cal.c sorts. One summary
+ * is line-folded and one location carries an escaped comma, so the
+ * renders also prove unfolding and unescaping. */
+static void ymd(char *buf, const struct tm *t)
+{
+    sprintf(buf, "%04d%02d%02d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
+}
+
+static void fixture_cal(bool with_events)
+{
+    struct tm today = now_tm, tom = now_tm, later = now_tm;
+    tom.tm_mday += 1;
+    tom.tm_isdst = -1;
+    mktime(&tom);
+    later.tm_mday += 10;
+    later.tm_isdst = -1;
+    mktime(&later);
+    char d0[9], d1[9], d10[9];
+    ymd(d0, &today);
+    ymd(d1, &tom);
+    ymd(d10, &later);
+    char ics[4096];
+    int n = 0;
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    if (with_events) {
+        n += snprintf(ics + n, sizeof(ics) - n,
+                      "BEGIN:VEVENT\r\nUID:sim-1\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
+                      "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Soccer practice\r\n"
+                      "LOCATION:Roosevelt Field\\, north gate\r\nEND:VEVENT\r\n",
+                      d0, d0);
+        n += snprintf(ics + n, sizeof(ics) - n,
+                      "BEGIN:VEVENT\r\nUID:sim-2\r\nDTSTART;VALUE=DATE:%s\r\nDTEND;VALUE=DATE:%s\r\n"
+                      "SUMMARY:Dentist\r\nEND:VEVENT\r\n",
+                      d0, d1);
+        n += snprintf(ics + n, sizeof(ics) - n,
+                      "BEGIN:VEVENT\r\nUID:sim-3\r\nDTSTART:%sT200000Z\r\nDTEND:%sT204500Z\r\n"
+                      "SUMMARY:Video call with Grandma\r\nEND:VEVENT\r\n",
+                      d0, d0);
+        n += snprintf(ics + n, sizeof(ics) - n,
+                      "BEGIN:VEVENT\r\nUID:sim-4\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
+                      "DTEND;TZID=America/New_York:%sT104500\r\nSUMMARY:Library story time\r\nEND:VEVENT\r\n",
+                      d0, d0);
+        n += snprintf(ics + n, sizeof(ics) - n,
+                      "BEGIN:VEVENT\r\nUID:sim-5\r\nDTSTART;TZID=America/New_York:%sT160000\r\n"
+                      "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Piano les\r\n son\r\n"
+                      "LOCATION:Music school\r\nEND:VEVENT\r\n",
+                      d1, d1);
+        n += snprintf(ics + n, sizeof(ics) - n,
+                      "BEGIN:VEVENT\r\nUID:sim-6\r\nDTSTART;TZID=America/New_York:%sT080000\r\n"
+                      "DTEND;TZID=America/New_York:%sT090000\r\nSUMMARY:School bake sale\r\n"
+                      "LOCATION:Watchung School gym\r\nEND:VEVENT\r\n",
+                      d1, d1);
+    } else {
+        /* A real event, just not today or tomorrow: the empty state
+         * must come from the dates, not from an empty feed. */
+        n += snprintf(ics + n, sizeof(ics) - n,
+                      "BEGIN:VEVENT\r\nUID:sim-9\r\nDTSTART;TZID=America/New_York:%sT090000\r\n"
+                      "DTEND;TZID=America/New_York:%sT100000\r\nSUMMARY:School play rehearsal\r\nEND:VEVENT\r\n",
+                      d10, d10);
+    }
+    n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
+    if (!cal_parse(ics, (size_t)n)) {
+        fprintf(stderr, "fixture calendar did not parse\n");
+        exit(1);
+    }
+}
+
 int main(int argc, char **argv)
 {
     const char *out = argc > 1 ? argv[1] : "out";
@@ -228,7 +302,7 @@ int main(int argc, char **argv)
 
     load(sc, "brief_morning");
     show();
-    ui_test_set_page(2);
+    ui_test_set_page(3);   /* iter-14: forecast is the fourth page now */
     pump(10);
     save(out, "24_next_days");
     dump(out, "24_next_days");   /* iter-09: the fc*_tiles lines assert the cards' full outfits */
@@ -252,7 +326,7 @@ int main(int argc, char **argv)
     /* iter-10: the same stale data on the forecast page: the status
      * pill's header-band placement there, and the forecast ground
      * following the outfit pages' tint rule. */
-    ui_test_set_page(2);
+    ui_test_set_page(3);
     pump(10);
     save(out, "25b_stale_next_days");
     dump(out, "25b_stale_next_days");
@@ -345,6 +419,33 @@ int main(int argc, char **argv)
     show();
     save(out, "39_no_yesterday");
     dump(out, "39_no_yesterday");
+
+    /* Iter-14: the My Day page, third screen. The populated state
+     * (fixture events on both days), the configured-but-clear state,
+     * and the no-calendar-link state, all on the brief_morning clock
+     * (Tue Oct 27 2026). */
+    setenv("TZ", "America/New_York", 1);
+    tzset();
+    load(sc, "brief_morning");
+    show();
+    ui_set_calendar_configured(true);
+    fixture_cal(true);
+    ui_test_set_page(2);
+    pump(10);
+    save(out, "40_myday");
+    dump(out, "40_myday");
+
+    fixture_cal(false);
+    ui_show_calendar();
+    pump(10);
+    save(out, "41_myday_empty");
+    dump(out, "41_myday_empty");
+
+    ui_set_calendar_configured(false);
+    pump(10);
+    save(out, "42_myday_unconfigured");
+    dump(out, "42_myday_unconfigured");
+    ui_test_set_page(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);
     save(out, "10_wifi_error");

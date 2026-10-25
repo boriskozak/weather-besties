@@ -7,6 +7,7 @@
 #include "assets/assets.h"
 #include "assets/cat2_sets.h"
 #include "assets/pippa_sets.h"
+#include "cal.h"
 #include "cat.h"
 #include "lvgl.h"
 #include "outfit.h"
@@ -84,7 +85,7 @@ static bool s_have_wx;
 static char s_footer[64];
 static bool s_footer_warn;
 
-/* Pages: 0 Today, 1 Tomorrow, 2 Next days. */
+/* Pages: 0 Today, 1 Tomorrow, 2 My Day, 3 Next days. */
 static int s_page;
 static uint32_t s_last_touch;   /* lv_tick of the last press (auto-return timer) */
 static bool s_page_touched;     /* a manual page exists to revert from */
@@ -117,7 +118,7 @@ static lv_obj_t *boot_title, *boot_msg, *boot_detail, *boot_spinner, *boot_btn;
 static lv_obj_t *setup_qr, *setup_steps;
 
 /* main: outfit page (shared by Today and Tomorrow) */
-static lv_obj_t *page_outfit, *page_forecast;
+static lv_obj_t *page_outfit, *page_forecast, *page_myday;
 static lv_obj_t *lbl_title, *chip, *lbl_chip;
 static lv_obj_t *wx_icon, *lbl_wx1, *lbl_wx2;
 static lv_obj_t *cat_stage, *cat_grp;
@@ -196,8 +197,29 @@ static lv_obj_t *fc_olabel[3][4]; /* iter-10: each stack icon's word under
                                    * gone (it wrapped: "Light / jacket") */
 static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) */
 
+/* main: my day page (iter-14): the kids calendar as two agenda
+ * sections, Today then Tomorrow. Rows are fixed slots laid out by a
+ * y cursor in render_myday: today's slots come first in the arrays,
+ * then tomorrow's. A row is the time in a left column, the title
+ * (wrapped, up to two lines) and the place in small text under it. */
+#define MD_TODAY_MAX 4
+#define MD_TOM_MAX 3
+#define MD_ROWS (MD_TODAY_MAX + MD_TOM_MAX)
+static lv_obj_t *md_date;
+static lv_obj_t *md_sec[2];        /* section headers: Today, Tomorrow */
+static lv_obj_t *md_none[2];       /* a section's "Nothing planned" line */
+static lv_obj_t *md_more[2];       /* a section's "+N more" line */
+static lv_obj_t *md_row[MD_ROWS], *md_time[MD_ROWS], *md_name[MD_ROWS], *md_loc[MD_ROWS];
+static lv_obj_t *md_msg, *md_msg2, *md_pippa;   /* the two page states */
+static bool s_cal_configured;      /* a calendar link exists (ui_set_calendar_configured) */
+#ifdef WB_SIM
+static char s_md_state[16];                          /* events | empty | unconfigured */
+static int s_md_n[2];                                /* rows shown per section */
+static char s_md_rows[MD_ROWS][192];                 /* "time|title|place" per shown row */
+#endif
+
 /* main: bottom bar */
-static lv_obj_t *tab_btn[3], *tab_lbl[3];
+static lv_obj_t *tab_btn[4], *tab_lbl[4];
 static lv_obj_t *stale_chip, *lbl_stale;
 static lv_obj_t *cmp_pill, *lbl_cmp;   /* iter-12 relative-temperature pill */
 
@@ -1417,8 +1439,8 @@ static void build_xchips(lv_obj_t *page)
 
 static void style_tabs(void)
 {
-    static const char *names[3] = {"Today", "Tomorrow", "Next days"};
-    for (int i = 0; i < 3; i++) {
+    static const char *names[4] = {"Today", "Tomorrow", "My Day", "Next days"};
+    for (int i = 0; i < 4; i++) {
         bool on = s_page == i;
         lv_obj_set_style_bg_color(tab_btn[i], on ? C(COL_INK) : lv_color_white(), 0);
         lv_obj_set_style_bg_opa(tab_btn[i], on ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
@@ -1441,8 +1463,8 @@ static void build_tabs(lv_obj_t *scr)
     lv_obj_set_size(row, LV_SIZE_CONTENT, 50);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(row, 10, 0);
-    static const char *names[3] = {"Today", "Tomorrow", "Next days"};
-    for (int i = 0; i < 3; i++) {
+    static const char *names[4] = {"Today", "Tomorrow", "My Day", "Next days"};
+    for (int i = 0; i < 4; i++) {
         lv_obj_t *b = lv_button_create(row);
         lv_obj_remove_style_all(b);
         lv_obj_set_height(b, 50);
@@ -1692,6 +1714,80 @@ static void build_forecast_page(lv_obj_t *scr)
     hide(page_forecast);
 }
 
+/* ------------------------------------------------------------------ my day page build */
+
+static void build_myday_page(lv_obj_t *scr)
+{
+    page_myday = box(scr);
+    lv_obj_set_size(page_myday, UI_W, UI_H);
+    lv_obj_add_event_cb(page_myday, on_long_press, LV_EVENT_LONG_PRESSED, NULL);
+
+    lv_obj_t *t = label(page_myday, &font_h1, "My Day");
+    lv_obj_set_style_text_color(t, C(COL_INK), 0);
+    lv_obj_set_pos(t, 28, 10);
+
+    /* The date rides the title line, right-aligned, the way the
+     * outfit pages keep their weather block at the top right: the
+     * agenda needs every vertical pixel for rows. */
+    md_date = label(page_myday, &font_label, "");
+    lv_obj_set_style_text_color(md_date, C(COL_INK2), 0);
+    lv_obj_set_width(md_date, 342);
+    lv_obj_set_style_text_align(md_date, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_pos(md_date, 430, 16);
+
+    for (int s = 0; s < 2; s++) {
+        md_sec[s] = label(page_myday, &font_label, s ? "Tomorrow" : "Today");
+        lv_obj_set_style_text_color(md_sec[s], C(COL_INK), 0);
+        lv_obj_set_pos(md_sec[s], 28, 0);   /* render_myday lays the page out */
+        hide(md_sec[s]);
+        md_none[s] = label(page_myday, &font_body, "Nothing planned");
+        lv_obj_set_style_text_color(md_none[s], C(COL_INK2), 0);
+        lv_obj_set_pos(md_none[s], 164, 0);
+        hide(md_none[s]);
+        md_more[s] = label(page_myday, &font_body, "");
+        lv_obj_set_style_text_color(md_more[s], C(COL_INK2), 0);
+        lv_obj_set_pos(md_more[s], 164, 0);
+        hide(md_more[s]);
+    }
+    for (int r = 0; r < MD_ROWS; r++) {
+        lv_obj_t *row = box(page_myday);
+        md_row[r] = row;
+        lv_obj_set_size(row, UI_W - 56, 40);
+        md_time[r] = label(row, &font_label, "");
+        lv_obj_set_style_text_color(md_time[r], C(COL_INK2), 0);
+        lv_obj_set_width(md_time[r], 128);
+        lv_obj_set_pos(md_time[r], 0, 0);
+        md_name[r] = label(row, &font_body, "");
+        lv_obj_set_style_text_color(md_name[r], C(COL_INK), 0);
+        lv_obj_set_width(md_name[r], UI_W - 164 - 28);
+        lv_label_set_long_mode(md_name[r], LV_LABEL_LONG_MODE_WRAP);
+        lv_obj_set_pos(md_name[r], 136, 2);
+        md_loc[r] = label(row, &font_small, "");
+        lv_obj_set_style_text_color(md_loc[r], C(COL_INK2), 0);
+        lv_obj_set_width(md_loc[r], UI_W - 164 - 28);
+        lv_label_set_long_mode(md_loc[r], LV_LABEL_LONG_MODE_CLIP);
+        lv_obj_set_pos(md_loc[r], 136, 2);   /* render_myday drops it under the title */
+        hide(row);
+    }
+
+    /* The two whole-page states (no calendar link yet; a link but a
+     * clear two days): one friendly line beside a mini Pippa, the
+     * same furniture the forecast cards use. */
+    md_pippa = lv_image_create(page_myday);
+    lv_obj_set_pos(md_pippa, 150, 168);
+    md_msg = label(page_myday, &font_label, "");
+    lv_obj_set_style_text_color(md_msg, C(COL_INK), 0);
+    lv_obj_set_width(md_msg, 460);
+    lv_label_set_long_mode(md_msg, LV_LABEL_LONG_MODE_WRAP);
+    lv_obj_set_pos(md_msg, 262, 178);
+    md_msg2 = label(page_myday, &font_body, "");
+    lv_obj_set_style_text_color(md_msg2, C(COL_INK2), 0);
+    lv_obj_set_width(md_msg2, 460);
+    lv_label_set_long_mode(md_msg2, LV_LABEL_LONG_MODE_WRAP);
+    lv_obj_set_pos(md_msg2, 262, 246);
+    hide(page_myday);
+}
+
 static void build_main(void)
 {
     scr_main = lv_obj_create(NULL);
@@ -1699,6 +1795,7 @@ static void build_main(void)
     solid_bg(scr_main, COL_BG_MORNING);
     build_outfit_page(scr_main);
     build_forecast_page(scr_main);
+    build_myday_page(scr_main);
     build_tabs(scr_main);
 }
 
@@ -2060,6 +2157,166 @@ static void render_forecast(const wx_t *wx, const struct tm *now)
     }
 }
 
+/* ------------------------------------------------------------------ my day render */
+
+/* One section of the agenda: lays its rows out from y and returns
+ * the y below them. slot0 is the section's first row slot. A row's
+ * height is its title's wrapped lines plus the place line when the
+ * event has one; a row that would run off the page folds into the
+ * section's "+N more" line instead (the section caps still apply). */
+static int md_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n, int y)
+{
+    show_obj(md_sec[sec]);
+    lv_obj_set_pos(md_sec[sec], 28, y);
+    y += 32;
+    if (n == 0) {
+        show_obj(md_none[sec]);
+        lv_obj_set_pos(md_none[sec], 164, y);
+        hide(md_more[sec]);
+#ifdef WB_SIM
+        s_md_n[sec] = 0;
+#endif
+        return y + 34;
+    }
+    hide(md_none[sec]);
+    int lh = lv_font_get_line_height(&font_body);
+    int shown = 0;
+    for (int i = 0; i < n && shown < max_rows; i++) {
+        const cal_event_t *ev = evs[i];
+        char tbuf[16];
+        struct tm lt;
+        localtime_r(&ev->start, &lt);
+        if (ev->all_day) {
+            snprintf(tbuf, sizeof(tbuf), "All day");
+        } else {
+            fmt_time12(lt.tm_hour, lt.tm_min, tbuf, sizeof(tbuf));
+        }
+        lv_point_t sz;
+        lv_text_get_size(&sz, ev->summary, &font_body, 0, 0, UI_W - 164 - 28, LV_TEXT_FLAG_NONE);
+        int lines = sz.y / lh;
+        if (lines < 1) {
+            lines = 1;
+        }
+        if (lines > 2) {
+            lines = 2;
+        }
+        int h = 2 + lines * lh + (ev->location[0] ? 24 : 0) + 2;
+        if (y + h > 416 && shown > 0) {
+            break;   /* out of page: the rest folds into "+N more" */
+        }
+        int r = slot0 + shown;
+        lv_label_set_text(md_time[r], tbuf);
+        lv_label_set_text(md_name[r], ev->summary);
+        if (ev->location[0]) {
+            lv_label_set_text(md_loc[r], ev->location);
+            lv_obj_set_pos(md_loc[r], 136, 2 + lines * lh);
+            show_obj(md_loc[r]);
+        } else {
+            hide(md_loc[r]);
+        }
+        lv_obj_set_pos(md_row[r], 28, y);
+        lv_obj_set_size(md_row[r], UI_W - 56, h);
+        show_obj(md_row[r]);
+#ifdef WB_SIM
+        snprintf(s_md_rows[r], sizeof(s_md_rows[r]), "%s|%s|%s", tbuf, ev->summary, ev->location);
+#endif
+        shown++;
+        y += h;
+    }
+    for (int r = slot0 + shown; r < slot0 + max_rows; r++) {
+        hide(md_row[r]);
+    }
+    int extra = n - shown;
+    if (extra > 0) {
+        char buf[24];
+        snprintf(buf, sizeof(buf), "+%d more", extra);
+        lv_label_set_text(md_more[sec], buf);
+        lv_obj_set_pos(md_more[sec], 164, y);
+        show_obj(md_more[sec]);
+        y += 34;
+    } else {
+        hide(md_more[sec]);
+    }
+#ifdef WB_SIM
+    s_md_n[sec] = shown;
+#endif
+    return y;
+}
+
+static void render_myday(const struct tm *now)
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%s, %s %d", wx_wday_name(now->tm_wday, false),
+             wx_month_name(now->tm_mon + 1, true), now->tm_mday);
+    lv_label_set_text(md_date, buf);
+
+#ifdef WB_SIM
+    s_md_n[0] = s_md_n[1] = 0;
+    for (int r = 0; r < MD_ROWS; r++) {
+        s_md_rows[r][0] = 0;
+    }
+#endif
+
+    /* Bucket the feed's events by their local start date. The feed
+     * is kid events only (the mirror calendar), so there is nothing
+     * to filter: just today and tomorrow to pick out. An event that
+     * started yesterday and runs into today is not shown in v1. */
+    long today = days_from_civil(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
+    const cal_event_t *tod[CAL_MAX_EVENTS], *tom[CAL_MAX_EVENTS];
+    int ntod = 0, ntom = 0;
+    if (s_cal_configured) {
+        for (int i = 0; i < cal_count(); i++) {
+            const cal_event_t *ev = cal_get(i);
+            struct tm lt;
+            localtime_r(&ev->start, &lt);
+            long d = days_from_civil(lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday);
+            if (d == today) {
+                tod[ntod++] = ev;
+            } else if (d == today + 1) {
+                tom[ntom++] = ev;
+            }
+        }
+    }
+
+    if (!s_cal_configured || (ntod == 0 && ntom == 0)) {
+        for (int s = 0; s < 2; s++) {
+            hide(md_sec[s]);
+            hide(md_none[s]);
+            hide(md_more[s]);
+        }
+        for (int r = 0; r < MD_ROWS; r++) {
+            hide(md_row[r]);
+        }
+        int var = pippa_variant_for(LOOK_FALL, now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
+        lv_image_set_src(md_pippa, WB_PIPPA_MINIS[var]);
+        show_obj(md_pippa);
+        if (!s_cal_configured) {
+            lv_label_set_text(md_msg, "Ask a grown-up to add the calendar link.");
+            lv_label_set_text(md_msg2, "They will find it in the setup page.");
+#ifdef WB_SIM
+            snprintf(s_md_state, sizeof(s_md_state), "unconfigured");
+#endif
+        } else {
+            lv_label_set_text(md_msg, "Nothing planned today or tomorrow.");
+            lv_label_set_text(md_msg2, "A whole day to play.");
+#ifdef WB_SIM
+            snprintf(s_md_state, sizeof(s_md_state), "empty");
+#endif
+        }
+        show_obj(md_msg);
+        show_obj(md_msg2);
+        return;
+    }
+    hide(md_pippa);
+    hide(md_msg);
+    hide(md_msg2);
+#ifdef WB_SIM
+    snprintf(s_md_state, sizeof(s_md_state), "events");
+#endif
+    int y = md_section(0, 0, MD_TODAY_MAX, tod, ntod, 56);
+    md_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, y + 4);
+}
+
 static void render(void)
 {
     if (!s_built) {
@@ -2105,14 +2362,20 @@ static void render(void)
      * above (before 17:00 the app rests on Today, from 17:00 on
      * Tomorrow), so the forecast page always matches the outfit page
      * it was swiped from. */
-    solid_bg(scr_main, page == 2 ? (now.tm_hour >= 17 ? COL_BG_EVENING : COL_BG_MORNING)
+    solid_bg(scr_main, page >= 2 ? (now.tm_hour >= 17 ? COL_BG_EVENING : COL_BG_MORNING)
                                  : evening ? COL_BG_EVENING : COL_BG_MORNING);
     if (page < 2) {
         show_obj(page_outfit);
         hide(page_forecast);
+        hide(page_myday);
+    } else if (page == 2) {
+        hide(page_outfit);
+        hide(page_forecast);
+        show_obj(page_myday);
     } else {
         hide(page_outfit);
         show_obj(page_forecast);
+        hide(page_myday);
     }
     style_tabs();
 
@@ -2132,7 +2395,7 @@ static void render(void)
         }
         lv_label_set_text(lbl_stale, buf);
         lv_obj_set_size(stale_chip, text_w(buf, &font_tiny) + 28, 28);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page == 2 ? 44 : 392);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page >= 2 ? 44 : 392);
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -2146,7 +2409,7 @@ static void render(void)
             lv_label_set_text(lbl_stale, "No weather yet");
         }
         lv_obj_set_size(stale_chip, text_w(lv_label_get_text(lbl_stale), &font_tiny) + 28, 28);
-        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page == 2 ? 44 : 392);
+        lv_obj_align(stale_chip, LV_ALIGN_TOP_RIGHT, -28, page >= 2 ? 44 : 392);
         lv_obj_set_width(lbl_stale, LV_SIZE_CONTENT);
         lv_obj_center(lbl_stale);
         show_obj(stale_chip);
@@ -2155,6 +2418,12 @@ static void render(void)
     }
 
     if (page == 2) {
+        hide(prog_chip);   /* no check-off progress on the agenda page */
+        render_myday(&now);
+        return;
+    }
+
+    if (page == 3) {
         hide(prog_chip);   /* no status pill floats over the cards */
         if (s_have_wx) {
             render_forecast(&s_wx, &now);
@@ -2685,8 +2954,8 @@ static void set_page(int p)
     if (p < 0) {
         p = 0;
     }
-    if (p > 2) {
-        p = 2;
+    if (p > 3) {
+        p = 3;
     }
     s_page = p;
     s_page_touched = true;
@@ -2763,6 +3032,25 @@ void ui_show_page(int page)
 
 void ui_refresh_clock(void)
 {
+    s_force = true;
+    render();
+}
+
+void ui_show_calendar(void)
+{
+    /* Fresh calendar data was parsed into cal.c: repaint. Like
+     * ui_show_weather with good data, it also brings the main screen
+     * up when it is not already showing. */
+    if (lv_screen_active() != scr_main && s_have_wx) {
+        lv_screen_load(scr_main);
+    }
+    s_force = true;
+    render();
+}
+
+void ui_set_calendar_configured(bool on)
+{
+    s_cal_configured = on;
     s_force = true;
     render();
 }
@@ -2851,6 +3139,17 @@ void ui_test_dump(const char *path)
     fprintf(f, "stale_checks=%s\nchecks=%d\n", s_dump.checks_locked ? "disabled" : "enabled", (int)s_checks);
     fprintf(f, "title=%s\n", s_dump.title);
     fprintf(f, "compare=%s\n", s_dump.compare);
+    /* My Day page (iter-14): its state and the rows it actually
+     * showed, "time|title|place" per row, so the sim checks can
+     * assert on the agenda's words like the outfit pages'. */
+    fprintf(f, "myday_state=%s\n", s_md_state);
+    fprintf(f, "myday_today_n=%d\nmyday_tom_n=%d\n", s_md_n[0], s_md_n[1]);
+    for (int r = 0; r < MD_TODAY_MAX; r++) {
+        fprintf(f, "myday_today%d=%s\n", r, s_md_rows[r]);
+    }
+    for (int r = 0; r < MD_TOM_MAX; r++) {
+        fprintf(f, "myday_tom%d=%s\n", r, s_md_rows[MD_TODAY_MAX + r]);
+    }
     for (int i = 0; i < 3; i++) {
         fprintf(f, "fc%d_tiles=", i);
         for (int k = 0; k < s_fc_n[i]; k++) {

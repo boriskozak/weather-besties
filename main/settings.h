@@ -16,6 +16,8 @@ typedef struct {
     uint8_t off_from, off_to;  /* hours, local time */
     uint8_t bike_bus;          /* 0 = Sunday ... 6 = Saturday, 7 = no bike bus */
     uint8_t cat;               /* 0 = black cat, 1 = pink cat, 2 = take turns */
+    char cal_url[280];         /* kids calendar secret iCal link; "" = not set up.
+                                  A secret: never log it, never show it on screen. */
 } wb_settings_t;
 
 void settings_defaults(wb_settings_t *s);

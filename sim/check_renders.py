@@ -1285,6 +1285,50 @@ def main():
                              lambda r, g, b: abs(r - 251) + abs(g - 246) + abs(b - 238) > 24)
         check(n == 0, f"{name}: nothing drawn in the outermost 4 screen columns ({n} px, need 0)")
 
+    # ------------------------------------------------------------ My Day
+    # (iter-14): the fixture calendar (invented events built from
+    # the brief_morning clock, Tue Oct 27 2026) in its three states.
+    # Words first, from the dumps: the rows the page actually showed,
+    # in order, which also proves cal.c sorted the scrambled file,
+    # read the UTC event as 4 PM local, unfolded the folded summary
+    # and unescaped the escaped comma.
+    md = dump("40_myday")
+    check(md["myday_state"] == "events",
+          f"40_myday: populated state (myday_state={md['myday_state']})")
+    check(md["myday_today_n"] == "4" and md["myday_tom_n"] == "2",
+          f"40_myday: 4 rows today, 2 tomorrow ({md['myday_today_n']}/{md['myday_tom_n']})")
+    check(md["myday_today0"] == "All day|Dentist|",
+          f"40_myday: today row 1 is the all-day dentist ({md['myday_today0']})")
+    check(md["myday_today1"] == "10:00 AM|Library story time|",
+          f"40_myday: today row 2 is library story time ({md['myday_today1']})")
+    check(md["myday_today2"] == "3:30 PM|Soccer practice|Roosevelt Field, north gate",
+          f"40_myday: today row 3 is soccer, escaped comma unescaped ({md['myday_today2']})")
+    check(md["myday_today3"] == "4:00 PM|Video call with Grandma|",
+          f"40_myday: today row 4 is the UTC call at 4 PM local ({md['myday_today3']})")
+    check(md["myday_tom0"] == "8:00 AM|School bake sale|Watchung School gym",
+          f"40_myday: tomorrow row 1 is the bake sale ({md['myday_tom0']})")
+    check(md["myday_tom1"] == "4:00 PM|Piano lesson|Music school",
+          f"40_myday: tomorrow row 2 is piano, folded summary unfolded ({md['myday_tom1']})")
+
+    md41 = dump("41_myday_empty")
+    check(md41["myday_state"] == "empty" and md41["myday_today_n"] == "0" and md41["myday_tom_n"] == "0",
+          f"41_myday_empty: configured, nothing on either day (state={md41['myday_state']})")
+    md42 = dump("42_myday_unconfigured")
+    check(md42["myday_state"] == "unconfigured",
+          f"42_myday_unconfigured: no calendar link state (state={md42['myday_state']})")
+
+    # Pixels: the agenda is its own page (not the forecast), its
+    # band carries the rows, and both message states show the mini.
+    check(sha("40_myday.png") != sha("24_next_days.png"),
+          "40_myday differs from 24_next_days (the agenda is its own page)")
+    img = Image.open(os.path.join(OUT, "40_myday.png"))
+    frac = non_bg_fraction(img, (28, 100, 772, 416))
+    check(frac > 0.01, f"40_myday: agenda band carries rows ({frac:.1%} non-background, need > 1%)")
+    for name in ("41_myday_empty.png", "42_myday_unconfigured.png"):
+        img = Image.open(os.path.join(OUT, name))
+        frac = non_bg_fraction(img, (140, 158, 202, 278))
+        check(frac > 0.10, f"{name}: mini Pippa beside the message ({frac:.1%} non-background, need > 10%)")
+
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")
         return 1

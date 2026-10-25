@@ -79,6 +79,7 @@ void settings_load(wb_settings_t *s)
     get_u8(h, "nto", &s->off_to);
     get_u8(h, "bbus", &s->bike_bus);
     get_u8(h, "cat", &s->cat);
+    get_str(h, "cal", s->cal_url, sizeof(s->cal_url));
     nvs_close(h);
     ESP_LOGI(TAG, "loaded: wifi='%s' place='%s' (%.4f, %.4f)", s->ssid, s->place_name, s->lat, s->lon);
 }
@@ -104,6 +105,7 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "nto", s->off_to);
     nvs_set_u8(h, "bbus", s->bike_bus);
     nvs_set_u8(h, "cat", s->cat);
+    nvs_set_str(h, "cal", s->cal_url);
     nvs_commit(h);
     nvs_close(h);
 }

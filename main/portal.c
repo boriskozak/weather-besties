@@ -193,7 +193,7 @@ static esp_err_t page_root(httpd_req_t *req)
     if (!b.p) {
         return httpd_resp_send_500(req);
     }
-    char e1[200], e2[200], e3[120];
+    char e1[200], e2[200], e3[120], e4[1700];
     sb_add(&b, "<!doctype html><html><head><meta charset=\"utf-8\">"
                "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
                "<title>Weather Besties setup</title><style>%s</style></head><body><main>"
@@ -219,12 +219,17 @@ static esp_err_t page_root(httpd_req_t *req)
 
     html_esc(S->place_query, e2, sizeof(e2));
     html_esc(S->names, e3, sizeof(e3));
+    html_esc(S->cal_url, e4, sizeof(e4));
     sb_add(&b, "<div class=\"card\"><label for=\"place\">Town or ZIP code</label>"
                "<input id=\"place\" name=\"place\" value=\"%s\" required>"
                "<p class=\"hint\">Like \"Montclair, NJ\" or \"07043\".</p>"
                "<label for=\"names\" style=\"margin-top:14px\">Names on the screen</label>"
-               "<input id=\"names\" name=\"names\" value=\"%s\" maxlength=\"40\"></div>",
-           e2, e3);
+               "<input id=\"names\" name=\"names\" value=\"%s\" maxlength=\"40\">"
+               "<label for=\"cal\" style=\"margin-top:14px\">Kids calendar link (iCal)</label>"
+               "<input id=\"cal\" name=\"cal\" value=\"%s\" autocomplete=\"off\" autocapitalize=\"none\">"
+               "<p class=\"hint\">Optional. Paste the secret iCal link of the kids calendar and the "
+               "My Day page will show what the girls have today and tomorrow. Leave blank for none.</p></div>",
+           e2, e3, e4);
 
     sb_add(&b, "<div class=\"card\"><label>Temperature</label><div class=\"units\">"
                "<label><input type=\"radio\" name=\"units\" value=\"f\"%s>&deg;F</label>"
@@ -263,7 +268,7 @@ static void restart_cb(void *arg)
 static esp_err_t page_save(httpd_req_t *req)
 {
     int total = req->content_len;
-    if (total <= 0 || total > 2048) {
+    if (total <= 0 || total > 4096) {   /* the calendar link alone can run long */
         return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad form");
     }
     char *body = calloc(1, total + 1);
@@ -295,6 +300,10 @@ static esp_err_t page_save(httpd_req_t *req)
     }
     if (form_get(body, "names", v, sizeof(v))) {
         snprintf(n.names, sizeof(n.names), "%s", v);
+    }
+    char cv[300];
+    if (form_get(body, "cal", cv, sizeof(cv))) {
+        snprintf(n.cal_url, sizeof(n.cal_url), "%s", cv);   /* blank clears it */
     }
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
