@@ -111,7 +111,7 @@ static const lv_image_dsc_t *ICON_M[] = WB_WX_ICONS_M;
 static const lv_image_dsc_t *ICON_S[] = WB_WX_ICONS_S;
 
 /* Indexed by garment_t (outfit.h). Asset names from tools/make_assets.py. */
-#define GARMENT_COUNT 22   /* garment_t count in outfit.h */
+#define GARMENT_COUNT 31   /* garment_t count in outfit.h */
 static const lv_image_dsc_t *GARMENT_96[GARMENT_COUNT];
 static const lv_image_dsc_t *GARMENT_56[GARMENT_COUNT];
 /* Pink-colourway tile icons (iter-08): only the two dress-detail
@@ -573,7 +573,9 @@ static char s_md_tom_date[32];                       /* the Tomorrow header's da
 static char s_md_icons[MD_ROWS][12];                 /* each shown row's medallion category (iter-19) */
 static char s_md_icon_list[128];                     /* shown rows' categories, ','-joined, slot order */
 static int s_md_half;                                /* Tomorrow rendered as two half cards (iter-19) */
-static char s_md_cat_look[8];                        /* the look Pippa wears on the page (iter-20) */
+static char s_md_cat_look[20];                       /* the look Pippa wears on the page (iter-20);
+                                                      * iter-25: sized for the rotation's longer
+                                                      * look names ("dress_lavender") */
 #endif
 
 /* main: bottom bar */
@@ -1216,6 +1218,17 @@ static void init_asset_tables(void)
     GARMENT_96[WARM_BOOTS] = &img_g_snow_boots_96;   /* same boot art, dry-day name (iter-07) */
     GARMENT_96[TIGHTS] = &img_g_tights_96;
     GARMENT_96[DRESS_SHOES] = &img_g_dress_shoes_96;
+    /* Iter-25 rotation garments (icons sliced from the new-outfits
+     * sheet; the uniform dress from its own sprite). */
+    GARMENT_96[MUSTARD_TOP] = &img_g_mustard_top_96;
+    GARMENT_96[NAVY_TOP] = &img_g_navy_top_96;
+    GARMENT_96[RUST_TOP] = &img_g_rust_top_96;
+    GARMENT_96[DRESS_LAVENDER] = &img_g_dress_lavender_96;
+    GARMENT_96[DRESS_MINT] = &img_g_dress_mint_96;
+    GARMENT_96[DRESS_MUSTARD] = &img_g_dress_mustard_96;
+    GARMENT_96[WARM_COAT_TEAL] = &img_g_warm_coat_teal_96;
+    GARMENT_96[BROWN_BOOTS] = &img_g_brown_boots_96;
+    GARMENT_96[UNIFORM_DRESS] = &img_g_uniform_dress_96;
     GARMENT_96_PINK[TIGHTS] = &img_g_tights_pink_96;
     GARMENT_96_PINK[DRESS_SHOES] = &img_g_dress_shoes_pink_96;
 
@@ -1241,6 +1254,15 @@ static void init_asset_tables(void)
     GARMENT_56[WARM_BOOTS] = &img_g_snow_boots_56;   /* same boot art, dry-day name (iter-07) */
     GARMENT_56[TIGHTS] = &img_g_tights_56;
     GARMENT_56[DRESS_SHOES] = &img_g_dress_shoes_56;
+    GARMENT_56[MUSTARD_TOP] = &img_g_mustard_top_56;
+    GARMENT_56[NAVY_TOP] = &img_g_navy_top_56;
+    GARMENT_56[RUST_TOP] = &img_g_rust_top_56;
+    GARMENT_56[DRESS_LAVENDER] = &img_g_dress_lavender_56;
+    GARMENT_56[DRESS_MINT] = &img_g_dress_mint_56;
+    GARMENT_56[DRESS_MUSTARD] = &img_g_dress_mustard_56;
+    GARMENT_56[WARM_COAT_TEAL] = &img_g_warm_coat_teal_56;
+    GARMENT_56[BROWN_BOOTS] = &img_g_brown_boots_56;
+    GARMENT_56[UNIFORM_DRESS] = &img_g_uniform_dress_56;
     for (int i = 0; i < GARMENT_COUNT; i++) {
         GARMENT_56_PINK[i] = GARMENT_56[i];
     }
@@ -2428,8 +2450,12 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
              * (outfit.h): the engine has already rewritten the
              * prescription into the outfit this sprite wears, so the
              * cat, the tiles and the chips cannot disagree. */
-            static const int look_variant[] = {PIPPA_DRESS, PIPPA_PANTS, PIPPA_SNOW,
-                                               PIPPA_RAIN,  PIPPA_HOT,   PIPPA_FALL};
+            static const int look_variant[] = {PIPPA_DRESS,        PIPPA_PANTS,         PIPPA_SNOW,
+                                               PIPPA_RAIN,         PIPPA_HOT,           PIPPA_FALL,
+                                               PIPPA_WARMCOAT,     PIPPA_TOP_MUSTARD,   PIPPA_TOP_NAVY,
+                                               PIPPA_TOP_RUST,     PIPPA_DRESS_LAVENDER, PIPPA_DRESS_MINT,
+                                               PIPPA_DRESS_MUSTARD, PIPPA_FALL_HOODIE,  PIPPA_UNIFORM_DRESS,
+                                               PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL};
             int v = look_variant[o->look];
             /* Outfit variants come in black/pink pairs (pippa_sets.h):
              * the pink variant is the black one's value + 1. */
@@ -2450,6 +2476,7 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
         case FEET_SNEAKERS: vis[WB_C2_FEET_SNEAKERS] = true; break;
         case FEET_RAIN_BOOTS: vis[WB_C2_FEET_RAIN] = true; break;
         case FEET_SNOW_BOOTS: vis[WB_C2_FEET_SNOW] = true; break;
+        case FEET_WARM_BOOTS: vis[WB_C2_FEET_SNOW] = true; break;   /* iter-25: the warm boots stand in as the snow-boot layer */
         }
         switch (o->top) {
         case TOP_SHORT_SLEEVES: vis[WB_C2_TOP_SHORT] = true; break;
@@ -2625,14 +2652,27 @@ static bool s_built;
  * width (tile w - 116) every garment word fits on one line: the
  * longest, "sleeves", measures ~105 px against 122 px. */
 
+/* look_t -> name, for the sim dumps and the My Day state line. */
+static const char *look_name_str(int look)
+{
+    static const char *names[] = {"dress",    "pants",        "snow",          "rain",        "hot",          "fall",
+                                  "warmcoat", "top_mustard",  "top_navy",      "top_rust",    "dress_lavender", "dress_mint",
+                                  "dress_mustard", "fall_hoodie", "uniform_dress", "uniform_pants", "uniform_hot", "uniform_fall"};
+    return (look >= 0 && look < (int)(sizeof(names) / sizeof(names[0]))) ? names[look] : "none";
+}
+
 /* The Pippa variant for one outfit on one date: the engine's look picks
  * the outfit, the Settings cat choice picks the colourway, and "take
  * turns" alternates by that date's day of year (the same rule cat2_apply
  * uses on the outfit pages, so the forecast mini matches the day page). */
 static int pippa_variant_for(int look, int y, int m, int d)
 {
-    static const int look_variant[] = {PIPPA_DRESS, PIPPA_PANTS, PIPPA_SNOW,
-                                       PIPPA_RAIN,  PIPPA_HOT,   PIPPA_FALL};
+    static const int look_variant[] = {PIPPA_DRESS,        PIPPA_PANTS,         PIPPA_SNOW,
+                                       PIPPA_RAIN,         PIPPA_HOT,           PIPPA_FALL,
+                                       PIPPA_WARMCOAT,     PIPPA_TOP_MUSTARD,   PIPPA_TOP_NAVY,
+                                       PIPPA_TOP_RUST,     PIPPA_DRESS_LAVENDER, PIPPA_DRESS_MINT,
+                                       PIPPA_DRESS_MUSTARD, PIPPA_FALL_HOODIE,  PIPPA_UNIFORM_DRESS,
+                                       PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL};
     int choice = s_cat_choice;
     if (choice == 2) {
         long doy = days_from_civil(y, m, d) - days_from_civil(y, 1, 1) + 1;
@@ -3981,11 +4021,7 @@ static void render_myday(const struct tm *now)
         int bw = (int)spr->header.w * MD_MSG_SCALE / 256;
         int bh = (int)spr->header.h * MD_MSG_SCALE / 256;
 #ifdef WB_SIM
-        snprintf(s_md_cat_look, sizeof(s_md_cat_look), "%s",
-                 mlook == LOOK_DRESS ? "dress" : mlook == LOOK_PANTS ? "pants" : mlook == LOOK_SNOW ? "snow"
-                 : mlook == LOOK_RAIN  ? "rain"
-                 : mlook == LOOK_HOT   ? "hot"
-                                       : "fall");
+        snprintf(s_md_cat_look, sizeof(s_md_cat_look), "%s", look_name_str(mlook));
 #endif
         lv_point_t msz;
         int tw = 0, th1 = 0, th2 = 0, th3 = 0;
@@ -4058,11 +4094,7 @@ static void render_myday(const struct tm *now)
     if (s_have_wx && s_md_bucket < 2 && outfit_make(&s_wx, now, 0, &s_opts, &o) && o.ok) {
         var = pippa_variant_for(o.look, o.year, o.month, o.day);
 #ifdef WB_SIM
-        snprintf(s_md_cat_look, sizeof(s_md_cat_look), "%s",
-                 o.look == LOOK_DRESS ? "dress" : o.look == LOOK_PANTS ? "pants" : o.look == LOOK_SNOW ? "snow"
-                 : o.look == LOOK_RAIN  ? "rain"
-                 : o.look == LOOK_HOT   ? "hot"
-                                        : "fall");
+        snprintf(s_md_cat_look, sizeof(s_md_cat_look), "%s", look_name_str(o.look));
 #endif
     }
     const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
@@ -4539,7 +4571,12 @@ static void render(void)
             lv_image_set_src(tile_icon[i], icon);
             lv_label_set_text(tile_label[i], garment_label(o.tile_kind[i]));
             lv_obj_set_style_text_font(tile_label[i], &font_label, 0);   /* always the label font */
-            s_tile_layer[i] = o.tile_kind[i] >= HOODIE && o.tile_kind[i] <= WINTER_COAT;
+            /* The layer tiles get the amber frame + "Extra layer"
+             * caption: the original layer garments (ids HOODIE..
+             * WINTER_COAT) plus iter-25's teal warm coat, which is a
+             * layer too but sits outside that id range. */
+            s_tile_layer[i] = (o.tile_kind[i] >= HOODIE && o.tile_kind[i] <= WINTER_COAT) ||
+                              o.tile_kind[i] == WARM_COAT_TEAL;
             int label_y;
             if (tall) {
                 /* Icon centred over the label, scaled about its centre
@@ -4979,14 +5016,12 @@ void ui_test_tap_chip(int j)
  * settings orphan line. Pixels alone cannot assert on words. */
 void ui_test_dump(const char *path)
 {
-    static const char *look_names[] = {"dress", "pants", "snow", "rain", "hot", "fall"};
     FILE *f = fopen(path, "w");
     if (!f) {
         return;
     }
     fprintf(f, "avail=%d\nbucket=%d\n", s_dump.avail, s_dump.bucket);
-    fprintf(f, "look=%d\nlook_name=%s\n", s_dump.look,
-            (s_dump.look >= 0 && s_dump.look < 6) ? look_names[s_dump.look] : "none");
+    fprintf(f, "look=%d\nlook_name=%s\n", s_dump.look, look_name_str(s_dump.look));
     fprintf(f, "ntiles=%d\ntiles=", s_dump.ntiles);
     for (int i = 0; i < s_dump.ntiles; i++) {
         fprintf(f, "%s%s", i ? "|" : "", garment_label(s_dump.tiles[i]));

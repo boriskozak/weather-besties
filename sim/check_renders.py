@@ -881,7 +881,11 @@ def main():
               "26b_unavailable_tomorrow", "27_rollover",
               "28_snow", "29_hot", "30_storm", "31_halloween", "32_pink_cat",
               "34_long_text", "35_hanukkah", "36_bike_bus", "37_dress_day", "38_warm_day",
-              "39_no_yesterday")
+              "39_no_yesterday",
+              "50_rot_nov08", "50_rot_nov08b_tomorrow", "51_rot_nov09", "51_rot_nov09b_tomorrow",
+              "52_rot_nov10", "52_rot_nov10b_tomorrow", "53_rot_nov11", "53_rot_nov11b_tomorrow",
+              "54_rot_nov12", "54_rot_nov12b_tomorrow", "55_rot_nov13", "55_rot_nov13b_tomorrow",
+              "56_warmcoat")
     dumps = {n: dump(n) for n in DUMPED}
 
     # The dress bound (iter-09 fix 1, panel round 7's headline): the
@@ -918,9 +922,11 @@ def main():
           f"37_dress_day: dress tiles are Dress|Light jacket|Tights|Dress shoes ({dumps['37_dress_day']['tiles']})")
     # The bound itself, over every dumped scenario: no dress look
     # anywhere prescribes a warm or winter coat, and every dress
-    # look's layer tile is the light jacket.
+    # look's layer tile is the light jacket. Iter-25: the bound
+    # covers the whole dress band, not just the original dress.
+    DRESS_LOOKS = {"dress", "dress_lavender", "dress_mint", "dress_mustard", "uniform_dress"}
     for name, d in dumps.items():
-        if d["look_name"] == "dress":
+        if d["look_name"] in DRESS_LOOKS:
             check("Warm coat" not in d["tiles"] and "Winter coat" not in d["tiles"]
                   and "Light jacket" in d["tiles"],
                   f"{name}: dress look never tiles a heavy coat (tiles={d['tiles']})")
@@ -1068,13 +1074,19 @@ def main():
     # card's tile list (fc*_tiles in the 24_next_days dump) is the
     # same prescription the outfit page computes for that date.
     # Card 1 is the brief Wednesday, the very day 21_evening lays
-    # out; cards 2 and 3 land in the light-jacket band and wear the
-    # dress, itemised like 37_dress_day.
+    # out; cards 2 and 3 land in the light-jacket band and wear one
+    # of the dress band's dresses (iter-25: the band rotates by date,
+    # so which dress is the date's pick), itemised like 37_dress_day.
+    DRESS_TILES = {"Dress|Light jacket|Tights|Dress shoes",
+                   "Lavender dress|Light jacket|Tights|Dress shoes",
+                   "Mint dress|Light jacket|Tights|Dress shoes",
+                   "Mustard dress|Light jacket|Tights|Dress shoes",
+                   "Logo dress|Light jacket|Tights|Dress shoes"}
     fc = dump("24_next_days")
     check(fc["fc0_tiles"] == dumps["21_evening"]["tiles"],
           f"24_next_days card 1: full outfit matches the outfit page for that day ({fc['fc0_tiles']})")
     for k in ("fc1_tiles", "fc2_tiles"):
-        check(fc[k] == "Dress|Light jacket|Tights|Dress shoes",
+        check(fc[k] in DRESS_TILES,
               f"24_next_days {k}: dress day itemised in full ({fc[k]})")
     for k in ("fc0_tiles", "fc1_tiles", "fc2_tiles"):
         check(len([t for t in fc[k].split("|") if t]) >= 3,
@@ -1095,7 +1107,7 @@ def main():
     check(fc["fc0_labels"] == "Long sleeves|Long pants|Rain jacket|Rain boots",
           f"24_next_days card 1: rain outfit's words are the tiles' own names ({fc['fc0_labels']})")
     for k in ("fc1_labels", "fc2_labels"):
-        check(fc[k] == "Dress|Light jacket|Tights|Dress shoes",
+        check(fc[k] in DRESS_TILES,
               f"24_next_days {k}: dress outfit's words are the tiles' own names ({fc[k]})")
     for i in range(3):
         check(fc[f"fc{i}_labels"] == fc[f"fc{i}_tiles"],
@@ -1949,6 +1961,38 @@ def main():
     print(f"  Pippa ink height: populated {hp}, message {hm}")
     check(hp >= 250 and abs(hp - hm) <= 2,
           f"41_myday_empty: Pippa one drawn height in every state (populated {hp} vs message {hm} ink rows, need equal within 2)")
+
+    # Iter-25: the outfit rotation, asserted on the dumps. The six
+    # dress-band Todays (2026-11-08..13, identical weather) walk the
+    # band in candidate order, each Tomorrow shows the NEXT day's
+    # pick (the seed is the outfit's date, not the viewing date), and
+    # the tiles name the day's dress. The warmcoat morning is the dry
+    # warm-coat tier's rotation pick: its own tiles, no chips (the
+    # sprite wears no hat or gloves).
+    ROT_CANDS = ["dress", "dress_lavender", "dress_mint", "dress_mustard", "uniform_dress"]
+    ROT_WORDS = {"dress": "Dress", "dress_lavender": "Lavender dress", "dress_mint": "Mint dress",
+                 "dress_mustard": "Mustard dress", "uniform_dress": "Logo dress"}
+    for i, name in enumerate(("50_rot_nov08", "51_rot_nov09", "52_rot_nov10",
+                              "53_rot_nov11", "54_rot_nov12", "55_rot_nov13")):
+        want = ROT_CANDS[i % 5]
+        d = dumps[name]
+        check(d["look_name"] == want,
+              f"{name}: rotation pick for 2026-11-{8 + i:02d} is {want} (look={d['look_name']})")
+        check(d["tiles"] == f"{ROT_WORDS[want]}|Light jacket|Tights|Dress shoes",
+              f"{name}: tiles name the day's dress ({d['tiles']})")
+        t = dumps[name + "b_tomorrow"]
+        want_t = ROT_CANDS[(i % 5 + 1) % 5]
+        check(t["look_name"] == want_t,
+              f"{name}b_tomorrow: tomorrow's pick steps to {want_t} (look={t['look_name']})")
+    d = dumps["56_warmcoat"]
+    check(d["look_name"] == "warmcoat",
+          f"56_warmcoat: dry warm-coat tier rotates to the warmcoat look (look={d['look_name']})")
+    check(d["tiles"] == "Long sleeves|Long pants|Warm coat|Warm boots",
+          f"56_warmcoat: warmcoat tiles are its own garments ({d['tiles']})")
+    check(d["chips"] == "",
+          f"56_warmcoat: no chips, the sprite wears no hat or gloves (chips={d['chips']})")
+    check("warm coat" in d["advice"],
+          f"56_warmcoat: the advice names the warm coat ({d['advice']})")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

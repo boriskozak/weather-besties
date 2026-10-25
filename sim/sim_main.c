@@ -439,6 +439,39 @@ int main(int argc, char **argv)
     save(out, "39_no_yesterday");
     dump(out, "39_no_yesterday");
 
+    /* Iter-25: the outfit rotation. Six consecutive dress-band days
+     * (scenarios rot_dress_0..5, 2026-11-08..13) whose Today looks
+     * walk the dress band in candidate order (dress, lavender, mint,
+     * mustard, the Watchung logo dress, dress again), plus each day's
+     * Tomorrow page, which must show the NEXT day's pick: the
+     * rotation is seeded by the outfit's own date, not the viewing
+     * date. The cat is pinned to the black colourway so the sequence
+     * reads as outfit changes, not colourway changes. Last, the dry
+     * warm-coat tier's warmcoat variant. */
+    ui_set_cat_choice(0);
+    {
+        static const char *rot_names[] = {"50_rot_nov08", "51_rot_nov09", "52_rot_nov10",
+                                          "53_rot_nov11", "54_rot_nov12", "55_rot_nov13"};
+        char scen[32], tname[40];
+        for (int i = 0; i < 6; i++) {
+            snprintf(scen, sizeof(scen), "rot_dress_%d", i);
+            load(sc, scen);
+            show();
+            save(out, rot_names[i]);
+            dump(out, rot_names[i]);
+            ui_test_set_page(1);
+            pump(10);
+            snprintf(tname, sizeof(tname), "%.24sb_tomorrow", rot_names[i]);
+            save(out, tname);
+            dump(out, tname);
+            ui_test_set_page(0);
+        }
+    }
+    load(sc, "warmcoat_morning");
+    show();
+    save(out, "56_warmcoat");
+    dump(out, "56_warmcoat");
+
     /* Iter-14: the My Day page, third screen. The populated state
      * (fixture events on both days), the configured-but-clear state,
      * and the no-calendar-link state, all on the brief_morning clock

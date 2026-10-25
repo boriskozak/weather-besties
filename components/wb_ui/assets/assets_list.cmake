@@ -68,6 +68,24 @@ set(WB_ASSET_SRCS
     assets/img_g_tights_56.c
     assets/img_g_dress_shoes_96.c
     assets/img_g_dress_shoes_56.c
+    assets/img_g_mustard_top_96.c
+    assets/img_g_mustard_top_56.c
+    assets/img_g_navy_top_96.c
+    assets/img_g_navy_top_56.c
+    assets/img_g_rust_top_96.c
+    assets/img_g_rust_top_56.c
+    assets/img_g_dress_lavender_96.c
+    assets/img_g_dress_lavender_56.c
+    assets/img_g_dress_mint_96.c
+    assets/img_g_dress_mint_56.c
+    assets/img_g_dress_mustard_96.c
+    assets/img_g_dress_mustard_56.c
+    assets/img_g_warm_coat_teal_96.c
+    assets/img_g_warm_coat_teal_56.c
+    assets/img_g_brown_boots_96.c
+    assets/img_g_brown_boots_56.c
+    assets/img_g_uniform_dress_96.c
+    assets/img_g_uniform_dress_56.c
     assets/img_g_tights_pink_96.c
     assets/img_g_tights_pink_56.c
     assets/img_g_dress_shoes_pink_96.c

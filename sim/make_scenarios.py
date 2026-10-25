@@ -222,8 +222,19 @@ S["brief_evening"] = _brief("19:15", {"t": 58.7, "f": 58.7, "day": 0, "code": 1,
 S["brief_evening"]["sim_clock"] = "2026-10-27T19:30"
 
 # Forecast fetched 11:45, clock 13:39: outfit still shown, stale chip appears.
-S["stale_2h"] = _brief("11:45", {"t": 50.8, "f": 50.8, "day": 1, "code": 1, "gust": 10})
-S["stale_2h"]["sim_clock"] = "2026-10-27T13:39"
+# Iter-25: this fixture stands on its own Tuesday (2026-11-03, the
+# brief week's weather a week later) instead of sharing _brief's
+# 2026-10-27. The stale checks exercise the faded scarf chip of the
+# fall outfit, and under the outfit rotation 2026-10-27's fall-band
+# pick is the Watchung logo fall look, which wears no scarf;
+# 2026-11-03's pick is the fall look itself. The day tuples are the
+# brief week's own, so the stale expectations (the compare pill's
+# "Warmer than yesterday" among them) are unchanged.
+S["stale_2h"] = build(
+    "2026-11-03", "11:45", {"t": 50.8, "f": 50.8, "day": 1, "code": 1, "gust": 10},
+    BR_MON, [BR_TUE, BR_WED, BR_THU, BR_FRI],
+    _brief_codes, _brief_pops, sunrise=7, sunset=18, feels_delta=0)
+S["stale_2h"]["sim_clock"] = "2026-11-03T13:39"
 
 # Iter-18: the same brief Tuesday, but cold all day (high 40, not
 # 64) and fetched at 15:30, for the My Day afternoon renders. The
@@ -232,7 +243,12 @@ S["stale_2h"]["sim_clock"] = "2026-10-27T13:39"
 # 3:45 PM clock: the afternoon renders isolate the calendar's own
 # states (stale stamp, DONE/NOW/NEXT) with no weather-stale chip
 # competing for the same corner of the page.
-BR_TUE_COLD = (1, 40, 30, 0, 4.0, 9.0)
+# Iter-25: the high is 37, not 40. At 40 the 3:45 PM departure was
+# hat-free, and under the outfit rotation that tier's pick for
+# 2026-10-27 is the warmcoat variant; at 37 the departure needs the
+# hat, the winter kit takes the day whole (as the fixture intends),
+# and the rotation stays out of it.
+BR_TUE_COLD = (1, 37, 27, 0, 4.0, 9.0)
 S["myday_afternoon"] = build(
     "2026-10-27", "15:30", {"t": 36.0, "f": 36.0, "day": 1, "code": 1, "gust": 10},
     BR_MON, [BR_TUE_COLD, BR_WED, BR_THU, BR_FRI],
@@ -317,15 +333,19 @@ S["hanukkah_night3"]["sim_clock"] = "2026-12-06T17:37"
 # jacket, no hat or gloves (both thresholds are colder), so the outfit
 # is the dress and its jacket, nothing else. This is the dress outfit's
 # reference scenario (and the heart animation's, since the frames
-# exist for the dress sprite only).
+# exist for the dress sprite only). Iter-25: the date moved from
+# 2026-11-04 to 2026-11-08 because the dress band rotates now (see
+# rot_dress_* below): 2026-11-08 is a date whose rotation pick is the
+# original dress, so this fixture, and the heart proof built on it,
+# still show the reference outfit.
 S["dress_morning"] = build(
-    "2026-11-04", "08:00", {"t": 50.0, "f": 48.0, "day": 1, "code": 1, "gust": 9},
+    "2026-11-08", "08:00", {"t": 50.0, "f": 48.0, "day": 1, "code": 1, "gust": 9},
     (2, 62, 48, 10, 3.0, 6.0), [(1, 62, 48, 0, 3.0, 7.0), (2, 56, 41, 10, 2.8, 6.0), (3, 54, 42, 20, 2.4, 4.0),
                                 (0, 57, 40, 0, 3.2, 8.0)],
     lambda i: 1 if i < 48 else 2,
     lambda i: 0 if i < 48 else 10,
     sunrise=7, sunset=18, feels_delta=-2)
-S["dress_morning"]["sim_clock"] = "2026-11-04T08:05"
+S["dress_morning"]["sim_clock"] = "2026-11-08T08:05"
 
 # A warm late-spring day in the pants band (iter-06): departure
 # feels-like 67F (no layer), high 73F (short sleeves, but long pants:
@@ -367,6 +387,44 @@ for _key in _no_yday["hourly"]:
     _no_yday["hourly"][_key] = _no_yday["hourly"][_key][24:]
 S["mild_no_yday"] = _no_yday
 
+
+# Iter-25: the outfit rotation proof. Six consecutive days in the
+# dress band whose rotation picks walk the dress band in candidate
+# order: 2026-11-08..13 have days_from_civil mod 5 = 0,1,2,3,4,0, so
+# the looks are the dress, the lavender dress, the mint dress, the
+# mustard dress, the Watchung logo dress, then the dress again.
+# Every day of each payload wears the dress_morning weather (high
+# 62, low 48, dry), so each day's Tomorrow page resolves in the same
+# band and must show the NEXT day's pick: the rotation is seeded by
+# the outfit's own date, not the viewing date. sim_main.c renders
+# each day's Today and Tomorrow.
+def _rot_dress(day):
+    return build(
+        day, "08:00", {"t": 50.0, "f": 48.0, "day": 1, "code": 1, "gust": 9},
+        (2, 62, 48, 10, 3.0, 6.0), [(1, 62, 48, 0, 3.0, 7.0), (2, 62, 48, 10, 2.8, 6.0), (1, 62, 48, 20, 2.4, 4.0),
+                                    (0, 62, 48, 0, 3.2, 8.0)],
+        lambda i: 1 if i < 48 else 2,
+        lambda i: 0 if i < 48 else 10,
+        sunrise=7, sunset=18, feels_delta=-2)
+
+
+for _i, _day in enumerate(("2026-11-08", "2026-11-09", "2026-11-10",
+                           "2026-11-11", "2026-11-12", "2026-11-13")):
+    S[f"rot_dress_{_i}"] = _rot_dress(_day)
+    S[f"rot_dress_{_i}"]["sim_clock"] = f"{_day}T08:05"
+
+# Iter-25: a dry warm-coat-tier morning (departure feels-like ~44F:
+# warm coat tier, but above the hat and gloves thresholds) whose
+# rotation pick is the warmcoat variant. The day before (an even
+# seed) would pick the winter kit in the same tier.
+S["warmcoat_morning"] = build(
+    "2026-11-16", "08:00", {"t": 45.0, "f": 44.0, "day": 1, "code": 1, "gust": 9},
+    (2, 55, 41, 10, 3.0, 6.0), [(1, 56, 42, 0, 3.0, 7.0), (2, 54, 40, 10, 2.8, 6.0), (3, 52, 39, 20, 2.4, 4.0),
+                                (0, 55, 40, 0, 3.2, 8.0)],
+    lambda i: 1 if i < 48 else 2,
+    lambda i: 0 if i < 48 else 10,
+    sunrise=7, sunset=17, feels_delta=0)
+S["warmcoat_morning"]["sim_clock"] = "2026-11-16T08:05"
 
 for name, data in S.items():
     with open(os.path.join(OUT, name + ".json"), "w") as f:

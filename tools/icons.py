@@ -1233,6 +1233,17 @@ GARMENTS = {
     "warm_hat": g_warm_hat, "gloves": c_mittens, "umbrella": c_umbrella,
     "sunglasses": g_sunglasses, "water_bottle": c_water, "scarf": g_scarf,
     "dress": g_dress, "tights": g_tights, "dress_shoes": g_dress_shoes,
+    # Iter-25 rotation garments, appended in garment_t order like the
+    # enum values they mirror. Each has a sheet crop sliced from the
+    # new-outfits package (tools/slice_new_garment_icons.py), which
+    # make_assets.py prefers; the functions named here are only the
+    # drawn fallbacks if a crop ever goes missing.
+    "mustard_top": g_long_sleeves, "navy_top": g_long_sleeves,
+    "rust_top": g_long_sleeves,
+    "dress_lavender": g_dress, "dress_mint": g_dress,
+    "dress_mustard": g_dress,
+    "warm_coat_teal": c_coat, "brown_boots": g_snow_boots,
+    "uniform_dress": g_dress,
 }
 
 

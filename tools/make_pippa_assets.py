@@ -75,6 +75,27 @@ for _outfit in ("dress", "pants", "snow", "rain", "hot", "fall"):
         _sym = "img_pippa_" + (_outfit if _color == "black" else f"pink_{_outfit}")
         VARIANTS.append((_enum, _sym, os.path.join(
             WARDROBE, "sprites", _color, f"pippa-{_outfit}.png")))
+# Iter-25 rotation variants: their art is committed in this repo under
+# art/ (the original packages above live outside it). Same black/pink
+# pairing, naming and normalisation (260x252, baseline y=240): the new
+# outfit sprites in art/pippa-new-outfits/sprites and the Watchung
+# logo sprites in art/pippa-watchung-uniforms.
+_ART_OUTFITS = os.path.join(ROOT, "art", "pippa-new-outfits", "sprites")
+for _outfit in ("warmcoat", "top_mustard", "top_navy", "top_rust",
+                "dress_lavender", "dress_mint", "dress_mustard", "fall_hoodie"):
+    for _color in ("black", "pink"):
+        _enum = "PIPPA_" + (_outfit if _color == "black" else f"pink_{_outfit}").upper()
+        _sym = "img_pippa_" + (_outfit if _color == "black" else f"pink_{_outfit}")
+        VARIANTS.append((_enum, _sym, os.path.join(
+            _ART_OUTFITS, f"pippa-{_outfit.replace('_', '-')}-{_color}.png")))
+_ART_UNIFORMS = os.path.join(ROOT, "art", "pippa-watchung-uniforms")
+for _outfit in ("dress", "pants", "hot", "fall"):
+    _name = f"uniform_{_outfit}"
+    for _color in ("black", "pink"):
+        _enum = "PIPPA_" + (_name if _color == "black" else f"pink_{_name}").upper()
+        _sym = "img_pippa_" + (_name if _color == "black" else f"pink_{_name}")
+        VARIANTS.append((_enum, _sym, os.path.join(
+            _ART_UNIFORMS, f"pippa-uniform-{_outfit}-{_color}.png")))
 VARIANTS.append(("PIPPA_BASE", "img_pippa_base",
                  os.path.join(PKG, "sprites", "pippa_base-260x252.png")))
 SPRITES = [(sym, src) for _, sym, src in VARIANTS]

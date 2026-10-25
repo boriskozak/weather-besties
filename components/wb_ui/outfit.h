@@ -22,7 +22,7 @@ extern "C" {
 typedef enum { TOP_SHORT_SLEEVES, TOP_LONG_SLEEVES } top_t;
 typedef enum { BOTTOM_SHORTS, BOTTOM_LONG_PANTS } bottom_t;
 typedef enum { LAYER_NONE, LAYER_HOODIE, LAYER_LIGHT_JACKET, LAYER_RAIN_JACKET, LAYER_WARM_COAT, LAYER_WINTER_COAT } layer_t;
-typedef enum { FEET_SNEAKERS, FEET_RAIN_BOOTS, FEET_SNOW_BOOTS } feet_t;
+typedef enum { FEET_SNEAKERS, FEET_RAIN_BOOTS, FEET_SNOW_BOOTS, FEET_WARM_BOOTS } feet_t;
 enum { EX_HAT = 1, EX_GLOVES = 2, EX_UMBRELLA = 4, EX_SUNGLASSES = 8, EX_WATER = 16, EX_SCARF = 32 };
 enum { CH_WARMUP = 1, CH_COOLDOWN = 2, CH_RAIN_LATER = 4, CH_RAIN_ALL_DAY = 8, CH_SNOW = 16, CH_STORM = 32, CH_WINDY = 64, CH_HOT = 128, CH_BIKE_BUS = 256 };
 
@@ -33,11 +33,18 @@ enum { CH_WARMUP = 1, CH_COOLDOWN = 2, CH_RAIN_LATER = 4, CH_RAIN_ALL_DAY = 8, C
  * word "Snow" is reserved for days that actually have snow).
  * TIGHTS and DRESS_SHOES (iter-08) are appended the same way: the dress
  * look's remaining garments, itemised as lay-out tiles since panel
- * round 6. Their icons are crops of the dress sprite itself. */
+ * round 6. Their icons are crops of the dress sprite itself.
+ * The iter-25 rotation garments are appended the same way again: the
+ * garments only the rotation looks wear. WARM_COAT_TEAL and BROWN_BOOTS
+ * exist because the warmcoat sprite wears a teal puffer and brown
+ * fur-lined boots, not the kit's blue coat and snow boots, and the
+ * tiles must picture what the sprite wears. */
 typedef enum {
     SHORT_SLEEVES, LONG_SLEEVES, SHORTS, LONG_PANTS, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT,
     WINTER_COAT, SNEAKERS, RAIN_BOOTS, SNOW_BOOTS, WARM_HAT, GLOVES, UMBRELLA, SUNGLASSES,
-    WATER_BOTTLE, SCARF, DRESS, WARM_BOOTS, TIGHTS, DRESS_SHOES
+    WATER_BOTTLE, SCARF, DRESS, WARM_BOOTS, TIGHTS, DRESS_SHOES,
+    MUSTARD_TOP, NAVY_TOP, RUST_TOP, DRESS_LAVENDER, DRESS_MINT, DRESS_MUSTARD,
+    WARM_COAT_TEAL, BROWN_BOOTS, UNIFORM_DRESS
 } garment_t;
 
 /* The resolved "look": which flattened Pippa sprite family shows this
@@ -59,7 +66,33 @@ typedef enum {
     LOOK_SNOW,        /* puffer, beanie, mittens, snow boots, long everything */
     LOOK_RAIN,        /* rain jacket, long pants, rain boots, umbrella in hand */
     LOOK_HOT,         /* tee, shorts, sneakers, heart sunglasses, water bottle */
-    LOOK_FALL         /* hoodie, long pants, sneakers, light scarf */
+    LOOK_FALL,        /* hoodie, long pants, sneakers, light scarf */
+    /* Iter-25 rotation looks, appended so the original six keep their
+     * values. Each is a variant INSIDE one of the original weather
+     * bands, picked by the date-seeded rotation in outfit.c; every one
+     * canonicalises to the same prescription as its band's original
+     * look (see the switch in outfit.c), so the weather truth never
+     * changes, only which truthful sprite wears it. */
+    LOOK_WARMCOAT,        /* warm-coat tier, dry and hat-free: teal puffer,
+                           * jeans, brown fur-lined boots, no hat or gloves */
+    LOOK_TOP_MUSTARD,     /* pants band with a long-sleeve engine top:
+                           * mustard top under the open blue jacket */
+    LOOK_TOP_NAVY,        /* same band: navy star top */
+    LOOK_TOP_RUST,        /* same band: rust top */
+    LOOK_DRESS_LAVENDER,  /* dress band: lavender dress, same jacket,
+                           * tights and Mary Janes as LOOK_DRESS */
+    LOOK_DRESS_MINT,      /* dress band: mint dress */
+    LOOK_DRESS_MUSTARD,   /* dress band: mustard dress */
+    LOOK_FALL_HOODIE,     /* hoodie band: lavender hooded jacket, pink
+                           * heart tee and the white scarf */
+    LOOK_UNIFORM_DRESS,   /* dress band: the Watchung logo dress */
+    LOOK_UNIFORM_PANTS,   /* pants band: the Watchung logo tee + jeans */
+    LOOK_UNIFORM_HOT,     /* hot band art only: outfit.c never rotates
+                           * into it (the hot look is safety-fixed and the
+                           * sprite wears no sunglasses or water bottle);
+                           * wired so the band's art set is complete */
+    LOOK_UNIFORM_FALL     /* hoodie band: logo tee + lavender hooded
+                           * jacket, no scarf */
 } look_t;
 
 typedef struct {
