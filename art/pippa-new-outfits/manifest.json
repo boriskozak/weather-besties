@@ -1,0 +1,226 @@
+[
+  {
+    "filename": "pippa-warmcoat-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-warmcoat-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-top-mustard-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      49,
+      12,
+      211,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-top-mustard-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      48,
+      12,
+      211,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-top-navy-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      50,
+      12,
+      210,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-top-navy-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      49,
+      12,
+      210,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-top-rust-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      209,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-top-rust-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      50,
+      12,
+      210,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-dress-lavender-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      58,
+      12,
+      201,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-dress-lavender-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      58,
+      12,
+      201,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-dress-mint-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      58,
+      12,
+      201,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-dress-mint-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      58,
+      12,
+      202,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-dress-mustard-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      58,
+      12,
+      201,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-dress-mustard-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      58,
+      12,
+      201,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-fall-hoodie-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      50,
+      12,
+      209,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-fall-hoodie-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      50,
+      12,
+      210,
+      240
+    ],
+    "baseline": 240
+  }
+]
