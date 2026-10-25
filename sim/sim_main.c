@@ -191,7 +191,7 @@ static void fixture_cal(bool with_events)
                       d0, d0);
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-2\r\nDTSTART;VALUE=DATE:%s\r\nDTEND;VALUE=DATE:%s\r\n"
-                      "SUMMARY:Dentist\r\nEND:VEVENT\r\n",
+                      "SUMMARY:Picture Day\r\nEND:VEVENT\r\n",
                       d0, d1);
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-3\r\nDTSTART:%sT200000Z\r\nDTEND:%sT204500Z\r\n"

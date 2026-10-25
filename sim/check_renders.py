@@ -1299,8 +1299,8 @@ def main():
           f"40_myday: 4 rows today, 2 tomorrow ({md['myday_today_n']}/{md['myday_tom_n']})")
     # Iter-15: the time column carries ranges (pickup time is half
     # the point) and all-day events read ALL DAY (the navy pill).
-    check(md["myday_today0"] == "ALL DAY|Dentist|",
-          f"40_myday: today row 1 is the all-day dentist with the ALL DAY pill ({md['myday_today0']})")
+    check(md["myday_today0"] == "ALL DAY|Picture Day|",
+          f"40_myday: today row 1 is the all-day picture day with the ALL DAY pill ({md['myday_today0']})")
     check(md["myday_today1"] == "10:00-10:45 AM|Library story time|",
           f"40_myday: today row 2 is library story time with its end time ({md['myday_today1']})")
     check(md["myday_today2"] == "3:30-4:30 PM|Soccer practice|Roosevelt Field, north gate",
@@ -1311,23 +1311,25 @@ def main():
           f"40_myday: tomorrow row 1 is the bake sale with its end time ({md['myday_tom0']})")
     check(md["myday_tom1"] == "4:00-4:30 PM|Piano lesson|Music school",
           f"40_myday: tomorrow row 2 is piano with its end time, folded summary unfolded ({md['myday_tom1']})")
-    # Iter-15: the freshness line (fixture fetch pinned to 7:02 AM)
-    # and the next-up dot: at the 7:35 fixture clock the all-day
-    # dentist is today's first event whose end is still ahead.
+    # Iter-15: the freshness line (fixture fetch pinned to 7:02 AM
+    # today, so the same-day form). Iter-16: the NEXT tag — at the
+    # 7:35 fixture clock the first TIMED event still to come is the
+    # 10:00 library story time; the all-day row never carries it.
+    # The dump names the tagged row's title.
     check(md["myday_fresh"] == "Updated 7:02 AM",
           f"40_myday: freshness line shows the pinned fetch time ({md['myday_fresh']})")
-    check(md["myday_nextup"] == "0",
-          f"40_myday: next-up dot on today's first upcoming row ({md['myday_nextup']})")
+    check(md["myday_nextup"] == "Library story time",
+          f"40_myday: NEXT tag on the library story time row ({md['myday_nextup']})")
 
     md41 = dump("41_myday_empty")
     check(md41["myday_state"] == "empty" and md41["myday_today_n"] == "0" and md41["myday_tom_n"] == "0",
           f"41_myday_empty: configured, nothing on either day (state={md41['myday_state']})")
-    check(md41["myday_fresh"] == "Updated 7:02 AM" and md41["myday_nextup"] == "-1",
-          f"41_myday_empty: freshness line still shown, no next-up row (fresh={md41['myday_fresh']}, nextup={md41['myday_nextup']})")
+    check(md41["myday_fresh"] == "Updated 7:02 AM" and md41["myday_nextup"] == "",
+          f"41_myday_empty: freshness line still shown, no NEXT tag (fresh={md41['myday_fresh']}, nextup={md41['myday_nextup']!r})")
     md42 = dump("42_myday_unconfigured")
     check(md42["myday_state"] == "unconfigured",
           f"42_myday_unconfigured: no calendar link state (state={md42['myday_state']})")
-    check(md42["myday_fresh"] == "" and md42["myday_nextup"] == "-1",
+    check(md42["myday_fresh"] == "" and md42["myday_nextup"] == "",
           f"42_myday_unconfigured: no freshness line without a link (fresh={md42['myday_fresh']!r})")
 
     # Pixels: the agenda is its own page (not the forecast), its
