@@ -1,0 +1,29 @@
+avail=1
+bucket=0
+look=3
+look_name=rain
+ntiles=4
+tiles=Long sleeves|Long pants|Rain jacket|Rain boots
+chips=Umbrella
+advice=Wear long sleeves. Wear your rain jacket. Rain later in the morning. Keep your rain jacket handy. Don't forget your umbrella.
+advice_shown=Nice job!
+wx1=High 55°
+wx_icon=7
+stale_banner=0
+stale_checks=enabled
+checks=31
+title=All ready for tomorrow!
+fc0_tiles=
+fc0_labels=
+fc1_tiles=
+fc1_labels=
+fc2_tiles=
+fc2_labels=
+info_begin
+WiFi: HomeWiFi
+Town: Upper Montclair, New Jersey
+Updated: 7:30 AM
+Address: 192.168.1.42
+Version: 2.0.0
+info_end
+speed_label=Speed test: off

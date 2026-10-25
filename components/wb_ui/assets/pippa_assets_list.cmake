@@ -32,5 +32,8 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_mini_pink_hot.c
     assets/img_pippa_mini_fall.c
     assets/img_pippa_mini_pink_fall.c
+    assets/img_pippa_head_thumb.c
+    assets/img_pippa_head_pink_thumb.c
+    assets/img_pippa_heart_overlay.c
     assets/pippa_sets.c
 )

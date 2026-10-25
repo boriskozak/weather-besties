@@ -195,13 +195,15 @@ int main(int argc, char **argv)
 
     ui_test_set_checks(0x1F); /* everything laid out: 4 tiles + the
                                * umbrella chip (bit 4). All-done must not
-                               * fire on the tiles alone any more. Note
-                               * the static rain sprite here: the heart
-                               * animation exists only for the black
-                               * dress sprite and is never stretched
-                               * over another outfit. */
+                               * fire on the tiles alone any more. The
+                               * rain sprite stays static, but iter-11
+                               * overlays the heart gesture on her chest
+                               * (the animation itself exists only for
+                               * the black dress sprite and is never
+                               * stretched over another outfit). */
     pump(10);
     save(out, "23_evening_all_done");
+    dump(out, "23_evening_all_done");
     ui_test_set_checks(0);
 
     /* Pippa proof still: her all-done heart animation plays on its own
@@ -236,6 +238,16 @@ int main(int argc, char **argv)
     show();
     save(out, "25_stale");
     dump(out, "25_stale");
+
+    /* Iter-11: a stale prescription is not checkable. Drive the real
+     * toggle paths exactly as taps would (a tile and the scarf chip);
+     * both must be swallowed by the stale lock, so the screen after
+     * them is the stale screen unchanged. */
+    ui_test_tap_tile(0);
+    ui_test_tap_chip(0);
+    pump(10);
+    save(out, "25c_stale_tapped");
+    dump(out, "25c_stale_tapped");
 
     /* iter-10: the same stale data on the forecast page: the status
      * pill's header-band placement there, and the forecast ground

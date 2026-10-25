@@ -41,6 +41,9 @@ LV_IMAGE_DECLARE(img_pippa_mini_hot);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_hot);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_fall);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_fall);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_head_thumb);   /* Settings cat-pill thumbnail */
+LV_IMAGE_DECLARE(img_pippa_head_pink_thumb);   /* Settings cat-pill thumbnail */
+LV_IMAGE_DECLARE(img_pippa_heart_overlay);   /* all-done heart overlay */
 
 /* Static variants, in draw order. Outfit variants come in black/pink
  * pairs (pink = black + 1); PIPPA_BASE is the undressed sprite for
@@ -80,5 +83,11 @@ extern const lv_image_dsc_t *const WB_PIPPA_MINIS[PIPPA_COUNT];
  * colourway, all-done holds the static sprite. */
 extern const lv_image_dsc_t *const WB_PIPPA_HEART_FRAMES[6];
 extern const lv_point_t WB_PIPPA_HEART_POS[6];
+
+/* All-done heart overlay (iter-11): the heart gesture extracted
+ * from heart frame 04, drawn over any other sprite's chest at this
+ * stage position when all-done shows it instead of the animation,
+ * so the celebration is the same on every outfit. */
+extern const lv_point_t WB_PIPPA_HEART_OVERLAY_POS;
 static const uint16_t WB_PIPPA_HEART_MS[6] = {260, 150, 150, 240, 500, 400};
 #define WB_PIPPA_HEART_TOTAL_MS 1700

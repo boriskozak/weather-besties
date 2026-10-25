@@ -70,6 +70,8 @@ void ui_set_cat_cb(ui_cat_cb_t cb);
  * bits 4..9 = extras chip slots (ui.c EXTRA_ORDER order). */
 void ui_test_set_checks(uint16_t mask);
 void ui_test_set_page(int page);
+void ui_test_tap_tile(int i);   /* drive the tile toggle path exactly as a tap does */
+void ui_test_tap_chip(int j);   /* drive the extras-chip toggle path exactly as a tap does */
 void ui_test_set_pippa_frame(int frame);   /* pin Pippa's heart animation to a frame, -1 releases */
 void ui_test_dump(const char *path);       /* last outfit render's state as text (see ui.c) */
 #endif

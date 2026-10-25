@@ -603,14 +603,13 @@ def main():
         n = count_where(img, (190, 260, 280, 380), is_pumpkin)
         check(n < 40, f"{name}: no seasonal prop off the outfit pages ({n} px, need < 40)")
 
-    # Next days (iter-07, enlarged iter-08): every forecast card
-    # carries a mini Pippa in that day's look at the left of the
-    # garment zone. At ~104 px tall (was ~50) she is the card's star,
-    # not a logo: her dark fur fills the mini zone (the garment column
-    # starts further right), her golden eyes land in it, and her
-    # silhouette spans at least 85 rows there (the iter-07 minis
-    # spanned ~45 and would fail this). The extent band stops above
-    # the card's bottom border and below the rain row.
+    # Next days (iter-07, enlarged iter-08, relaid iter-11): every
+    # forecast card carries a mini Pippa in that day's look at the
+    # left of the middle band (card-local x 10, feet on the band's
+    # base at card-local y 206). At ~100 px tall she is the card's
+    # star, not a logo: her fur fills the band zone, her golden eyes
+    # land in it, and her silhouette spans at least 85 rows there
+    # (the iter-07 minis spanned ~45 and would fail this).
     def is_dark_fur(r, g, b):
         return r < 70 and g < 70 and b < 90
 
@@ -620,29 +619,43 @@ def main():
     img = Image.open(os.path.join(OUT, "24_next_days.png"))
     for i in range(3):
         cx = 28 + i * 252
-        fur = count_where(img, (cx + 4, 306, cx + 112, 414), is_dark_fur)
-        eyes = count_where(img, (cx + 4, 306, cx + 112, 414), is_eye_yellow)
-        check(fur > 800, f"24_next_days card {i + 1}: big mini Pippa's dark fur in the garment zone ({fur} px, need > 800)")
-        check(eyes > 20, f"24_next_days card {i + 1}: big mini Pippa's golden eyes in the garment zone ({eyes} px, need > 20)")
-        rows = [y for y in range(306, 414)
-                if count_where(img, (cx + 4, y, cx + 112, y + 1),
+        fur = count_where(img, (cx + 6, 172, cx + 118, 282), is_dark_fur) \
+            + count_where(img, (cx + 6, 172, cx + 118, 282), is_pink_fur)
+        eyes = count_where(img, (cx + 6, 172, cx + 118, 282), is_eye_yellow)
+        check(fur > 300, f"24_next_days card {i + 1}: big mini Pippa's fur in the band ({fur} px, need > 300)")
+        check(eyes > 20, f"24_next_days card {i + 1}: big mini Pippa's golden eyes in the band ({eyes} px, need > 20)")
+        rows = [y for y in range(172, 282)
+                if count_where(img, (cx + 6, y, cx + 118, y + 1),
                                 lambda r, g, b: not is_card_white(r, g, b)) > 8]
         extent = (max(rows) - min(rows) + 1) if rows else 0
         check(extent >= 85, f"24_next_days card {i + 1}: mini Pippa spans {extent} rows (need >= 85; the 50 px minis spanned ~45)")
 
-    # Forecast outfit stacks (iter-09): beside each mini Pippa, the
-    # card carries the day's FULL outfit as small garment icons (the
-    # round-7 kids judge: a card naming one garment cannot be copied
-    # like an outfit page). The stack zone right of the mini must
-    # carry real garment ink in every card (measured 1900-4000 px;
-    # the pre-iter-09 single key-garment icon left most of this zone
-    # white). Which garments they are is asserted as words in the
-    # dump block below (fc*_tiles).
+    # Forecast garment lists (iter-11): under the band, each card
+    # carries the day's FULL outfit as a vertical icon+word list
+    # (the tiles' own icons; the words are the tiles' exact names,
+    # asserted as strings in the dump block below). Every row must
+    # draw its icon and its word, the word on ONE line at chip-label
+    # size, and no list ink may cross the card's inner right edge.
     for i in range(3):
-        cardx = 20 + i * 252
-        ink = count_where(img, (cardx + 95, 300, cardx + 234, 402),
-                          lambda r, g, b: not is_card_white(r, g, b))
-        check(ink > 1000, f"24_next_days card {i + 1}: full-outfit stack ink beside mini Pippa ({ink} px, need > 1000)")
+        cx = 28 + i * 252
+        for k in range(4):
+            ry = 290 + k * 30   # card-local 218 + k*30, cards at y 72
+            icon_ink = count_where(img, (cx + 8, ry, cx + 42, ry + 30),
+                                   lambda r, g, b: not is_card_white(r, g, b))
+            check(icon_ink > 40, f"24_next_days card {i + 1} row {k + 1}: garment icon drawn ({icon_ink} ink px, need > 40)")
+            word_ink = count_where(img, (cx + 50, ry + 2, cx + 234, ry + 28), is_label_ink)
+            check(word_ink > 150, f"24_next_days card {i + 1} row {k + 1}: the garment's name renders at readable size ({word_ink} ink px, need > 150)")
+            # The word's own ink band (the probe starts below the
+            # previous row's descender tail: rows are 30 px pitch,
+            # each word's ink sits ~13..29 px into its row).
+            rows = [y for y in range(ry + 8, ry + 30)
+                    if count_where(img, (cx + 50, y, cx + 234, y + 1), is_label_ink) > 0]
+            extent = (max(rows) - min(rows) + 1) if rows else 0
+            check(0 < extent <= 22, f"24_next_days card {i + 1} row {k + 1}: the name sits on one line ({extent} ink rows, need 1..22)")
+        ink_cols = [x for x in range(cx + 40, cx + 236) for y in range(288, 412)
+                    if is_label_ink(*img.getpixel((x, y)))]
+        check(ink_cols and max(ink_cols) <= cx + 232,
+              f"24_next_days card {i + 1}: list ink stays inside the card (rightmost {max(ink_cols) if ink_cols else -1}, limit {cx + 232})")
 
     # Forecast ground (iter-10): the page's pale blue-grey third
     # tint is gone; the forecast page follows the outfit pages'
@@ -707,21 +720,37 @@ def main():
     # Cat pill gaps (iter-10): the three pills ride a space-between
     # row, so the two gaps are equal by construction. At the pills'
     # mid-row (y 85) the fill colours are the pill light (238,241,
-    # 247) and the ink of the selected pill (30,35,64); each pill's
-    # own label text breaks its fill into runs, so runs are
-    # clustered (breaks up to 24 px belong to the same pill; the
-    # inter-pill gaps measure ~87).
+    # 247) and the ink of the selected pill (30,35,64).
+    # Iter-11: each pill also carries a white head disc (see the
+    # heads check below), so disc white and the heads' fur count as
+    # fill too, or the discs would split their pills' runs.
     def is_pill_fill(r, g, b):
         return (abs(r - 238) <= 10 and abs(g - 241) <= 10 and abs(b - 247) <= 10) or \
-               (abs(r - 30) <= 12 and abs(g - 35) <= 12 and abs(b - 64) <= 14)
+               (abs(r - 30) <= 12 and abs(g - 35) <= 12 and abs(b - 64) <= 14) or \
+               (r > 248 and g > 248 and b > 248) or is_dark_fur(r, g, b) or is_pink_fur(r, g, b)
 
-    fill_xs = [x for x in range(140, 745) if is_pill_fill(*img33.getpixel((x, 85)))]
-    clusters = []
-    for x in fill_xs:
-        if clusters and x - clusters[-1][1] <= 24:
-            clusters[-1][1] = x
-        else:
-            clusters.append([x, x])
+    # Iter-11 amendment: the discs widened the pills until the
+    # space-between gaps shrank to ~7 px of page cream, the same
+    # size as the breaks the heads and labels cut in a pill's fill,
+    # so fill-run clustering can no longer tell a gap from a break.
+    # The gaps are the only PURE CREAM on the row, so cluster on
+    # non-cream instead: three wide non-cream runs, cream between.
+    def is_page_cream85(r, g, b):
+        return abs(r - 251) <= 6 and abs(g - 246) <= 6 and abs(b - 238) <= 6
+
+    nc_runs = []
+    ncr = None
+    for x in range(140, 745):
+        if not is_page_cream85(*img33.getpixel((x, 85))[:3]):
+            if ncr is None:
+                ncr = [x, x]
+            ncr[1] = x
+        elif ncr is not None and x - ncr[1] > 3:
+            nc_runs.append(tuple(ncr))
+            ncr = None
+    if ncr is not None:
+        nc_runs.append(tuple(ncr))
+    clusters = [list(r) for r in nc_runs if r[1] - r[0] >= 100]
     check(len(clusters) == 3, f"33_settings: three Cat pills found in their row ({clusters})")
     if len(clusters) == 3:
         gap1 = clusters[1][0] - clusters[0][1] - 1
@@ -729,6 +758,60 @@ def main():
         check(abs(gap1 - gap2) <= 2, f"33_settings: Cat pill gaps are equal ({gap1} px and {gap2} px, need within 2)")
         check(clusters[0][0] <= 145 and clusters[2][1] >= 738,
               f"33_settings: Cat pill row spans the measure ({clusters[0][0]}..{clusters[2][1]}, need ~140..744)")
+
+    # The cat is IN the Cat chooser (iter-11): the black head's dark
+    # fur and the pink head's pink fur both appear in the pill row's
+    # band. The selected pill's ink fill (30,35,64) is blue-dark, so
+    # the black-head predicate is the tighter neutral dark (all
+    # channels < 55, blue < 50), which the ink does not satisfy.
+    def is_head_dark(r, g, b):
+        return r < 55 and g < 55 and b < 50
+
+    dark_heads = count_where(img33, (140, 62, 744, 108), is_head_dark)
+    pink_heads = count_where(img33, (140, 62, 744, 108), is_pink_fur)
+    check(dark_heads > 150, f"33_settings: the black cat's head rides its pill ({dark_heads} dark-fur px, need > 150)")
+    check(pink_heads > 150, f"33_settings: the pink cat's head rides its pill ({pink_heads} pink-fur px, need > 150)")
+
+    # The tools row (iter-11): the speed pill and the three action
+    # buttons read as one group: the buttons share one height (48)
+    # and are laid out at deliberate fixed widths (300/190/174) with
+    # identical 12 px gaps across the measure, and the speed pill
+    # sits directly above them on the same left edge, 12 px up.
+    def is_btn_fill(r, g, b):
+        return (abs(r - 24) <= 8 and abs(g - 32) <= 8 and abs(b - 66) <= 10) or \
+               (abs(r - 238) <= 8 and abs(g - 241) <= 8 and abs(b - 247) <= 8) or \
+               (r > 250 and g > 250 and b > 250)
+
+    btn_runs = []
+    run = None
+    for x in range(50, 750):
+        if is_btn_fill(*img33.getpixel((x, 448))[:3]):
+            if run is None:
+                run = [x, x]
+            run[1] = x
+        elif run is not None and x - run[1] > 6:
+            btn_runs.append(tuple(run))
+            run = None
+    if run is not None:
+        btn_runs.append(tuple(run))
+    btn_runs = [r for r in btn_runs if r[1] - r[0] >= 100]
+    check(len(btn_runs) == 3, f"33_settings: three tools buttons on the bottom row ({btn_runs})")
+    if len(btn_runs) == 3:
+        widths = [b - a + 1 for a, b in btn_runs]
+        bgaps = [btn_runs[1][0] - btn_runs[0][1] - 1, btn_runs[2][0] - btn_runs[1][1] - 1]
+        check(all(abs(w - e) <= 3 for w, e in zip(widths, (300, 190, 174))),
+              f"33_settings: tools buttons at their deliberate widths ({widths}, need [300, 190, 174] within 3)")
+        check(abs(bgaps[0] - bgaps[1]) <= 2 and 8 <= bgaps[0] <= 16,
+              f"33_settings: tools button gaps identical ({bgaps} px, need equal within 2, ~12)")
+        for (a, b) in btn_runs:
+            cxm = (a + b) // 2
+            check(is_btn_fill(*img33.getpixel((cxm, 430))[:3]) and is_btn_fill(*img33.getpixel((cxm, 466))[:3]),
+                  f"33_settings: tools button at x {a}..{b} spans the shared height (fill at y 430 and y 466)")
+    col100 = [y for y in range(340, 480) if is_btn_fill(*img33.getpixel((100, y))[:3])]
+    if col100:
+        check(min(col100) <= 368, f"33_settings: speed pill grouped above the row (its fill starts y {min(col100)}, need <= 368)")
+        below = [y for y in col100 if y > 416]
+        check(below and min(below) == 424, f"33_settings: button row top at y 424 under the speed pill (first fill {min(below) if below else None})")
 
     # Status pills out of the tab bar (iter-10): the stale/offline
     # pill (COL_WARN_BG) and the progress pill (COL_OK_BG) are
@@ -793,7 +876,8 @@ def main():
         with open(path) as f:
             return _json.load(f)["current"]["temperature_2m"]
 
-    DUMPED = ("20_morning", "21_evening", "22_evening_2_checked", "25_stale", "26_unavailable",
+    DUMPED = ("20_morning", "21_evening", "22_evening_2_checked", "23_evening_all_done",
+              "25_stale", "25c_stale_tapped", "26_unavailable",
               "26b_unavailable_tomorrow", "27_rollover",
               "28_snow", "29_hot", "30_storm", "31_halloween", "32_pink_cat",
               "34_long_text", "35_hanukkah", "36_bike_bus", "37_dress_day", "38_warm_day")
@@ -852,8 +936,14 @@ def main():
             word = CHIP_WORD[chip]
             check(word in d["advice"].lower(),
                   f"{name}: advice names the {chip} chip ({d['advice']})")
-            check(word in d["advice_shown"].lower(),
-                  f"{name}: shown sentence names the {chip} chip ({d['advice_shown']})")
+            # The shown-sentence half applies wherever the advice
+            # sentence is what is on screen. The all-done dump (in
+            # DUMPED since iter-11) replaces the sentence with the
+            # "Nice job!" celebration by design, so it is exempt from
+            # this half and asserted in the celebration block below.
+            if name != "23_evening_all_done":
+                check(word in d["advice_shown"].lower(),
+                      f"{name}: shown sentence names the {chip} chip ({d['advice_shown']})")
 
     # Dress days itemise fully (iter-08 fix 3): exactly four tiles,
     # the dress, its layer, the tights and the dress shoes she
@@ -908,57 +998,47 @@ def main():
         check(len([t for t in fc[k].split("|") if t]) >= 3,
               f"24_next_days {k}: at least a top, a bottom/layer and footwear ({fc[k]})")
 
-    # Forecast stack words (iter-10): every stack icon carries its
-    # short kid word (fc*_labels in the dump, set from the same tile
-    # list), one word per icon, so the card's outfit can be read
-    # aloud whole; the old single key-garment label (which wrapped:
-    # "Light / jacket" on two lines against "Rain jacket" on one)
-    # is gone, replaced by a word under every icon. The words are
+    # Forecast list words: every list icon carries its word
+    # (fc*_labels in the dump, set from the same tile list), so the
+    # card's outfit can be read aloud whole. (Iter-09/10 put the
+    # words under a 2x2 icon stack in a short kid vocabulary;
+    # iter-11 replaced the stack with the full-width list and the
+    # short words with the tiles' own names.) The words are
     # asserted as words here and as pixels (present, one line,
-    # inside the card) in the block after next.
-    check(fc["fc0_labels"] == "Sleeves|Pants|Raincoat|Boots",
-          f"24_next_days card 1: rain outfit's words ({fc['fc0_labels']})")
+    # inside the card) in the forecast block above.
+    # Iter-11: the cards speak the outfit screens' language. The
+    # words are the tiles' EXACT names (garment_label verbatim), and
+    # for every card the label list equals the tile list string for
+    # string: no second, abbreviated vocabulary anywhere.
+    check(fc["fc0_labels"] == "Long sleeves|Long pants|Rain jacket|Rain boots",
+          f"24_next_days card 1: rain outfit's words are the tiles' own names ({fc['fc0_labels']})")
     for k in ("fc1_labels", "fc2_labels"):
-        check(fc[k] == "Dress|Jacket|Tights|Shoes",
-              f"24_next_days {k}: dress outfit's words, the layer named like every garment ({fc[k]})")
-    for k in ("fc0_labels", "fc1_labels", "fc2_labels"):
-        words = [w for w in fc[k].split("|") if w]
-        check(len(words) == len([t for t in fc[k.replace('labels', 'tiles')].split("|") if t])
-              and all(" " not in w for w in words),
-              f"24_next_days {k}: one single-line word per icon ({fc[k]})")
-    img = Image.open(os.path.join(OUT, "24_next_days.png")).convert("RGB")
-    MINI_W = {"Raincoat": 103, "Dress": 63, "Coat": 69, "Hoodie": 71}
+        check(fc[k] == "Dress|Light jacket|Tights|Dress shoes",
+              f"24_next_days {k}: dress outfit's words are the tiles' own names ({fc[k]})")
     for i in range(3):
-        labels = [t for t in fc[f"fc{i}_labels"].split("|") if t]
-        key = next((k for k in MINI_W if k in labels), None)
-        stack_x = 28 + i * 252 + 13 + MINI_W.get(key, 70)
-        cardx = 28 + i * 252
-        for k, word in enumerate(labels):
-            bx = stack_x + (k % 2) * 58
-            by = 307 + (k // 2) * 52 + 32
-            w_ink = count_where(img, (bx + 3, by, bx + 55, by + 20), is_label_ink)
-            check(w_ink > 100, f"24_next_days card {i + 1} cell {k + 1}: word '{word}' renders under its icon ({w_ink} ink px, need > 100)")
-            rows = [y for y in range(by, by + 20)
-                    if count_where(img, (bx + 3, y, bx + 55, y + 1), is_label_ink) > 0]
-            extent = (max(rows) - min(rows) + 1) if rows else 0
-            check(0 < extent <= 18, f"24_next_days card {i + 1} cell {k + 1}: word '{word}' sits on one line ({extent} ink rows, need 1..18)")
-        ink_cols = [x for x in range(cardx, cardx + 236) for y in range(307, 412)
-                    if is_label_ink(*img.getpixel((x, y)))]
-        check(ink_cols and max(ink_cols) <= cardx + 232,
-              f"24_next_days card {i + 1}: stack ink stays inside the card (rightmost {max(ink_cols) if ink_cols else -1}, limit {cardx + 232})")
+        check(fc[f"fc{i}_labels"] == fc[f"fc{i}_tiles"],
+              f"24_next_days fc{i}: every forecast word equals the tile name for the same garment (labels={fc[f'fc{i}_labels']}, tiles={fc[f'fc{i}_tiles']})")
 
-    # Hot storm drops the sunglasses chip (iter-10): the checklist
-    # must not demand the one item the day's own safety sentence
-    # ("Storms later. Stay inside if it thunders.") contradicts.
-    # The water bottle stays chipped and named; the sunglasses stay
-    # on her face in the picture (the stage assertions above) but
-    # leave the chip list and the sentence. The plain hot day is
-    # unchanged: both chips, both named.
+    # Hot storm KEEPS the sunglasses chip (iter-11, reverting the
+    # iter-10 removal): Pippa wears the heart sunglasses in the
+    # picture, so they are prescribed, chipped and named like on any
+    # hot day, and they gate all-done with the water bottle. Two
+    # panel rounds settled it: an unprescribed garment on the cat
+    # breaks the product's copy-the-cat contract (round 9's kids
+    # judge dropped the screen to 8 over exactly this; the parent
+    # judge's top outfit-screen finding agreed), while the storm
+    # framing survives intact, because the safety beat leads the
+    # sentence and the sunglasses ride the don't-forget pass like
+    # every other day. The plain hot day is unchanged.
     d30 = dumps["30_storm"]
-    check(d30["chips"] == "Water bottle",
-          f"30_storm: hot storm chips are the water bottle alone (chips={d30['chips']})")
-    check("sunglasses" not in d30["advice"].lower() and "sunglasses" not in d30["advice_shown"].lower(),
-          f"30_storm: the sentence does not name the unchipped sunglasses ({d30['advice']})")
+    check(d30["chips"] == "Sunglasses|Water bottle",
+          f"30_storm: hot storm keeps both chips, sunglasses restored (chips={d30['chips']})")
+    check("sunglasses" in d30["advice"].lower(),
+          f"30_storm: the sentence names the chipped sunglasses ({d30['advice']})")
+    check("sunglasses" in d30["advice_shown"].lower(),
+          f"30_storm: the shown sentence names them too ({d30['advice_shown']})")
+    check("thunders" in d30["advice"],
+          f"30_storm: the storm safety beat still leads the sentence ({d30['advice']})")
     check(dumps["29_hot"]["chips"] == "Sunglasses|Water bottle",
           f"29_hot: plain hot day keeps both chips (chips={dumps['29_hot']['chips']})")
 
@@ -1021,6 +1101,82 @@ def main():
           f"33_settings: Address and Version on separate rows ({info})")
     check(s33["speed_label"] == "Speed test: off",
           f"33_settings: the speed pill's label is its state (speed_label={s33['speed_label']})")
+
+    # Stale check-off lock (iter-11): the stale screen reports its
+    # checks disabled, its badge discs render grey-filled (fresh
+    # screens keep the white checkable disc), and driving the real
+    # toggle paths at it changes nothing at all: the post-tap frame
+    # is the stale frame byte for byte, and no checks register.
+    check(dumps["25_stale"]["stale_checks"] == "disabled",
+          f"25_stale: checks report disabled under stale (stale_checks={dumps['25_stale']['stale_checks']})")
+    check(dumps["20_morning"]["stale_checks"] == "enabled",
+          f"20_morning: checks report enabled when fresh (stale_checks={dumps['20_morning']['stale_checks']})")
+    check(dumps["25_stale"]["checks"] == "0" and dumps["25c_stale_tapped"]["checks"] == "0",
+          f"25c_stale_tapped: taps under stale register no checks (before={dumps['25_stale']['checks']}, after={dumps['25c_stale_tapped']['checks']})")
+    check(dumps["25c_stale_tapped"]["advice"] == dumps["25_stale"]["advice"]
+          and dumps["25c_stale_tapped"]["tiles"] == dumps["25_stale"]["tiles"],
+          "25c_stale_tapped: the dump after tile+chip taps equals the stale dump")
+    import hashlib
+    h25 = hashlib.sha256(open(os.path.join(OUT, "25_stale.png"), "rb").read()).hexdigest()
+    h25c = hashlib.sha256(open(os.path.join(OUT, "25c_stale_tapped.png"), "rb").read()).hexdigest()
+    check(h25 == h25c, "25c_stale_tapped: the frame after tile+chip taps is the stale frame unchanged")
+
+    def is_grey_disc(r, g, b):
+        return abs(r - g) <= 14 and abs(g - b) <= 14 and 185 <= r <= 240
+
+    img25 = Image.open(os.path.join(OUT, "25_stale.png")).convert("RGB")
+    img20 = Image.open(os.path.join(OUT, "20_morning.png")).convert("RGB")
+    g_stale = count_where(img25, (514, 204, 530, 220), is_grey_disc)
+    g_fresh = count_where(img20, (514, 204, 530, 220), is_grey_disc)
+    check(g_stale > 150, f"25_stale: tile badge disc is grey-filled ({g_stale} px in its centre box, need > 150)")
+    check(g_fresh < 10, f"20_morning: fresh tile badge disc stays white ({g_fresh} grey px, need < 10)")
+    g_chip = count_where(img25, (392, 330, 412, 350), is_grey_disc)
+    check(g_chip > 150, f"25_stale: chip badge disc is grey-filled too ({g_chip} px in its centre box, need > 150)")
+
+    # All-done celebrates the same everywhere (iter-11): the evening
+    # all-done (23, rain outfit) carries the same treatment as the
+    # morning dress one (23b): sparkles up around the cat (74 solid
+    # sparkle px per burst position measured; the unchecked
+    # counterparts have none) and the heart on her chest (for 23 the
+    # extracted overlay: hundreds of new dark paw pixels over the
+    # unchecked frame in the chest zone; 23b's own heart frame is
+    # asserted by the dress checks above). The all-done line is
+    # "Nice job!" with no names, and no dump anywhere carries the
+    # children's names.
+    check(dumps["23_evening_all_done"]["advice_shown"] == "Nice job!",
+          f"23_evening_all_done: all-done line is the plain celebration (advice_shown={dumps['23_evening_all_done']['advice_shown']})")
+    name_sources = dict(dumps)
+    name_sources["24_next_days"] = fc
+    name_sources["33_settings"] = s33
+    for stem in ("20_morning", "21_evening", "23_evening_all_done", "24_next_days",
+                 "25_stale", "25c_stale_tapped", "29_hot", "30_storm", "33_settings"):
+        blob = " ".join(v for v in name_sources[stem].values() if isinstance(v, str))
+        blob += " " + " ".join(name_sources[stem].get("info_lines", []))
+        check("Cleo" not in blob and "Lila" not in blob,
+              f"{stem}: no screen text carries the children's names")
+
+    def is_sparkle(r, g, b):
+        return r > 248 and 190 < g < 216 and 30 < b < 85
+
+    sparkle_boxes = [(58, 120, 98, 160), (224, 112, 264, 152), (232, 192, 272, 232)]
+    img23 = Image.open(os.path.join(OUT, "23_evening_all_done.png")).convert("RGB")
+    img21 = Image.open(os.path.join(OUT, "21_evening.png")).convert("RGB")
+    img23b = Image.open(os.path.join(OUT, "23b_morning_all_done_heart.png")).convert("RGB")
+    img37 = Image.open(os.path.join(OUT, "37_dress_day.png")).convert("RGB")
+    for nm, im, ref in (("23_evening_all_done", img23, img21), ("23b_morning_all_done_heart", img23b, img37)):
+        for bi, bx in enumerate(sparkle_boxes):
+            n = count_where(im, bx, is_sparkle)
+            nr = count_where(ref, bx, is_sparkle)
+            check(n > 30, f"{nm}: sparkle {bi + 1} is up at all-done ({n} px, need > 30)")
+            check(nr < 3, f"{nm}: its unchecked counterpart has no sparkle {bi + 1} ({nr} px, need < 3)")
+
+    def is_overlay_dark(r, g, b):
+        return r < 70 and g < 70 and b < 90
+
+    new_dark = sum(1 for y in range(198, 260) for x in range(112, 198)
+                   if is_overlay_dark(*img23.getpixel((x, y))[:3])
+                   and not is_overlay_dark(*img21.getpixel((x, y))[:3]))
+    check(new_dark > 300, f"23_evening_all_done: the heart overlay's paws sit on her chest ({new_dark} new dark px vs unchecked, need > 300)")
 
     # Screen edge guard (iter-08 fix 5, kept after the advice glyph
     # it was written for was deleted in iter-09): no outfit screen

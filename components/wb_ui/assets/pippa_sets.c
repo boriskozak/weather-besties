@@ -7,3 +7,4 @@ const lv_image_dsc_t *const WB_PIPPA_MINIS[PIPPA_COUNT] = {&img_pippa_mini_dress
 
 const lv_image_dsc_t *const WB_PIPPA_HEART_FRAMES[6] = {&img_pippa_heart_0, &img_pippa_heart_1, &img_pippa_heart_2, &img_pippa_heart_3, &img_pippa_heart_4, &img_pippa_heart_5};
 const lv_point_t WB_PIPPA_HEART_POS[6] = {{16, 14}, {64, 14}, {63, 14}, {16, 14}, {64, 14}, {63, 14}};
+const lv_point_t WB_PIPPA_HEART_OVERLAY_POS = {99, 106};

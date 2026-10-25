@@ -15,6 +15,11 @@ components/lvgl/scripts/LVGLImage.py) and generates:
   assets/img_pippa_mini_*.c       (forecast-card minis of the twelve
                                    outfit sprites, downscaled at build
                                    time; see MINI_H below)
+  assets/img_pippa_head_*_thumb.c (Settings cat-pill head thumbnails,
+                                   black + pink; see THUMB_H below)
+  assets/img_pippa_heart_overlay.c (the all-done heart gesture from
+                                   heart frame 04, for the outfits the
+                                   heart animation does not cover)
   assets/pippa_sets.h / pippa_sets.c   (descriptors + stage positions)
   assets/pippa_assets_list.cmake     (firmware source list fragment)
 
@@ -40,6 +45,7 @@ pippa_sets.h is included by ui.c directly, not via assets.h.
 import os
 import subprocess
 import sys
+from collections import deque
 
 from PIL import Image, ImageChops
 
@@ -87,6 +93,36 @@ HEART = [(f"img_pippa_heart_{i}", os.path.join(PKG, "animations", "frames", "hea
 HEAD_NAME = "img_pippa_head"
 HEAD_SRC = os.path.join(WARDROBE, "sprites", "black", "pippa-dress.png")
 HEAD_WINDOW = (48, 4, 198, 120)
+
+# Settings cat-pill thumbnails (iter-11, panel round 9): the Cat
+# chooser was three text pills on the one screen about the cat that
+# showed no cat. Each pill now carries a small head of the cat it
+# selects, cropped from the dress sprites with the head window above
+# and downscaled at build time (like the forecast minis: this LVGL
+# build cannot be trusted to downscale at runtime), one per
+# colourway; "Take turns" shows both.
+THUMB_H = 32
+THUMBS = [("img_pippa_head_thumb", HEAD_SRC),
+          ("img_pippa_head_pink_thumb",
+           os.path.join(WARDROBE, "sprites", "pink", "pippa-dress.png"))]
+
+# All-done heart overlay (iter-11, panel round 9): the heart
+# animation exists only for the black dress sprite, so on every
+# other outfit the all-done celebration used to leave the cat
+# pixel-identical to her unchecked state. The overlay is the heart
+# gesture itself, extracted from heart frame 04: within the window
+# below, the pixels that differ from the static dress sprite AND
+# read as the gesture (near-black paw outline or the heart's pink
+# centre), flood-filled from the centre so stray dress/bow pixels
+# the paws vacated stay out, with the centre's enclosed highlight
+# holes filled in the centre's median pink. Drawn over the current
+# sprite's chest (all sprites share the 260x252 stage space) with
+# the sparkles, so all-done celebrates the same everywhere.
+HEART_OVERLAY_NAME = "img_pippa_heart_overlay"
+HEART_OVERLAY_FRAME = os.path.join(PKG, "animations", "frames", "heart", "04.png")
+HEART_OVERLAY_WINDOW = (99, 106, 165, 152)   # x0, y0, x1, y1 in stage space
+HEART_OVERLAY_SEED = (126, 131)              # (y, x) inside the pink centre
+HEART_CENTRE_BOX = (112, 114, 151, 143)      # hole filling stays in here
 
 # Forecast-card minis (iter-07): one small copy of each outfit sprite for
 # the Next Days cards. They are downscaled HERE, at asset-build time,
@@ -139,6 +175,119 @@ def convert_mini(png_path, name):
     return bb[2] - bb[0], bb[3] - bb[1]
 
 
+def _write_lvimg(png_path, name):
+    """Convert one prepared PNG to an LVGL C image in OUT (the tail
+    of convert()/convert_mini(), shared by the iter-11 assets)."""
+    subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8",
+                    "--compress", "RLE", "-o", OUT, "--name", name, png_path],
+                   check=True, stdout=subprocess.DEVNULL)
+    produced = os.path.join(OUT, name + ".png.c")
+    if not os.path.exists(produced):
+        produced = os.path.join(OUT, os.path.splitext(os.path.basename(png_path))[0] + ".c")
+    target = os.path.join(OUT, name + ".c")
+    if produced != target:
+        os.replace(produced, target)
+
+
+def convert_thumb(src_png, name):
+    """Head thumbnail for the Settings pills: the head window of a
+    dress sprite, downscaled at build time to THUMB_H px tall
+    (premultiplied, like the minis), cropped to its alpha bbox."""
+    im = Image.open(src_png).convert("RGBA").crop(HEAD_WINDOW)
+    w = round(im.width * THUMB_H / im.height)
+    r, g, b, a = im.split()
+    pm = Image.merge("RGBA", (ImageChops.multiply(r, a),
+                               ImageChops.multiply(g, a),
+                               ImageChops.multiply(b, a), a))
+    pm = pm.resize((w, THUMB_H), Image.LANCZOS)
+    r, g, b, a = pm.split()
+    px = [(min(255, rv * 255 // av) if av else 0,
+           min(255, gv * 255 // av) if av else 0,
+           min(255, bv * 255 // av) if av else 0, av)
+          for rv, gv, bv, av in zip(r.getdata(), g.getdata(),
+                                    b.getdata(), a.getdata())]
+    im = Image.new("RGBA", pm.size)
+    im.putdata(px)
+    bb = im.getchannel("A").getbbox()
+    cropped = os.path.join(PNG, name + ".png")
+    im.crop(bb).save(cropped)
+    _write_lvimg(cropped, name)
+    return bb[2] - bb[0], bb[3] - bb[1]
+
+
+def _flood(mask, w, h, seeds):
+    """4-connected flood fill over a set of (x, y) in a w x h mask;
+    a seed outside the mask snaps to the nearest mask pixel."""
+    keep = set()
+    dq = deque()
+    for sx, sy in seeds:
+        if (sx, sy) not in mask:
+            if not mask:
+                return keep
+            sx, sy = min(mask, key=lambda p: (p[0] - sx) ** 2 + (p[1] - sy) ** 2)
+        if (sx, sy) not in keep:
+            keep.add((sx, sy))
+            dq.append((sx, sy))
+    while dq:
+        x, y = dq.popleft()
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if (nx, ny) in mask and (nx, ny) not in keep:
+                keep.add((nx, ny))
+                dq.append((nx, ny))
+    return keep
+
+
+def convert_heart_overlay():
+    """Extract the heart gesture from heart frame 04 (see the
+    HEART_OVERLAY note above). Returns (stage x, stage y, w, h)."""
+    frame = Image.open(HEART_OVERLAY_FRAME).convert("RGBA")
+    static = Image.open(HEAD_SRC).convert("RGBA")
+    fp, sp = frame.load(), static.load()
+    x0, y0, x1, y1 = HEART_OVERLAY_WINDOW
+    mask = set()
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            r, g, b, a = fp[x, y]
+            if a <= 200:
+                continue
+            sr, sg, sb, _ = sp[x, y]
+            if max(abs(r - sr), abs(g - sg), abs(b - sb)) <= 40:
+                continue
+            dark = r < 95 and g < 95 and b < 95
+            pink = r > 215 and 100 < g < 175 and 140 < b < 215
+            if dark or pink:
+                mask.add((x, y))
+    seed = (HEART_OVERLAY_SEED[1], HEART_OVERLAY_SEED[0])   # stored (y, x)
+    keep = _flood(mask, frame.width, frame.height, [seed])
+    # Enclosed highlight holes inside the pink centre only: flood the
+    # centre box's complement from its border; what it cannot reach
+    # is a hole and takes the centre's median pink.
+    cx0, cy0, cx1, cy1 = HEART_CENTRE_BOX
+    cbox = {(x, y) for y in range(cy0, cy1) for x in range(cx0, cx1)}
+    border = ([(x, cy0) for x in range(cx0, cx1)] + [(x, cy1 - 1) for x in range(cx0, cx1)]
+              + [(cx0, y) for y in range(cy0, cy1)] + [(cx1 - 1, y) for y in range(cy0, cy1)])
+    reach = _flood(cbox - keep, frame.width, frame.height, border)
+    holes = cbox - keep - reach
+    pinks = sorted(fp[p] for p in keep
+                   if fp[p][0] > 215 and 100 < fp[p][1] < 175 and 140 < fp[p][2] < 215)
+    med = pinks[len(pinks) // 2][:3] if pinks else (252, 155, 183)
+    full = keep | holes
+    # Below the heart's point only the point's own columns survive:
+    # the connected strays there are dress, not gesture.
+    full = {(x, y) for (x, y) in full if y < 147 or 120 <= x <= 142}
+    xs = [p[0] for p in full]
+    ys = [p[1] for p in full]
+    bb = (min(xs), min(ys), max(xs) + 1, max(ys) + 1)
+    out = Image.new("RGBA", frame.size)
+    op = out.load()
+    for (x, y) in full:
+        op[x, y] = fp[x, y] if (x, y) in keep else (med[0], med[1], med[2], 255)
+    cropped = os.path.join(PNG, HEART_OVERLAY_NAME + ".png")
+    out.crop(bb).save(cropped)
+    _write_lvimg(cropped, HEART_OVERLAY_NAME)
+    return bb[0], bb[1], bb[2] - bb[0], bb[3] - bb[1]
+
+
 def convert(png_path, name, window=None):
     """Crop (optionally to `window` first) to the alpha bbox, convert to
     an LVGL C image, return (x, y, w, h) of the alpha bbox."""
@@ -178,6 +327,11 @@ def main():
     for name, src in MINIS:
         mw, mh = convert_mini(src, name)
         print(f"{name}: mini {mw}x{mh}")
+    for name, src in THUMBS:
+        tw, th = convert_thumb(src, name)
+        print(f"{name}: thumb {tw}x{th}")
+    ox, oy, ow, oh = convert_heart_overlay()
+    print(f"{HEART_OVERLAY_NAME}: overlay {ow}x{oh} at stage ({ox}, {oy})")
 
     with open(os.path.join(OUT, "pippa_sets.h"), "w") as f:
         f.write("""/* Pippa character assets: generated by tools/make_pippa_assets.py.
@@ -197,6 +351,9 @@ def main():
         f.write(f"LV_IMAGE_DECLARE({HEAD_NAME});   /* head crop for boot/setup/error */\n")
         for name, _ in MINIS:
             f.write(f"LV_IMAGE_DECLARE({name});   /* forecast-card mini */\n")
+        for name, _ in THUMBS:
+            f.write(f"LV_IMAGE_DECLARE({name});   /* Settings cat-pill thumbnail */\n")
+        f.write(f"LV_IMAGE_DECLARE({HEART_OVERLAY_NAME});   /* all-done heart overlay */\n")
         f.write("""
 /* Static variants, in draw order. Outfit variants come in black/pink
  * pairs (pink = black + 1); PIPPA_BASE is the undressed sprite for
@@ -226,6 +383,12 @@ extern const lv_image_dsc_t *const WB_PIPPA_MINIS[PIPPA_COUNT];
  * colourway, all-done holds the static sprite. */
 extern const lv_image_dsc_t *const WB_PIPPA_HEART_FRAMES[6];
 extern const lv_point_t WB_PIPPA_HEART_POS[6];
+
+/* All-done heart overlay (iter-11): the heart gesture extracted
+ * from heart frame 04, drawn over any other sprite's chest at this
+ * stage position when all-done shows it instead of the animation,
+ * so the celebration is the same on every outfit. */
+extern const lv_point_t WB_PIPPA_HEART_OVERLAY_POS;
 """)
         f.write("static const uint16_t WB_PIPPA_HEART_MS[6] = {"
                 + ", ".join(str(m) for m in HEART_MS) + "};\n")
@@ -248,10 +411,12 @@ extern const lv_point_t WB_PIPPA_HEART_POS[6];
                 + ", ".join(f"&{n}" for n, _ in HEART) + "};\n")
         f.write("const lv_point_t WB_PIPPA_HEART_POS[6] = {"
                 + ", ".join(f"{{{info[n][0]}, {info[n][1]}}}" for n, _ in HEART) + "};\n")
+        f.write(f"const lv_point_t WB_PIPPA_HEART_OVERLAY_POS = {{{ox}, {oy}}};\n")
 
     with open(os.path.join(OUT, "pippa_assets_list.cmake"), "w") as f:
         srcs = ([n + ".c" for n, _ in jobs] + [HEAD_NAME + ".c"]
-                + [n + ".c" for n, _ in MINIS] + ["pippa_sets.c"])
+                + [n + ".c" for n, _ in MINIS] + [n + ".c" for n, _ in THUMBS]
+                + [HEART_OVERLAY_NAME + ".c"] + ["pippa_sets.c"])
         f.write("# Generated by tools/make_pippa_assets.py. Do not edit.\n")
         f.write("set(WB_PIPPA_ASSET_SRCS\n"
                 + "\n".join(f"    assets/{s}" for s in srcs) + "\n)\n")
