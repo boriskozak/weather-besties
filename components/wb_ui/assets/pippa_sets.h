@@ -45,6 +45,8 @@ LV_IMAGE_DECLARE(img_pippa_uniform_hot);
 LV_IMAGE_DECLARE(img_pippa_pink_uniform_hot);
 LV_IMAGE_DECLARE(img_pippa_uniform_fall);
 LV_IMAGE_DECLARE(img_pippa_pink_uniform_fall);
+LV_IMAGE_DECLARE(img_pippa_kit2);
+LV_IMAGE_DECLARE(img_pippa_pink_kit2);
 LV_IMAGE_DECLARE(img_pippa_base);
 LV_IMAGE_DECLARE(img_pippa_heart_0);
 LV_IMAGE_DECLARE(img_pippa_heart_1);
@@ -89,6 +91,8 @@ LV_IMAGE_DECLARE(img_pippa_mini_uniform_hot);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_uniform_hot);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_uniform_fall);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_uniform_fall);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kit2);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_pink_kit2);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_head_thumb);   /* Settings cat-pill thumbnail */
 LV_IMAGE_DECLARE(img_pippa_head_pink_thumb);   /* Settings cat-pill thumbnail */
 LV_IMAGE_DECLARE(img_pippa_heart_overlay);   /* all-done heart overlay */
@@ -135,8 +139,10 @@ typedef enum {
     PIPPA_PINK_UNIFORM_HOT = 33,
     PIPPA_UNIFORM_FALL = 34,
     PIPPA_PINK_UNIFORM_FALL = 35,
-    PIPPA_BASE = 36,
-    PIPPA_COUNT = 37
+    PIPPA_KIT2 = 36,
+    PIPPA_PINK_KIT2 = 37,
+    PIPPA_BASE = 38,
+    PIPPA_COUNT = 39
 } pippa_variant_t;
 #define PIPPA_NONE (-1)
 

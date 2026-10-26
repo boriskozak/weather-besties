@@ -77,7 +77,7 @@ const char *garment_label(int garment)
                               "Dress",         "Warm boots",    "Tights",      "Dress shoes",
                               "Mustard top",   "Navy top",      "Rust top",    "Lavender dress",
                               "Mint dress",    "Mustard dress", "Warm coat",   "Warm boots",
-                              "Logo dress"};
+                              "Logo dress",    "Winter coat"};
     return (garment >= 0 && garment < (int)(sizeof(n) / sizeof(n[0]))) ? n[garment] : "";
 }
 
@@ -485,18 +485,34 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      * have the water bottle for Watchung day, or sunglasses"): on a
      * logo hot day the prescription is unchanged (the tiles and the
      * sunglasses and water-bottle chips prescribe exactly what a
-     * standard hot day prescribes); only the sprite differs. ---- */
+     * standard hot day prescribes); only the sprite differs.
+     *
+     * Iter-30: the warm tier's hat days rotate too, between the kit
+     * and the red winter kit (LOOK_KIT2). Until now a hat prescription
+     * collapsed the tier to the kit alone, because the warmcoat wears
+     * no hat; kit2 wears hat and gloves exactly like the kit, so it
+     * is truthful precisely where the kit is, and the alternation the
+     * hat-free days already had extends across the whole dry warm
+     * tier. The gate is the hat alone: kit2's sprite wears one, so it
+     * must never appear on a hat-free day (a gloves-only morning,
+     * e.g. a mild bike-bus day, stays the kit's). Snow and winter-tier
+     * days are untouched: the kit there is a safety look, not a
+     * stand-in, and never rotates. ---- */
     {
         static const int dress_band[] = {LOOK_DRESS, LOOK_DRESS_LAVENDER, LOOK_DRESS_MINT,
                                          LOOK_DRESS_MUSTARD, LOOK_UNIFORM_DRESS};
         static const int fall_band[] = {LOOK_FALL, LOOK_FALL_HOODIE, LOOK_UNIFORM_FALL};
         static const int warm_band[] = {LOOK_SNOW, LOOK_WARMCOAT};
+        static const int kit_band[] = {LOOK_SNOW, LOOK_KIT2};
         static const int hot_band[] = {LOOK_HOT, LOOK_UNIFORM_HOT};
         int pants_band[5];
         const int *band = NULL;
         int nband = 0;
         if (warm_coat_tier) {
-            if (!(extras & (EX_HAT | EX_GLOVES))) {
+            if (extras & EX_HAT) {
+                band = kit_band;   /* iter-30: hat days rotate kit/kit2 */
+                nband = 2;
+            } else if (!(extras & EX_GLOVES)) {
                 band = warm_band;
                 nband = 2;
             }
@@ -532,6 +548,12 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
 
     switch (look) {
     case LOOK_SNOW:
+    case LOOK_KIT2:
+        /* Iter-30: kit2 is the kit in a red colourway (red quilted
+         * coat, red hat, mittens; the scarf is drawn as part of that
+         * coat ensemble), and it shares the kit's canonicalisation
+         * whole: same tiles, chips and advice. Only the coat tile's
+         * picture differs (see the tiles below). */
         out->top = TOP_LONG_SLEEVES;
         out->bottom = BOTTOM_LONG_PANTS;
         out->layer = LAYER_WINTER_COAT;
@@ -662,7 +684,14 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
         out->tile_kind[n++] = out->bottom == BOTTOM_SHORTS ? SHORTS : LONG_PANTS;
         if (out->layer != LAYER_NONE) {
             static const int layer_garment[] = {0, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT, WINTER_COAT};
-            out->tile_kind[n++] = layer_garment[out->layer];
+            int lg = layer_garment[out->layer];
+            /* Iter-30: on a kit2 day the "Winter coat" tile pictures
+             * the day's own red coat (same per-look swap as the
+             * warmcoat's teal tile); the label stays "Winter coat". */
+            if (look == LOOK_KIT2 && lg == WINTER_COAT) {
+                lg = WINTER_COAT_RED;
+            }
+            out->tile_kind[n++] = lg;
         }
         if (out->feet == FEET_SNEAKERS) {
             out->tile_kind[n++] = SNEAKERS;
@@ -695,7 +724,7 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
      * (and sentence A's verb flips to "Bring", like any warm-up).
      * Storm, snow and bike-bus days are excluded: their own sentence
      * B already owns the day's story and must keep winning. */
-    bool kit_warmup = look == LOOK_SNOW && (f_max - f_dep) >= 10.0f &&
+    bool kit_warmup = (look == LOOK_SNOW || look == LOOK_KIT2) && (f_max - f_dep) >= 10.0f &&
                       !(change & (CH_STORM | CH_SNOW | CH_BIKE_BUS));
     bool warmup_words = (change & CH_WARMUP) || kit_warmup;
     char a[64], b[80];   /* longest A is 43 chars, longest B is 70, both fit advice_short */

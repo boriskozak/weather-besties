@@ -369,14 +369,18 @@ S["warm_day"] = build(
 S["warm_day"]["sim_clock"] = "2027-06-09T11:05"
 
 # Longest advice combo: big warm-up swing (sentence A + the long sentence B).
+# Iter-30: the date moved 2026-11-10 -> 2026-11-09 because the warm
+# tier's hat days rotate kit/kit2 now (see rot_kit_* below): 2026-11-09's
+# seed picks the original kit, so this reference scenario (the kit's
+# longest advice) still shows the reference outfit.
 S["long_text"] = build(
-    "2026-11-10", "07:30", {"t": 38.0, "f": 35.0, "day": 1, "code": 1},
+    "2026-11-09", "07:30", {"t": 38.0, "f": 35.0, "day": 1, "code": 1},
     (2, 55, 40, 10, 3.0, 6.0), [(1, 66, 36, 0, 3.5, 8.0), (2, 60, 42, 10, 3.0, 6.0), (3, 58, 44, 20, 2.6, 4.0),
                                 (0, 63, 45, 0, 3.2, 8.0)],
     lambda i: 1 if i < 24 else 2,
     lambda i: 0 if i < 48 else 10,
     sunrise=7, sunset=17, feels_delta=-3)
-S["long_text"]["sim_clock"] = "2026-11-10T07:35"
+S["long_text"]["sim_clock"] = "2026-11-09T07:35"
 
 # Yesterday's high in hot_summer is 78 (above) on purpose: today is
 # 92, a +14 jump, so the set covers the "A lot warmer than yesterday"
@@ -456,6 +460,31 @@ S["warmcoat_morning"] = build(
     lambda i: 0 if i < 48 else 10,
     sunrise=7, sunset=17, feels_delta=0)
 S["warmcoat_morning"]["sim_clock"] = "2026-11-16T08:05"
+
+# Iter-30: the warm tier's hat-day rotation proof. Two consecutive
+# dry mornings in the warm-coat tier cold enough to prescribe the
+# hat (departure feels-like ~34F: warm coat tier, hat and gloves
+# thresholds both crossed, no snow or ice). Until now these days
+# collapsed to the winter kit alone, because the warmcoat wears no
+# hat; the red winter kit (kit2) wears hat and gloves like the kit,
+# so the days alternate kit / kit2 by the outfit-date seed:
+# 2026-12-15 has days_from_civil mod 2 = 0 (the kit), 2026-12-16 is
+# mod 2 = 1 (kit2). Every day of each payload wears the same weather,
+# so each day's Tomorrow page resolves in the same band and must show
+# the NEXT day's pick, and the forecast cards carry the day's mini.
+def _rot_kit(day):
+    return build(
+        day, "08:00", {"t": 38.0, "f": 36.0, "day": 1, "code": 1, "gust": 9},
+        (2, 50, 38, 10, 2.6, 5.0), [(1, 47, 34, 0, 2.5, 6.0), (2, 46, 33, 10, 2.4, 5.0),
+                                    (1, 48, 35, 0, 2.6, 6.5), (3, 45, 34, 10, 2.2, 4.0)],
+        lambda i: 1 if i < 48 else 2,
+        lambda i: 0 if i < 48 else 10,
+        sunrise=7, sunset=17, feels_delta=-1)
+
+
+for _i, _day in enumerate(("2026-12-15", "2026-12-16")):
+    S[f"rot_kit_{_i}"] = _rot_kit(_day)
+    S[f"rot_kit_{_i}"]["sim_clock"] = f"{_day}T08:05"
 
 for name, data in S.items():
     with open(os.path.join(OUT, name + ".json"), "w") as f:

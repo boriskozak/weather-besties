@@ -1,7 +1,7 @@
 avail=1
 bucket=0
-look=2
-look_name=snow
+look=18
+look_name=kit2
 ntiles=4
 tiles=Long sleeves|Long pants|Winter coat|Warm boots
 chips=Warm hat|Gloves

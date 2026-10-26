@@ -36,6 +36,8 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_pink_uniform_hot.c
     assets/img_pippa_uniform_fall.c
     assets/img_pippa_pink_uniform_fall.c
+    assets/img_pippa_kit2.c
+    assets/img_pippa_pink_kit2.c
     assets/img_pippa_base.c
     assets/img_pippa_heart_0.c
     assets/img_pippa_heart_1.c
@@ -80,6 +82,8 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_mini_pink_uniform_hot.c
     assets/img_pippa_mini_uniform_fall.c
     assets/img_pippa_mini_pink_uniform_fall.c
+    assets/img_pippa_mini_kit2.c
+    assets/img_pippa_mini_pink_kit2.c
     assets/img_pippa_head_thumb.c
     assets/img_pippa_head_pink_thumb.c
     assets/img_pippa_heart_overlay.c

@@ -86,6 +86,8 @@ set(WB_ASSET_SRCS
     assets/img_g_brown_boots_56.c
     assets/img_g_uniform_dress_96.c
     assets/img_g_uniform_dress_56.c
+    assets/img_g_winter_coat_red_96.c
+    assets/img_g_winter_coat_red_56.c
     assets/img_g_tights_pink_96.c
     assets/img_g_tights_pink_56.c
     assets/img_g_dress_shoes_pink_96.c

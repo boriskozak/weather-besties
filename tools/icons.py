@@ -1244,6 +1244,10 @@ GARMENTS = {
     "dress_mustard": g_dress,
     "warm_coat_teal": c_coat, "brown_boots": g_snow_boots,
     "uniform_dress": g_dress,
+    # Iter-30: the red winter kit's coat, the per-look swap for the
+    # "Winter coat" tile (label unchanged). Its crop is sliced from
+    # the kit2 package art into tools/garment_sheet/winter_coat_red.png.
+    "winter_coat_red": c_coat,
 }
 
 

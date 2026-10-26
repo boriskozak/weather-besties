@@ -38,13 +38,16 @@ enum { CH_WARMUP = 1, CH_COOLDOWN = 2, CH_RAIN_LATER = 4, CH_RAIN_ALL_DAY = 8, C
  * garments only the rotation looks wear. WARM_COAT_TEAL and BROWN_BOOTS
  * exist because the warmcoat sprite wears a teal puffer and brown
  * fur-lined boots, not the kit's blue coat and snow boots, and the
- * tiles must picture what the sprite wears. */
+ * tiles must picture what the sprite wears.
+ * WINTER_COAT_RED (iter-30) is appended the same way again: the red
+ * winter kit's coat. Its label stays "Winter coat": the tile names
+ * the garment, the picture is the day's look's own coat. */
 typedef enum {
     SHORT_SLEEVES, LONG_SLEEVES, SHORTS, LONG_PANTS, HOODIE, LIGHT_JACKET, RAIN_JACKET, WARM_COAT,
     WINTER_COAT, SNEAKERS, RAIN_BOOTS, SNOW_BOOTS, WARM_HAT, GLOVES, UMBRELLA, SUNGLASSES,
     WATER_BOTTLE, SCARF, DRESS, WARM_BOOTS, TIGHTS, DRESS_SHOES,
     MUSTARD_TOP, NAVY_TOP, RUST_TOP, DRESS_LAVENDER, DRESS_MINT, DRESS_MUSTARD,
-    WARM_COAT_TEAL, BROWN_BOOTS, UNIFORM_DRESS
+    WARM_COAT_TEAL, BROWN_BOOTS, UNIFORM_DRESS, WINTER_COAT_RED
 } garment_t;
 
 /* The resolved "look": which flattened Pippa sprite family shows this
@@ -97,8 +100,17 @@ typedef enum {
                            * the owner has explicitly accepted that for
                            * this look: both stay prescribed as chips
                            * (see outfit.c's iter-27 note) */
-    LOOK_UNIFORM_FALL     /* hoodie band: logo tee + lavender hooded
+    LOOK_UNIFORM_FALL,    /* hoodie band: logo tee + lavender hooded
                            * jacket, no scarf */
+    LOOK_KIT2             /* iter-30: the red winter kit (red quilted
+                           * coat, hat, scarf, mittens). A rotation
+                           * variant of LOOK_SNOW inside the dry
+                           * warm-coat tier on days that prescribe a
+                           * hat, where the warmcoat may not go (it
+                           * wears no hat): kit2 wears hat and gloves
+                           * exactly like the kit, so it canonicalises
+                           * to the kit's outfit whole; only the coat
+                           * tile's picture changes (WINTER_COAT_RED) */
 } look_t;
 
 typedef struct {

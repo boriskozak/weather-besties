@@ -96,6 +96,14 @@ for _outfit in ("dress", "pants", "hot", "fall"):
         _sym = "img_pippa_" + (_name if _color == "black" else f"pink_{_name}")
         VARIANTS.append((_enum, _sym, os.path.join(
             _ART_UNIFORMS, f"pippa-uniform-{_outfit}-{_color}.png")))
+# Iter-30: the red winter kit (kit2), archived with the new-outfits
+# package. Appended last so every existing variant keeps its value
+# (PIPPA_BASE, appended below, is the only one that moves).
+for _color in ("black", "pink"):
+    _enum = "PIPPA_" + ("kit2" if _color == "black" else "pink_kit2").upper()
+    _sym = "img_pippa_" + ("kit2" if _color == "black" else "pink_kit2")
+    VARIANTS.append((_enum, _sym, os.path.join(
+        _ART_OUTFITS, f"pippa-winterkit2-{_color}.png")))
 VARIANTS.append(("PIPPA_BASE", "img_pippa_base",
                  os.path.join(PKG, "sprites", "pippa_base-260x252.png")))
 SPRITES = [(sym, src) for _, sym, src in VARIANTS]

@@ -111,7 +111,7 @@ static const lv_image_dsc_t *ICON_M[] = WB_WX_ICONS_M;
 static const lv_image_dsc_t *ICON_S[] = WB_WX_ICONS_S;
 
 /* Indexed by garment_t (outfit.h). Asset names from tools/make_assets.py. */
-#define GARMENT_COUNT 31   /* garment_t count in outfit.h */
+#define GARMENT_COUNT 32   /* garment_t count in outfit.h */
 static const lv_image_dsc_t *GARMENT_96[GARMENT_COUNT];
 static const lv_image_dsc_t *GARMENT_56[GARMENT_COUNT];
 /* Pink-colourway tile icons (iter-08): only the two dress-detail
@@ -1233,6 +1233,7 @@ static void init_asset_tables(void)
     GARMENT_96[WARM_COAT_TEAL] = &img_g_warm_coat_teal_96;
     GARMENT_96[BROWN_BOOTS] = &img_g_brown_boots_96;
     GARMENT_96[UNIFORM_DRESS] = &img_g_uniform_dress_96;
+    GARMENT_96[WINTER_COAT_RED] = &img_g_winter_coat_red_96;   /* iter-30: kit2's coat tile */
     GARMENT_96_PINK[TIGHTS] = &img_g_tights_pink_96;
     GARMENT_96_PINK[DRESS_SHOES] = &img_g_dress_shoes_pink_96;
 
@@ -1267,6 +1268,7 @@ static void init_asset_tables(void)
     GARMENT_56[WARM_COAT_TEAL] = &img_g_warm_coat_teal_56;
     GARMENT_56[BROWN_BOOTS] = &img_g_brown_boots_56;
     GARMENT_56[UNIFORM_DRESS] = &img_g_uniform_dress_56;
+    GARMENT_56[WINTER_COAT_RED] = &img_g_winter_coat_red_56;   /* iter-30 */
     for (int i = 0; i < GARMENT_COUNT; i++) {
         GARMENT_56_PINK[i] = GARMENT_56[i];
     }
@@ -2528,7 +2530,8 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
                                                PIPPA_WARMCOAT,     PIPPA_TOP_MUSTARD,   PIPPA_TOP_NAVY,
                                                PIPPA_TOP_RUST,     PIPPA_DRESS_LAVENDER, PIPPA_DRESS_MINT,
                                                PIPPA_DRESS_MUSTARD, PIPPA_FALL_HOODIE,  PIPPA_UNIFORM_DRESS,
-                                               PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL};
+                                               PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL,
+                                               PIPPA_KIT2};
             int v = look_variant[o->look];
             /* Outfit variants come in black/pink pairs (pippa_sets.h):
              * the pink variant is the black one's value + 1. */
@@ -2730,7 +2733,8 @@ static const char *look_name_str(int look)
 {
     static const char *names[] = {"dress",    "pants",        "snow",          "rain",        "hot",          "fall",
                                   "warmcoat", "top_mustard",  "top_navy",      "top_rust",    "dress_lavender", "dress_mint",
-                                  "dress_mustard", "fall_hoodie", "uniform_dress", "uniform_pants", "uniform_hot", "uniform_fall"};
+                                  "dress_mustard", "fall_hoodie", "uniform_dress", "uniform_pants", "uniform_hot", "uniform_fall",
+                                  "kit2"};
     return (look >= 0 && look < (int)(sizeof(names) / sizeof(names[0]))) ? names[look] : "none";
 }
 
@@ -2745,7 +2749,8 @@ static int pippa_variant_for(int look, int y, int m, int d)
                                        PIPPA_WARMCOAT,     PIPPA_TOP_MUSTARD,   PIPPA_TOP_NAVY,
                                        PIPPA_TOP_RUST,     PIPPA_DRESS_LAVENDER, PIPPA_DRESS_MINT,
                                        PIPPA_DRESS_MUSTARD, PIPPA_FALL_HOODIE,  PIPPA_UNIFORM_DRESS,
-                                       PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL};
+                                       PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL,
+                                       PIPPA_KIT2};
     int choice = s_cat_choice;
     if (choice == 2) {
         long doy = days_from_civil(y, m, d) - days_from_civil(y, 1, 1) + 1;
@@ -4649,7 +4654,7 @@ static void render(void)
              * WINTER_COAT) plus iter-25's teal warm coat, which is a
              * layer too but sits outside that id range. */
             s_tile_layer[i] = (o.tile_kind[i] >= HOODIE && o.tile_kind[i] <= WINTER_COAT) ||
-                              o.tile_kind[i] == WARM_COAT_TEAL;
+                              o.tile_kind[i] == WARM_COAT_TEAL || o.tile_kind[i] == WINTER_COAT_RED;
             int label_y;
             if (tall) {
                 /* Icon centred over the label, scaled about its centre

@@ -222,5 +222,33 @@
       240
     ],
     "baseline": 240
+  },
+  {
+    "filename": "pippa-winterkit2-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-winterkit2-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      209,
+      240
+    ],
+    "baseline": 240
   }
 ]

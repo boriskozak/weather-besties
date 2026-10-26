@@ -886,7 +886,8 @@ def main():
               "52_rot_nov10", "52_rot_nov10b_tomorrow", "53_rot_nov11", "53_rot_nov11b_tomorrow",
               "54_rot_nov12", "54_rot_nov12b_tomorrow", "55_rot_nov13", "55_rot_nov13b_tomorrow",
               "56_warmcoat",
-              "57_rot_jul13", "57_rot_jul13b_tomorrow", "58_rot_jul14")
+              "57_rot_jul13", "57_rot_jul13b_tomorrow", "58_rot_jul14",
+              "59_kit_dec15", "59_kit_dec15b_tomorrow", "60_kit2_dec16", "61_kit2_pink")
     dumps = {n: dump(n) for n in DUMPED}
 
     # The dress bound (iter-09 fix 1, panel round 7's headline): the
@@ -900,7 +901,10 @@ def main():
     KIT_TILES = "Long sleeves|Long pants|Winter coat|Warm boots"
     for name in ("20_morning", "34_long_text", "36_bike_bus"):
         d = dumps[name]
-        check(d["look_name"] == "snow" and d["tiles"] == KIT_TILES,
+        # Iter-30: on a warm-tier hat day the kit family resolves to
+        # the kit or its red colourway by date; both are the winter
+        # kit this bound protects (the failure mode is the dress).
+        check(d["look_name"] in ("snow", "kit2") and d["tiles"] == KIT_TILES,
               f"{name}: warm-coat departure is the winter kit (look={d['look_name']}, tiles={d['tiles']})")
         check(d["chips"] == "Warm hat|Gloves",
               f"{name}: the kit's hat and gloves are checkable chips (chips={d['chips']})")
@@ -959,7 +963,7 @@ def main():
     # in the bound block above); the pink brief morning (32) wears
     # the same winter kit as its black colourway (20).
     check(dumps["32_pink_cat"]["tiles"] == dumps["20_morning"]["tiles"]
-          and dumps["32_pink_cat"]["look_name"] == "snow",
+          and dumps["32_pink_cat"]["look_name"] == dumps["20_morning"]["look_name"],
           f"32_pink_cat: pink colourway wears the kit like 20_morning ({dumps['32_pink_cat']['tiles']})")
 
     # Stale header honesty (iter-08 fix 8): stale data (bucket 1)
@@ -1436,9 +1440,12 @@ def main():
     # the message states wearing the fall kit on a snow day).
     check(md["myday_stale"] == "0" and md45["myday_stale"] == "0" and md43["myday_stale"] == "1",
           f"myday_stale set only on the stale render (40={md['myday_stale']}, 43={md43['myday_stale']}, 45={md45['myday_stale']})")
+    # Iter-30: the look the brief morning resolves to is kit2 on its
+    # date (2026-10-27), so the states are pinned to the outfit
+    # page's own resolution rather than the literal kit.
     for name, d in (("40_myday", md), ("41_myday_empty", md41), ("42_myday_unconfigured", md42),
                     ("43_myday_stale", md43), ("44_myday_never", md44), ("45_myday_late", md45)):
-        check(d["myday_cat_look"] == "snow",
+        check(d["myday_cat_look"] == dumps["20_morning"]["look_name"],
               f"{name}: Pippa wears the day's snow look in every state (myday_cat_look={d['myday_cat_look']!r})")
 
     # Pixels: the agenda is its own page (not the forecast), its
@@ -2047,6 +2054,56 @@ def main():
               f"{name}: the advice names both chips ({dd['advice']})")
     check(stage_sha("57_rot_jul13.png") != stage_sha("58_rot_jul14.png"),
           "stage crops differ: the logo hot sprite is not the standard hot sprite")
+
+    # Iter-30: the warm tier's hat-day rotation. Two consecutive dry
+    # warm-coat-tier mornings that prescribe the hat (2026-12-15..16,
+    # identical weather): the first pick is the winter kit, the
+    # second the red winter kit (kit2), and the first day's Tomorrow
+    # already shows kit2. The prescription does NOT change between
+    # the two days: same tiles by name (the coat tile still reads
+    # "Winter coat"), same hat and gloves chips; what differs is the
+    # sprite on stage and the coat tile's PICTURE (the red coat icon
+    # replaces the pink kit coat), proven on the rendered pixels of
+    # the coat tile's icon box (third tile of the 2x2 grid: tile at
+    # (284,216), icon at tile + (10,4), 96 px).
+    def tile_icon_sha(name, box):
+        img = Image.open(os.path.join(OUT, name)).crop(box)
+        return hashlib.sha256(img.tobytes()).hexdigest()
+
+    COAT_ICON_BOX = (294, 220, 390, 316)
+    d = dumps["59_kit_dec15"]
+    check(d["look_name"] == "snow",
+          f"59_kit_dec15: rotation pick for 2026-12-15 is the winter kit (look={d['look_name']})")
+    t = dumps["59_kit_dec15b_tomorrow"]
+    check(t["look_name"] == "kit2",
+          f"59_kit_dec15b_tomorrow: tomorrow's pick steps to the red winter kit (look={t['look_name']})")
+    d = dumps["60_kit2_dec16"]
+    check(d["look_name"] == "kit2",
+          f"60_kit2_dec16: rotation pick for 2026-12-16 is kit2 (look={d['look_name']})")
+    for name in ("59_kit_dec15", "59_kit_dec15b_tomorrow", "60_kit2_dec16", "61_kit2_pink"):
+        dd = dumps[name]
+        check(dd["tiles"] == "Long sleeves|Long pants|Winter coat|Warm boots",
+              f"{name}: kit tiles unchanged by the rotation ({dd['tiles']})")
+        check(dd["chips"] == "Warm hat|Gloves",
+              f"{name}: hat and gloves chips prescribed ({dd['chips']})")
+        check("winter coat" in dd["advice"],
+              f"{name}: the advice names the winter coat ({dd['advice']})")
+    check(stage_sha("59_kit_dec15.png") != stage_sha("60_kit2_dec16.png"),
+          "stage crops differ: the kit2 sprite is not the kit sprite")
+    check(tile_icon_sha("59_kit_dec15.png", COAT_ICON_BOX) != tile_icon_sha("60_kit2_dec16.png", COAT_ICON_BOX),
+          "coat tile pictures differ: kit2 day shows the red coat icon, kit day the pink one")
+    d = dumps["61_kit2_pink"]
+    check(d["look_name"] == "kit2",
+          f"61_kit2_pink: the pink colourway resolves kit2 too (look={d['look_name']})")
+    img = Image.open(os.path.join(OUT, "61_kit2_pink.png"))
+    n_pink = sum(1 for px in img.crop(STAGE).getdata() if is_pink_fur(*px[:3]))
+    check(n_pink > 400,
+          f"61_kit2_pink: pink fur on stage ({n_pink} px, need > 400)")
+    # The hat-free control: the warmcoat morning's seed is odd, so a
+    # hat-blind rotation would have picked kit2 there; it must stay
+    # the warmcoat (kit2's sprite wears a hat the day never asked for).
+    check(dumps["56_warmcoat"]["look_name"] == "warmcoat",
+          "56_warmcoat: hat-free warm-tier day never picks kit2")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")
