@@ -266,6 +266,15 @@ size_t board_free_internal(void)
     return heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 }
 
+void board_mem_log(const char *stage)
+{
+    ESP_LOGI(TAG, "mem[%s]: internal free %u, largest block %u, psram free %u",
+             stage,
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+             (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+}
+
 int board_draw_lines(void)
 {
     return s_old_mode ? DRAW_LINES_OLD : s_buf_lines;

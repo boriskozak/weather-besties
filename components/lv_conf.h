@@ -40,7 +40,10 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
-#define LV_USE_STDLIB_MALLOC LV_STDLIB_CLIB
+/* Iter-35: CUSTOM, implemented in main/lv_mem_psram.c, so LVGL's
+ * object graph allocates from PSRAM instead of competing for
+ * internal DRAM under SPIRAM_MALLOC_ALWAYSINTERNAL. */
+#define LV_USE_STDLIB_MALLOC LV_STDLIB_CUSTOM
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation

@@ -23,6 +23,77 @@ static uint32_t ms;
 static struct tm now_tm;
 static bool now_valid;
 
+/* LVGL allocator cores for the sim (iter-35): lv_conf.h selects
+ * LV_STDLIB_CUSTOM, with the firmware cores in main/lv_mem_psram.c
+ * putting LVGL's allocations in PSRAM. The sim mirrors the split
+ * with plain malloc plus a 16-byte size header, and tracks live and
+ * peak bytes: the peak is the in-sim estimate of how much internal
+ * DRAM the PSRAM move frees on the board (printed at exit). */
+static size_t s_lv_live, s_lv_peak;
+
+void lv_mem_init(void) {}
+void lv_mem_deinit(void) {}
+lv_mem_pool_t lv_mem_add_pool(void *mem, size_t bytes)
+{
+    (void)mem;
+    (void)bytes;
+    return NULL;
+}
+void lv_mem_remove_pool(lv_mem_pool_t pool) { (void)pool; }
+
+void *lv_malloc_core(size_t size)
+{
+    size_t *base = malloc(size + 16);
+    if (!base) {
+        return NULL;
+    }
+    base[0] = size;
+    s_lv_live += size;
+    if (s_lv_live > s_lv_peak) {
+        s_lv_peak = s_lv_live;
+    }
+    return base + 2;
+}
+
+void lv_free_core(void *p)
+{
+    if (!p) {
+        return;
+    }
+    size_t *base = (size_t *)p - 2;
+    s_lv_live -= base[0];
+    free(base);
+}
+
+void *lv_realloc_core(void *p, size_t new_size)
+{
+    if (!p) {
+        return lv_malloc_core(new_size);
+    }
+    if (new_size == 0) {
+        lv_free_core(p);
+        return NULL;
+    }
+    void *np = lv_malloc_core(new_size);
+    if (!np) {
+        return NULL;
+    }
+    size_t old = ((size_t *)p)[-2];
+    memcpy(np, p, old < new_size ? old : new_size);
+    lv_free_core(p);
+    return np;
+}
+
+void lv_mem_monitor_core(lv_mem_monitor_t *mon_p)
+{
+    memset(mon_p, 0, sizeof(*mon_p));
+    mon_p->total_size = s_lv_peak;
+    mon_p->free_size = s_lv_peak - s_lv_live;
+    mon_p->max_used = s_lv_peak;
+}
+
+lv_result_t lv_mem_test_core(void) { return LV_RESULT_OK; }
+
 static uint32_t tick_cb(void) { return ms; }
 
 static void flush_cb(lv_display_t *d, const lv_area_t *a, uint8_t *px)
@@ -718,5 +789,7 @@ int main(int argc, char **argv)
     lv_mem_monitor(&mon);
     printf("LVGL heap: %u of %u bytes used (%u%%), biggest free block %u\n", (unsigned)(mon.total_size - mon.free_size),
            (unsigned)mon.total_size, (unsigned)mon.used_pct, (unsigned)mon.free_biggest_size);
+    printf("LVGL allocations (sim): live %u bytes, peak %u bytes (peak = the internal DRAM the PSRAM allocator frees on the board)\n",
+           (unsigned)s_lv_live, (unsigned)s_lv_peak);
     return 0;
 }

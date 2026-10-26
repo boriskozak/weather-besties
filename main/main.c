@@ -88,6 +88,8 @@ void app_main(void)
         }
     }
 
+    board_mem_log("board_init");
+
     board_lvgl_lock(-1);
     ui_init(S.names);
     ui_set_cat_cb(cat_cb);
@@ -100,6 +102,7 @@ void app_main(void)
     lv_timer_create(power_timer, 1000, NULL);
     lv_refr_now(NULL);
     board_lvgl_unlock();
+    board_mem_log("ui_init");
 
     board_backlight(true);
     board_start_lvgl_task();

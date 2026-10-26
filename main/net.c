@@ -154,6 +154,14 @@ static void on_wifi(void *arg, esp_event_base_t base, int32_t id, void *data)
         snprintf(s_ip, sizeof(s_ip), IPSTR, IP2STR(&e->ip_info.ip));
         ESP_LOGI(TAG, "got ip %s", s_ip);
         xEventGroupSetBits(s_ev, EV_CONNECTED);
+        /* Iter-35: the wifi stage of the memory log, once per boot:
+         * the driver's static buffers are internal by design, so this
+         * is the baseline the two fetch stages spend from. */
+        static bool mem_logged;
+        if (!mem_logged) {
+            mem_logged = true;
+            board_mem_log("wifi");
+        }
     }
 }
 
@@ -568,6 +576,7 @@ static void net_task(void *arg)
         xEventGroupWaitBits(s_ev, EV_CONNECTED, pdFALSE, pdFALSE, pdMS_TO_TICKS(CONNECT_WAIT_MS));
         bool ok = (xEventGroupGetBits(s_ev) & EV_CONNECTED) && fetch_weather();
         if (ok) {
+            board_mem_log("weather");
             fails = 0;
             if (!have) {
                 /* WiFi and the secure download both work, so now we know how much
@@ -583,6 +592,7 @@ static void net_task(void *arg)
             }
             show_weather(true, last);
             fetch_calendar();
+            board_mem_log("calendar");
             ota_mark_good();   /* a new version that gets the weather is a keeper */
 
             /* Nightly update check, around 3 AM, once a day, and only when a
@@ -613,6 +623,16 @@ static void net_task(void *arg)
         size_t free_int = board_free_internal();
         ESP_LOGI(TAG, "internal RAM free %u KB, drawing area %d lines", (unsigned)(free_int / 1024),
                  board_draw_lines());
+        /* Iter-35 guardrail: under 60 KB internal free after a fetch
+         * cycle, the next TLS handshake is living on borrowed room;
+         * say so loudly. (The 24 KB line below stays the shrink
+         * trigger; 40 KB is a rule of thumb, not a measured floor,
+         * and the largest free block in the mem[] lines is the
+         * number that actually decides whether a big allocation
+         * still fits.) */
+        if (free_int < 60 * 1024) {
+            ESP_LOGW(TAG, "internal RAM low: %u KB free after fetch cycle", (unsigned)(free_int / 1024));
+        }
         if (!ok) {
             ESP_LOGW(TAG, "weather fetch failed (%d in a row), retrying in %u s", fails, (unsigned)(wait / 1000));
             if (free_int < 24 * 1024) {
