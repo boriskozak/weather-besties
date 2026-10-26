@@ -10,6 +10,7 @@ sim/build/
 sim/build-web/
 sim/render
 sim/test_request
+sim/test_cal
 sim/web/site/
 sim/scenarios/
 sim/out/*.rgb565

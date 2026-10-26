@@ -1406,6 +1406,30 @@ def main():
           f"45_myday_late: tomorrow rows unchanged in the afternoon ({md45['myday_tom1']})")
     check(md45["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano" and md45["myday_half"] == "1",
           f"45_myday_late: same icons and half cards in the afternoon (icons={md45['myday_icons']}, half={md45['myday_half']})")
+    # Iter-29: the fall-back weekend (clock Sat Oct 31 2026, 8:05 AM;
+    # tomorrow is Sun Nov 1, when America/New_York repeats 1 AM).
+    # The fixture's TZID times resolve through its VTIMEZONE block,
+    # so these strings pin the stored instants, not just the text:
+    # a fixed -4 reading would put the pancakes at 4:30 AM, a UTC
+    # reading at 8:30 AM, and the owl walk on the wrong hour too.
+    md46 = dump("46_myday_dst")
+    check(md46["myday_state"] == "events" and md46["myday_today_n"] == "2" and md46["myday_tom_n"] == "3",
+          f"46_myday_dst: 2 rows today, 3 tomorrow over the fall-back (state={md46['myday_state']}, {md46['myday_today_n']}/{md46['myday_tom_n']})")
+    check(md46["myday_today0"] == "10:00-11:00 AM|Pumpkin patch visit|Chestnut Hill Farm",
+          f"46_myday_dst: today's first row (today0={md46['myday_today0']!r})")
+    check(md46["myday_today1"] == "1:00-1:45 PM|Video call with Grandpa|",
+          f"46_myday_dst: the UTC call lands at 1 PM EDT today ({md46['myday_today1']})")
+    check(md46["myday_tom0"] == "12:30-1:00 AM|Moonlight owl walk|",
+          f"46_myday_dst: 12:30 AM tomorrow is still EDT ({md46['myday_tom0']})")
+    check(md46["myday_tom1"] == "1:30-2:30 AM|Fall-back pyjama jam|",
+          f"46_myday_dst: the repeated 1:30 resolves to its first (EDT) pass ({md46['myday_tom1']})")
+    check(md46["myday_tom2"] == "3:30-4:30 AM|Sunrise pancake breakfast|",
+          f"46_myday_dst: 3:30 AM tomorrow is EST ({md46['myday_tom2']})")
+    check(md46["myday_tom_date"] == "Sun, Nov 1" and md46["myday_nextup"] == "Pumpkin patch visit"
+          and md46["myday_nowup"] == "" and md46["myday_done"] == "",
+          f"46_myday_dst: tomorrow is Nov 1, the pumpkin visit is NEXT, nothing NOW or DONE at 8:05 AM (date={md46['myday_tom_date']}, nextup={md46['myday_nextup']!r})")
+    check(md46["myday_fresh"] == "Updated 7:02 AM",
+          f"46_myday_dst: freshness line shows the pinned fetch time ({md46['myday_fresh']})")
     # Iter-20 dumps: the stale flag the banner and the muting key
     # off, and the outfit the populated page resolved — the
     # message states must resolve the same look (round 16 caught

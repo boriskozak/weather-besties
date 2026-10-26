@@ -33,15 +33,20 @@ shots: render
 	python3 to_png.py out
 	python3 check_renders.py out
 
-# Checks every request the board makes fits the HTTP client's send buffer.
-test: test_request
+# Checks every request the board makes fits the HTTP client's send buffer,
+# and that the calendar parser stores the right instants (iter-29).
+test: test_request test_cal
 	./test_request
+	./test_cal
 
 test_request: test_request.c $(UI_DIR)/wb_request.c $(UI_DIR)/wb_request.h
 	$(CC) -O2 -Wall -Wextra -I$(UI_DIR) -o $@ test_request.c $(UI_DIR)/wb_request.c
 
+test_cal: test_cal.c $(UI_DIR)/cal.c $(UI_DIR)/cal.h
+	$(CC) -O2 -Wall -Wextra -DWB_SIM -I$(UI_DIR) -o $@ test_cal.c $(UI_DIR)/cal.c
+
 clean:
-	rm -rf build render out test_request
+	rm -rf build render out test_request test_cal
 
 
 # ---- Browser emulator (WebAssembly) ----

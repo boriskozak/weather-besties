@@ -157,14 +157,29 @@ static void show(void)
  * Invented events only (this repo is public), built relative to the
  * sim clock currently loaded, so the Today/Tomorrow sections land on
  * the rendered dates. The renderer process runs in the scenario's
- * zone, like the board, so cal.c's mktime/localtime agree with the
- * page. File order is scrambled on purpose: cal.c sorts. One summary
+ * zone, like the board, so the page's localtime agrees with the
+ * instants cal.c resolves (TZID ones through the VTIMEZONE block
+ * below, since iter-29). File order is scrambled on purpose: cal.c sorts. One summary
  * is line-folded and one location carries an escaped comma, so the
  * renders also prove unfolding and unescaping. */
 static void ymd(char *buf, const struct tm *t)
 {
     sprintf(buf, "%04d%02d%02d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday);
 }
+
+/* The VTIMEZONE block of a Google Calendar export for
+ * America/New_York, verbatim in shape (iter-29): since this block
+ * rides along, the fixtures' TZID date-times resolve through the
+ * feed's own observances in cal.c, not through the renderer
+ * process's zone, and the asserted row strings below are exact
+ * local times, the fall-back render (46) included. */
+static const char VTZ_NY[] =
+    "BEGIN:VTIMEZONE\r\nTZID:America/New_York\r\nX-LIC-LOCATION:America/New_York\r\n"
+    "BEGIN:DAYLIGHT\r\nTZOFFSETFROM:-0500\r\nTZOFFSETTO:-0400\r\nTZNAME:EDT\r\n"
+    "DTSTART:19700308T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU\r\nEND:DAYLIGHT\r\n"
+    "BEGIN:STANDARD\r\nTZOFFSETFROM:-0400\r\nTZOFFSETTO:-0500\r\nTZNAME:EST\r\n"
+    "DTSTART:19701101T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU\r\nEND:STANDARD\r\n"
+    "END:VTIMEZONE\r\n";
 
 static void fixture_cal(bool with_events)
 {
@@ -183,6 +198,7 @@ static void fixture_cal(bool with_events)
     int n = 0;
     n += snprintf(ics + n, sizeof(ics) - n,
                   "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
     if (with_events) {
         n += snprintf(ics + n, sizeof(ics) - n,
                       "BEGIN:VEVENT\r\nUID:sim-1\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
@@ -222,6 +238,54 @@ static void fixture_cal(bool with_events)
     n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
     if (!cal_parse(ics, (size_t)n)) {
         fprintf(stderr, "fixture calendar did not parse\n");
+        exit(1);
+    }
+}
+
+/* Iter-29: the fall-back weekend, built against the loaded clock
+ * (halloween_cold: Sat Oct 31 2026), so tomorrow is Sun Nov 1,
+ * when America/New_York repeats the 1 AM hour. The asserted rows
+ * pin the resolved instants end to end: 12:30 AM is still EDT,
+ * 1:30 AM is the FIRST 1:30 (EDT), 3:30 AM is EST, and today's
+ * "Z" call lands at 1 PM EDT. Invented events, like fixture_cal. */
+static void fixture_cal_dst(void)
+{
+    struct tm today = now_tm, tom = now_tm;
+    tom.tm_mday += 1;
+    tom.tm_isdst = -1;
+    mktime(&tom);
+    char d0[9], d1[9];
+    ymd(d0, &today);
+    ymd(d1, &tom);
+    char ics[4096];
+    int n = 0;
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-d1\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
+                  "DTEND;TZID=America/New_York:%sT110000\r\nSUMMARY:Pumpkin patch visit\r\n"
+                  "LOCATION:Chestnut Hill Farm\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-d2\r\nDTSTART;TZID=America/New_York:%sT003000\r\n"
+                  "DTEND;TZID=America/New_York:%sT010000\r\nSUMMARY:Moonlight owl walk\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-d3\r\nDTSTART;TZID=America/New_York:%sT013000\r\n"
+                  "DTEND;TZID=America/New_York:%sT023000\r\nSUMMARY:Fall-back pyjama jam\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-d4\r\nDTSTART;TZID=America/New_York:%sT033000\r\n"
+                  "DTEND;TZID=America/New_York:%sT043000\r\nSUMMARY:Sunrise pancake breakfast\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-d5\r\nDTSTART:%sT170000Z\r\nDTEND:%sT174500Z\r\n"
+                  "SUMMARY:Video call with Grandpa\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
+    if (!cal_parse(ics, (size_t)n)) {
+        fprintf(stderr, "DST fixture calendar did not parse\n");
         exit(1);
     }
 }
@@ -564,6 +628,18 @@ int main(int argc, char **argv)
     pump(10);
     save(out, "45_myday_late");
     dump(out, "45_myday_late");
+
+    /* Iter-29: the fall-back weekend on the same page. The
+     * Halloween scenario's clock is Sat Oct 31 2026, 8:05 AM, so
+     * the DST fixture's tomorrow is the Nov 1 fall-back itself;
+     * the fetch pins at 7:02 AM like the renders above. */
+    load(sc, "halloween_cold");
+    show();
+    fixture_cal_dst();
+    fixture_fetched();
+    pump(10);
+    save(out, "46_myday_dst");
+    dump(out, "46_myday_dst");
     ui_test_set_page(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);

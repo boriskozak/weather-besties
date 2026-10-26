@@ -31,9 +31,11 @@ typedef struct {
 
 /* Parses a whole .ics body. Returns false (keeping any previously
  * parsed data) when the text does not look like a calendar at all.
- * Times convert through the C library local timezone: TZID values
- * other than UTC are read as local wall time, which is close enough
- * for this feed (the mirror calendar lives in the board's own zone).
+ * Stored times are true UTC instants: "Z" times directly, and
+ * TZID-qualified times through the feed's own VTIMEZONE observances
+ * (iter-29), so they need no help from the C library's zone. A TZID
+ * with no matching VTIMEZONE, and floating times with no TZID at
+ * all, are read as local wall time through the C library's zone.
  * Events come back sorted by start. Call from the LVGL thread (or
  * with its lock held), like the rest of the UI state. */
 bool cal_parse(const char *ics, size_t len);

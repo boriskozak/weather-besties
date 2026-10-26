@@ -64,11 +64,19 @@ static void fmt_clock(char *buf, size_t n, int hour, int min)
 }
 
 /* Point the C library at the weather location's offset, so the
- * calendar parser's mktime/localtime read ICS local times in the
- * same zone the screen shows (net_local_time above does the sum by
- * hand and does not care). Fixed offset only, no DST rules of its
- * own: it is re-set from the fresh offset on every fetch, so it
- * tracks the location through DST changes. */
+ * calendar parser's mktime and the UI's localtime read ICS times
+ * in the same zone the screen shows (net_local_time above does the
+ * sum by hand and does not care). Fixed offset only, no DST rules
+ * of its own: it is re-set from the fresh offset on every fetch, so
+ * it tracks the location through DST changes.
+ *
+ * The zone name needs at least three letters: POSIX (and both libc
+ * implementations in play, glibc on the desktop renderer and
+ * newlib on the board) reject a shorter name and silently keep
+ * UTC. This used to say "WB4", so on the board localtime_r
+ * rendered every calendar time in UTC, 4 hours late in EDT, while
+ * the hand-summed clock stayed right (iter-29 field bug). The name
+ * itself is arbitrary and never displayed; only the offset is. */
 static void set_local_tz(int utc_offset_s)
 {
     static int applied = 0x7fffffff;
@@ -83,9 +91,9 @@ static void set_local_tz(int utc_offset_s)
     int a = posix < 0 ? -posix : posix;
     char tz[24];
     if (a % 3600 == 0) {
-        snprintf(tz, sizeof(tz), "WB%d", sign * (a / 3600));
+        snprintf(tz, sizeof(tz), "WBT%d", sign * (a / 3600));
     } else {
-        snprintf(tz, sizeof(tz), "WB%d:%02d", sign * (a / 3600), (a % 3600) / 60);
+        snprintf(tz, sizeof(tz), "WBT%d:%02d", sign * (a / 3600), (a % 3600) / 60);
     }
     setenv("TZ", tz, 1);
     tzset();
