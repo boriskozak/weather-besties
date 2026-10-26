@@ -240,8 +240,12 @@ static esp_err_t page_root(httpd_req_t *req)
     hour_options(&b, S->off_from);
     sb_add(&b, "</select><select name=\"to\">");
     hour_options(&b, S->off_to);
-    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p>"
-               "<label for=\"bbus\" style=\"margin-top:16px\">Bike bus day</label><select id=\"bbus\" name=\"bbus\">");
+    sb_add(&b, "</select></div><p class=\"hint\">Off at, back on at. A tap wakes it for a minute.</p>");
+    sb_add(&b, "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"autoup\" value=\"1\"%s>"
+               "Install updates automatically</label><p class=\"hint\">Checks around 3 AM. Settings on the screen "
+               "has an Update button too. Off unless you turn it on.</p>",
+           S->auto_update ? " checked" : "");
+    sb_add(&b, "<label for=\"bbus\" style=\"margin-top:16px\">Bike bus day</label><select id=\"bbus\" name=\"bbus\">");
     static const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "No bike bus"};
     for (int d = 0; d < 8; d++) {
         sb_add(&b, "<option value=\"%d\"%s>%s</option>", d, d == S->bike_bus ? " selected" : "", days[d]);
@@ -307,6 +311,7 @@ static esp_err_t page_save(httpd_req_t *req)
     }
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
+    n.auto_update = form_get(body, "autoup", v, sizeof(v)) && v[0] == '1';
     if (form_get(body, "from", v, sizeof(v))) {
         n.off_from = (uint8_t)(atoi(v) % 24);
     }

@@ -901,6 +901,8 @@ static void on_settings_btn(lv_event_t *e)
         fire(UI_ACT_SETUP);
     } else if (which == 2) {
         fire(UI_ACT_REFRESH);
+    } else if (which == 3) {
+        fire(UI_ACT_UPDATE);
     }
 }
 
@@ -1106,6 +1108,26 @@ static void build_settings(void)
     lv_obj_set_style_text_color(set_speed_lbl, C(COL_INK), 0);
     lv_obj_center(set_speed_lbl);
     lv_obj_add_event_cb(set_speed_pill, on_speed_pill, LV_EVENT_CLICKED, NULL);
+
+    /* Update (iter-32, ported from Michael Lippy's fork): one pill on
+     * the speed test's row, right-aligned to the same 744 measure.
+     * Tapping it closes Settings (on_settings_btn) and asks the net
+     * task to check for a newer firmware now; the boot screen shows
+     * the progress. Same pill look as the speed test beside it. */
+    lv_obj_t *upd = lv_button_create(settings);
+    lv_obj_remove_style_all(upd);
+    lv_obj_set_style_radius(upd, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(upd, lv_color_hex(0xEDF1F5), 0);
+    lv_obj_set_style_bg_opa(upd, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(upd, C(0xD5DBE6), LV_STATE_PRESSED);
+    lv_obj_set_style_pad_hor(upd, 26, 0);
+    lv_obj_set_height(upd, 48);
+    lv_obj_t *upd_lbl = label(upd, &font_body, "Update");
+    lv_obj_set_style_text_color(upd_lbl, C(COL_INK), 0);
+    lv_obj_center(upd_lbl);
+    lv_obj_add_event_cb(upd, on_settings_btn, LV_EVENT_CLICKED, (void *)(intptr_t)3);
+    lv_obj_update_layout(upd);
+    lv_obj_set_pos(upd, 744 - lv_obj_get_width(upd), 364);
 
     /* The tools row (iter-11): one deliberate geometry for the three
      * actions. Equal widths are impossible honestly: "Change WiFi or

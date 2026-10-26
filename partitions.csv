@@ -1,4 +1,12 @@
-# Name,   Type, SubType, Offset,  Size
-nvs,      data, nvs,     0x9000,  0x6000,
-phy_init, data, phy,     0xf000,  0x1000,
-factory,  app,  factory, 0x10000, 0x700000,
+# Name,   Type, SubType, Offset,   Size
+# Two OTA app slots (iter-32, ported from Michael Lippy's fork). nvs stays at
+# 0x9000 so saved settings survive the switch from the single factory slot.
+# Slots are as wide as 16 MB of flash allows: after the bootloader (0x0),
+# partition table (0x8000), nvs (0x9000, 0x6000), otadata (0xf000, 0x2000) and
+# phy_init (0x11000, 0x1000), apps start at 0x20000 with 0xFE0000 left, which
+# splits into two 0x7F0000 slots ending exactly at 0x1000000.
+nvs,      data, nvs,     0x9000,   0x6000,
+otadata,  data, ota,     0xf000,   0x2000,
+phy_init, data, phy,     0x11000,  0x1000,
+ota_0,    app,  ota_0,   0x20000,  0x7F0000,
+ota_1,    app,  ota_1,   0x810000, 0x7F0000,
