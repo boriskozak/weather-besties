@@ -155,8 +155,22 @@ static esp_err_t panel_init(void)
     for (int i = 0; i < 16; i++) {
         cfg.data_gpio_nums[i] = RGB_DATA[i];
     }
-    ESP_RETURN_ON_ERROR(esp_lcd_new_rgb_panel(&cfg, &s_panel), TAG, "rgb panel");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_init(s_panel), TAG, "panel init");
+    esp_err_t err = esp_lcd_new_rgb_panel(&cfg, &s_panel);
+    if (err != ESP_OK) {
+        /* Name the failing allocation: this is the boot loop of iter-33,
+         * where SPIRAM_RODATA + XIP filled PSRAM and the framebuffer
+         * (LCD_W * LCD_H * 2 bytes) no longer fit. */
+        ESP_LOGE(TAG, "rgb panel create failed (%s): no room in PSRAM for the %dx%d RGB565 framebuffer (%u bytes)",
+                 esp_err_to_name(err), LCD_W, LCD_H, (unsigned)(LCD_W * LCD_H * 2));
+        return err;
+    }
+    err = esp_lcd_panel_init(s_panel);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "panel init failed (%s)", esp_err_to_name(err));
+        esp_lcd_panel_del(s_panel);
+        s_panel = NULL;
+        return err;
+    }
     return ESP_OK;
 }
 
@@ -346,7 +360,23 @@ esp_err_t board_init(void)
     s_last_touch_us = esp_timer_get_time();
 
     ESP_RETURN_ON_ERROR(i2c_and_expander_init(), TAG, "expander");
-    ESP_RETURN_ON_ERROR(panel_init(), TAG, "panel");
+    /* The panel's framebuffer is the first big PSRAM allocation of boot.
+     * Retry it a few times before giving up: app_main halts loudly on a
+     * board_init error (no more abort into a tight, silent boot loop). */
+    esp_err_t perr = ESP_FAIL;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        perr = panel_init();
+        if (perr == ESP_OK) {
+            break;
+        }
+        ESP_LOGE(TAG, "panel init attempt %d of 3 failed: %s", attempt, esp_err_to_name(perr));
+        if (attempt < 3) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
+    }
+    if (perr != ESP_OK) {
+        return perr;
+    }
     esp_err_t terr = touch_init();
     if (terr != ESP_OK) {
         ESP_LOGW(TAG, "no touch controller (%s), carrying on without touch", esp_err_to_name(terr));

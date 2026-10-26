@@ -4,6 +4,9 @@
  */
 #include <stdio.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "board.h"
 #include "esp_log.h"
 #include "lvgl.h"
@@ -72,7 +75,18 @@ void app_main(void)
     settings_load(&S);
     ota_boot_check();   /* if this version is new and unproven, start its trial clock */
 
-    ESP_ERROR_CHECK(board_init());
+    /* Not ESP_ERROR_CHECK: an abort here reboot-loops silently and the
+     * board just looks dead (iter-33's PSRAM framebuffer failure). Halt
+     * instead, re-logging every 10 s so the failure stays on the console. */
+    esp_err_t berr = board_init();
+    if (berr != ESP_OK) {
+        ESP_LOGE(TAG, "board_init failed: %s; halting, no reboot loop (power-cycle to retry)",
+                 esp_err_to_name(berr));
+        for (;;) {
+            vTaskDelay(pdMS_TO_TICKS(10000));
+            ESP_LOGE(TAG, "still halted: board_init failed: %s", esp_err_to_name(berr));
+        }
+    }
 
     board_lvgl_lock(-1);
     ui_init(S.names);

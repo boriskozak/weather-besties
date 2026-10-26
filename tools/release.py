@@ -69,6 +69,12 @@ def main():
     app_src = os.path.join(BUILD, "weather_besties.bin")
     if not os.path.exists(app_src):
         sys.exit("no build/weather_besties.bin; run idf.py build first")
+    # Size gates (iter-34): PSRAM budget for the XIP/rodata copies, and
+    # the OTA slot size. A build that busts either must never package.
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "check_size_budget.py"),
+                        "--build", BUILD])
+    if r.returncode != 0:
+        sys.exit("size budget check failed; not packaging this build (see tools/check_size_budget.py)")
     # The image's own version must match, or boards would reject the update.
     with open(app_src, "rb") as f:
         head = f.read(0x200)

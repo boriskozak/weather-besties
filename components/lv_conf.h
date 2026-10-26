@@ -1009,10 +1009,10 @@
 #define LV_USE_GSTREAMER 0
 
 /** Decode bin images to RAM */
-#define LV_BIN_DECODER_RAM_LOAD 1   /* required: image assets are RLE-compressed; the bin decoder refuses compressed images without this */
+#define LV_BIN_DECODER_RAM_LOAD 1   /* required: image assets are LZ4-compressed; the bin decoder refuses compressed images without this */
 
 /** RLE decompress library */
-#define LV_USE_RLE 1   /* image assets are RLE-compressed (tools/make_assets.py) */
+#define LV_USE_RLE 1   /* kept enabled so any stray RLE asset still decodes; new assets are LZ4 (iter-34) */
 
 /** QR code library */
 #define LV_USE_QRCODE 1
@@ -1064,7 +1064,7 @@
 #define LV_USE_NANOVG 0
 
 /** Use lvgl built-in LZ4 lib */
-#define LV_USE_LZ4_INTERNAL  0
+#define LV_USE_LZ4_INTERNAL  1   /* image assets are LZ4-compressed since iter-34 (PSRAM budget) */
 
 /** Use external LZ4 library */
 #define LV_USE_LZ4_EXTERNAL  0

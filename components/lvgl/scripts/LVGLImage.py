@@ -513,7 +513,14 @@ class LVGLCompressData:
                 pad = b'\x00' * (self.blk_size - self.raw_data_len % self.blk_size)
             compressed = RLEImage().rle_compress(raw_data + pad, self.blk_size)
         elif self.compress == CompressMethod.LZ4:
-            compressed = lz4.block.compress(raw_data, store_size=False)
+            # High-compression mode: identical LZ4 block format (the
+            # on-device decoder cannot tell the difference), ~25% smaller
+            # than the default mode on this project's sprite art. Rodata
+            # size is a hard budget here (SPIRAM_RODATA copies it all into
+            # PSRAM at boot; see tools/check_size_budget.py), so the
+            # slower encode is worth it. Weather Besties iter-34.
+            compressed = lz4.block.compress(raw_data, store_size=False,
+                                            mode="high_compression")
         else:
             raise ParameterError(f"Invalid compress method: {self.compress}")
 

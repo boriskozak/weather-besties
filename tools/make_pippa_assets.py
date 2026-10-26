@@ -4,8 +4,8 @@
 Pippa's artwork comes from external packages (flattened full-character
 sprites, 260x252, transparent PNGs; PNG transparency is authoritative).
 This script converts the pieces the UI uses into the same LVGL image
-format as every other asset (RGB565A8, RLE compressed, via
-components/lvgl/scripts/LVGLImage.py) and generates:
+format as every other asset (RGB565A8, LZ4 compressed since iter-34,
+via components/lvgl/scripts/LVGLImage.py) and generates:
 
   assets/img_pippa_<variant>.c    (13 sprites: six outfits x two fur
                                    colourways, plus the undressed base)
@@ -225,7 +225,7 @@ def convert_mini(png_path, name):
     cropped = os.path.join(PNG, name + ".png")
     im.crop(bb).save(cropped)
     subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8",
-                    "--compress", "RLE", "-o", OUT, "--name", name, cropped],
+                    "--compress", "LZ4", "-o", OUT, "--name", name, cropped],
                    check=True, stdout=subprocess.DEVNULL)
     produced = os.path.join(OUT, name + ".png.c")
     if not os.path.exists(produced):
@@ -240,7 +240,7 @@ def _write_lvimg(png_path, name):
     """Convert one prepared PNG to an LVGL C image in OUT (the tail
     of convert()/convert_mini(), shared by the iter-11 assets)."""
     subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8",
-                    "--compress", "RLE", "-o", OUT, "--name", name, png_path],
+                    "--compress", "LZ4", "-o", OUT, "--name", name, png_path],
                    check=True, stdout=subprocess.DEVNULL)
     produced = os.path.join(OUT, name + ".png.c")
     if not os.path.exists(produced):
@@ -351,7 +351,7 @@ def convert(png_path, name, window=None):
     cropped = os.path.join(PNG, name + ".png")
     im.crop(bb).save(cropped)
     subprocess.run([sys.executable, LVGLIMAGE, "--ofmt", "C", "--cf", "RGB565A8",
-                    "--compress", "RLE", "-o", OUT, "--name", name, cropped],
+                    "--compress", "LZ4", "-o", OUT, "--name", name, cropped],
                    check=True, stdout=subprocess.DEVNULL)
     produced = os.path.join(OUT, name + ".png.c")
     if not os.path.exists(produced):
