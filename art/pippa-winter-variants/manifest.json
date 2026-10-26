@@ -1,0 +1,394 @@
+[
+  {
+    "filename": "pippa-pinkcoat-lavender-dress-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-lavender-dress-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-mustard-solid-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-mustard-solid-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-mustard-stripe-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-mustard-stripe-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-navy-solid-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-navy-solid-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-navy-stripe-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-navy-stripe-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-rust-stripe-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-rust-stripe-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-teal-solid-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-pinkcoat-teal-solid-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-mint-dress-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      52,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-mint-dress-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      52,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-mustard-solid-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-mustard-solid-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      52,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-mustard-stripe-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      209,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-mustard-stripe-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      209,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-navy-solid-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-navy-solid-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-navy-stripe-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-navy-stripe-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      52,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-rust-stripe-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-rust-stripe-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      52,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-teal-solid-black.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      51,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  },
+  {
+    "filename": "pippa-redcoat-teal-solid-pink.png",
+    "size": [
+      260,
+      252
+    ],
+    "alpha_bounds": [
+      52,
+      12,
+      208,
+      240
+    ],
+    "baseline": 240
+  }
+]
