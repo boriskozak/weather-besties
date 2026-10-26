@@ -472,7 +472,7 @@ static TaskHandle_t s_lvgl_task;
 
 void board_start_lvgl_task(void)
 {
-    xTaskCreatePinnedToCore(lvgl_task, "lvgl", LVGL_TASK_STACK, NULL, 4, NULL, &s_lvgl_task);
+    xTaskCreatePinnedToCore(lvgl_task, "lvgl", LVGL_TASK_STACK, NULL, 4, &s_lvgl_task, 1);
 }
 
 void board_lvgl_stack_log(const char *stage)
