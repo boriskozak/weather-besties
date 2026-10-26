@@ -21,6 +21,7 @@ extern "C" {
 typedef enum {
     UI_ACT_SETUP,     /* user asked to change WiFi / town */
     UI_ACT_REFRESH,   /* user asked for fresh weather now */
+    UI_ACT_UPDATE,    /* user asked to check for a firmware update now */
 } ui_action_t;
 
 typedef void (*ui_action_cb_t)(ui_action_t act, void *user);

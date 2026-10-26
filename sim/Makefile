@@ -5,7 +5,7 @@ UI_DIR   := $(ROOT)/components/wb_ui
 CJSON    := cjson
 
 SRC := $(shell find $(LVGL_DIR)/src -name '*.c') \
-       $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(UI_DIR)/cal.c $(wildcard $(UI_DIR)/assets/*.c) \
+       $(UI_DIR)/ui.c $(UI_DIR)/wx.c $(UI_DIR)/outfit.c $(UI_DIR)/cat.c $(UI_DIR)/cal.c $(UI_DIR)/update.c $(wildcard $(UI_DIR)/assets/*.c) \
        $(CJSON)/cJSON.c sim_main.c
 OBJ := $(patsubst %.c,build/%.o,$(subst $(ROOT)/,root/,$(SRC)))
 
@@ -34,10 +34,12 @@ shots: render
 	python3 check_renders.py out
 
 # Checks every request the board makes fits the HTTP client's send buffer,
-# and that the calendar parser stores the right instants (iter-29).
-test: test_request test_cal
+# that the calendar parser stores the right instants (iter-29), and that the
+# OTA update manifest parser and version comparison behave (iter-32).
+test: test_request test_cal test_update
 	./test_request
 	./test_cal
+	./test_update
 
 test_request: test_request.c $(UI_DIR)/wb_request.c $(UI_DIR)/wb_request.h
 	$(CC) -O2 -Wall -Wextra -I$(UI_DIR) -o $@ test_request.c $(UI_DIR)/wb_request.c
@@ -45,8 +47,11 @@ test_request: test_request.c $(UI_DIR)/wb_request.c $(UI_DIR)/wb_request.h
 test_cal: test_cal.c $(UI_DIR)/cal.c $(UI_DIR)/cal.h
 	$(CC) -O2 -Wall -Wextra -DWB_SIM -I$(UI_DIR) -o $@ test_cal.c $(UI_DIR)/cal.c
 
+test_update: test_update.c $(UI_DIR)/update.c $(UI_DIR)/update.h
+	$(CC) -O2 -Wall -Wextra -I$(UI_DIR) -I$(CJSON) -o $@ test_update.c $(UI_DIR)/update.c $(CJSON)/cJSON.c
+
 clean:
-	rm -rf build render out test_request test_cal
+	rm -rf build render out test_request test_cal test_update
 
 
 # ---- Browser emulator (WebAssembly) ----

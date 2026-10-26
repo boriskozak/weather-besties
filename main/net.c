@@ -19,6 +19,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/task.h"
+#include "ota.h"
 #include "wb_request.h"
 #include "wx.h"
 
@@ -27,6 +28,7 @@ static const char *TAG = "net";
 #define EV_CONNECTED BIT0
 #define EV_REFRESH BIT1
 #define EV_PORTAL BIT2
+#define EV_UPDATE BIT3
 
 #define REFRESH_MS (15 * 60 * 1000)
 #define RETRY_QUICK_MS (10 * 1000)
@@ -108,6 +110,8 @@ void net_ui_action(ui_action_t a, void *user)
         xEventGroupSetBits(s_ev, EV_PORTAL);
     } else if (a == UI_ACT_REFRESH) {
         xEventGroupSetBits(s_ev, EV_REFRESH);
+    } else if (a == UI_ACT_UPDATE) {
+        xEventGroupSetBits(s_ev, EV_UPDATE);
     }
 }
 
@@ -314,6 +318,69 @@ out:
     return ok;
 }
 
+/* Streams a (possibly big) download to cb a chunk at a time, following redirects. cb returns
+ * false to stop early (then this returns false). Ported from Michael Lippy's fork (iter-32),
+ * with our user agent and buffer sizes; the byte cap is only a runaway guard, the OTA
+ * manifest's own size is enforced by ota.c's callback. */
+#define STREAM_MAX (16u * 1024 * 1024)
+bool net_http_stream(const char *url, bool (*cb)(const char *, size_t, void *), void *ctx, int *status_out,
+                     size_t *total)
+{
+    *total = 0;
+    *status_out = 0;
+    esp_http_client_config_t cfg = {
+        .url = url,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .timeout_ms = 30000,
+        .buffer_size = 4096,
+        .buffer_size_tx = WB_HTTP_TX_BUF,
+        .user_agent = "WeatherBesties/" WB_VERSION,
+        .max_redirection_count = 5,
+    };
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    char *buf = heap_caps_malloc(4096, MALLOC_CAP_SPIRAM);
+    bool ok = false;
+    if (!c || !buf) {
+        goto out;
+    }
+    for (int hop = 0; hop < 5; hop++) {
+        if (esp_http_client_open(c, 0) != ESP_OK) {
+            goto out;
+        }
+        esp_http_client_fetch_headers(c);
+        int st = esp_http_client_get_status_code(c);
+        *status_out = st;
+        if (st == 301 || st == 302 || st == 303 || st == 307 || st == 308) {
+            esp_http_client_flush_response(c, NULL);
+            esp_http_client_set_redirection(c);
+            esp_http_client_close(c);
+            continue;
+        }
+        if (st != 200) {
+            goto out;
+        }
+        while (*total < STREAM_MAX) {
+            int r = esp_http_client_read(c, buf, 4096);
+            if (r <= 0) {
+                break;
+            }
+            *total += (size_t)r;
+            if (!cb(buf, (size_t)r, ctx)) {
+                goto out;
+            }
+        }
+        ok = esp_http_client_is_complete_data_received(c);
+        break;
+    }
+out:
+    free(buf);
+    if (c) {
+        esp_http_client_close(c);
+        esp_http_client_cleanup(c);
+    }
+    return ok;
+}
+
 /* ------------------------------------------------------------------ geocode + weather */
 
 static bool geocode(void)
@@ -516,6 +583,18 @@ static void net_task(void *arg)
             }
             show_weather(true, last);
             fetch_calendar();
+            ota_mark_good();   /* a new version that gets the weather is a keeper */
+
+            /* Nightly update check, around 3 AM, once a day, and only when a
+             * grown-up turned it on in setup (auto_update defaults OFF here;
+             * Mike's fork defaults it on). ota_run restarts if it installs. */
+            static int s_update_day = -1;
+            struct tm lt;
+            if (S->auto_update && net_local_time(&lt) && lt.tm_hour == 3 && lt.tm_yday != s_update_day) {
+                s_update_day = lt.tm_yday;
+                ota_run(false);
+                show_weather(true, last);   /* no install: put the weather back */
+            }
         } else {
             fails++;
             if (have) {
@@ -540,9 +619,13 @@ static void net_task(void *arg)
                 board_shrink_draw_buffer();   /* maybe memory: hand it back to WiFi */
             }
         }
-        EventBits_t b = xEventGroupWaitBits(s_ev, EV_REFRESH | EV_PORTAL, pdTRUE, pdFALSE, pdMS_TO_TICKS(wait));
+        EventBits_t b = xEventGroupWaitBits(s_ev, EV_REFRESH | EV_PORTAL | EV_UPDATE, pdTRUE, pdFALSE,
+                                            pdMS_TO_TICKS(wait));
         if (b & EV_PORTAL) {
             go_portal();
+        }
+        if (b & EV_UPDATE) {
+            ota_run(true);   /* restarts if it installs something; else the loop refreshes the weather */
         }
     }
 }

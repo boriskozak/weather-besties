@@ -20,6 +20,7 @@ void settings_defaults(wb_settings_t *s)
     snprintf(s->names, sizeof(s->names), "Cleo & Lila");
     s->celsius = false;
     s->night_off = false;
+    s->auto_update = false;   /* iter-32: off unless a grown-up turns it on in setup */
     s->off_from = 21;
     s->off_to = 6;
     s->bike_bus = 5; /* Friday */
@@ -75,6 +76,9 @@ void settings_load(wb_settings_t *s)
     b = s->night_off;
     get_u8(h, "noff", &b);
     s->night_off = b;
+    b = s->auto_update;
+    get_u8(h, "autoup", &b);
+    s->auto_update = b;
     get_u8(h, "nfrom", &s->off_from);
     get_u8(h, "nto", &s->off_to);
     get_u8(h, "bbus", &s->bike_bus);
@@ -101,6 +105,7 @@ void settings_save(const wb_settings_t *s)
     nvs_set_u8(h, "coords", s->has_coords);
     nvs_set_u8(h, "cel", s->celsius);
     nvs_set_u8(h, "noff", s->night_off);
+    nvs_set_u8(h, "autoup", s->auto_update);
     nvs_set_u8(h, "nfrom", s->off_from);
     nvs_set_u8(h, "nto", s->off_to);
     nvs_set_u8(h, "bbus", s->bike_bus);

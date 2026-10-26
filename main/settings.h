@@ -13,6 +13,9 @@ typedef struct {
     char names[48];        /* shown in the greeting */
     bool celsius;
     bool night_off;        /* screen off at night (tap to wake) */
+    bool auto_update;      /* install new firmware on its own, around 3 AM.
+                              Default OFF here (Mike's fork defaults it on):
+                              updates are normally push-then-tap in Settings. */
     uint8_t off_from, off_to;  /* hours, local time */
     uint8_t bike_bus;          /* 0 = Sunday ... 6 = Saturday, 7 = no bike bus */
     uint8_t cat;               /* 0 = black cat, 1 = pink cat, 2 = take turns */
