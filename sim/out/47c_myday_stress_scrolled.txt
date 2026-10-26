@@ -1,0 +1,61 @@
+avail=1
+bucket=0
+look=28
+look_name=kitr_navy_solid
+ntiles=4
+tiles=Long sleeves|Long pants|Winter coat|Warm boots
+chips=Warm hat|Gloves
+advice=Wear long sleeves. Bring your winter coat. Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
+advice_shown=Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
+wx1=33° now
+wx_icon=0
+stale_banner=0
+stale_checks=enabled
+checks=0
+title=Let's get dressed!
+compare=Warmer than yesterday
+myday_state=events
+myday_fresh=Updated 7:02 AM
+myday_nextup=Cleo's reading buddy celebration party
+myday_nowup=Lila's occupational therapy evaluation
+myday_done=Cleo and Lila dentist checkup and cleaning
+myday_nametags=CLEO:Cleo and Lila dentist checkup and cleaning;LILA:Lila's occupational therapy evaluation;CLEO:Cleo's reading buddy celebration party;LILA:Lila's gymnastics make-up class;CLEO:Cleo's piano lesson;LILA:Lila's book fair preview morning
+myday_nametag=LILA
+myday_nametag_row=Lila's book fair preview morning
+myday_dimmed=Cleo and Lila dentist checkup and cleaning
+myday_tom_date=Wed, Oct 28
+myday_icons=camera,tooth,star,palette,star,piano,book
+myday_half=0
+myday_more_today=0
+myday_more_tom=0
+myday_done_line=
+myday_stale=0
+myday_cat_look=warmcoat
+myday_today_n=6
+myday_tom_n=1
+myday_today0=ALL DAY|Autumn classroom photo retake day|
+myday_today1=7:30-8:15 AM|Cleo and Lila dentist checkup and cleaning|
+myday_today2=9:00-10:00 AM|Lila's occupational therapy evaluation|
+myday_today3=10:00-11:00 AM|Cleo's reading buddy celebration party|
+myday_today4=12:15-1:00 PM|Lila's gymnastics make-up class|
+myday_today5=3:30-4:30 PM|Cleo's piano lesson|
+myday_tom0=8:30-9:15 AM|Lila's book fair preview morning|
+myday_tom1=
+myday_tom2=
+myday_tom3=
+myday_tom4=
+myday_tom5=
+fc0_tiles=Long sleeves|Long pants|Rain jacket|Rain boots
+fc0_labels=Long sleeves|Long pants|Rain jacket|Rain boots
+fc1_tiles=Mint dress|Light jacket|Tights|Dress shoes
+fc1_labels=Mint dress|Light jacket|Tights|Dress shoes
+fc2_tiles=Mustard dress|Light jacket|Tights|Dress shoes
+fc2_labels=Mustard dress|Light jacket|Tights|Dress shoes
+info_begin
+WiFi: HomeWiFi
+Town: Upper Montclair, New Jersey
+Updated: 7:30 AM
+Address: 192.168.1.42
+Version: 2.0.0
+info_end
+speed_label=Speed test: off

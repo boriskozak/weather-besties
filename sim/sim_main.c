@@ -1068,6 +1068,17 @@ int main(int argc, char **argv)
     ui_test_outline(false);
     pump(10);
 
+    /* Iter-37: the same stress state scrolled to the very
+     * bottom of the now-scrollable list. The stress fixture's
+     * seven cards overflow the viewport; this render proves
+     * the last one (tomorrow's book fair) is reachable by
+     * scrolling and lands fully inside the list, clear of the
+     * tab bar. save() runs the layout gate on the scrolled
+     * state too. */
+    ui_test_scroll_myday_bottom();
+    save(out, "47c_myday_stress_scrolled");
+    dump(out, "47c_myday_stress_scrolled");
+
     /* Iter-35: a LOCAL-ONLY real-data fixture, gated on an env
      * var so `make shots` never sees it. The file named by
      * WB_SIM_CAL_FILE is an iCal export kept in the gitignored

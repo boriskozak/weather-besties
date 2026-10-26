@@ -1346,15 +1346,15 @@ def main():
     md = dump("40_myday")
     check(md["myday_state"] == "events",
           f"40_myday: populated state (myday_state={md['myday_state']})")
-    # Iter-35: the flex cards size to content, so the six-event
-    # fixture day no longer fits the list beside Pippa: three of
-    # today's cards show, the fourth and both of tomorrow's fold
-    # into the "+3 more" line (the row strings below still pin
-    # every event's text, folded or not).
-    check(md["myday_today_n"] == "3" and md["myday_tom_n"] == "0",
-          f"40_myday: 3 rows today, tomorrow folded ({md['myday_today_n']}/{md['myday_tom_n']})")
-    check(md["myday_more_today"] == "1" and md["myday_more_tom"] == "2",
-          f"40_myday: the fold counts 1 today, 2 tomorrow ({md['myday_more_today']}/{md['myday_more_tom']})")
+    # Iter-37: the list scrolls, so every pooled row has a card:
+    # all four of today's events and both of tomorrow's stand in
+    # the column (the viewport shows the first three and a clip
+    # of the fourth), and nothing folds away (the row strings
+    # below pin every event's text).
+    check(md["myday_today_n"] == "4" and md["myday_tom_n"] == "2",
+          f"40_myday: 4 rows today, 2 tomorrow, all with cards ({md['myday_today_n']}/{md['myday_tom_n']})")
+    check(md["myday_more_today"] == "0" and md["myday_more_tom"] == "0",
+          f"40_myday: no row folds, the pool holds every row ({md['myday_more_today']}/{md['myday_more_tom']})")
     # Iter-15: the time column carries ranges (pickup time is half
     # the point) and all-day events read ALL DAY (the navy pill).
     check(md["myday_today0"] == "ALL DAY|Picture Day|",
@@ -1396,8 +1396,8 @@ def main():
           f"40_myday: LILA and CLEO name tags across the page ({md['myday_nametags']!r})")
     check(md["myday_dimmed"] == "",
           f"40_myday: no past rows dimmed in the morning ({md['myday_dimmed']!r})")
-    check(md["myday_icons"] == "camera,book,soccer",
-          f"40_myday: category icons of the visible rows ({md['myday_icons']})")
+    check(md["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano",
+          f"40_myday: category icons of every row ({md['myday_icons']})")
     # Iter-35: the half-card form is gone (one card style
     # everywhere); the dump key stays and reads 0.
     check(md["myday_half"] == "0",
@@ -1425,17 +1425,17 @@ def main():
     # at 3:45), NEXT on the Grandma call; the never state has no
     # freshness footer at all, its body copy carries it.
     md43 = dump("43_myday_stale")
-    check(md43["myday_state"] == "events" and md43["myday_today_n"] == "2" and md43["myday_tom_n"] == "0",
-          f"43_myday_stale: populated data under the stale stamp, the banner eats a row (state={md43['myday_state']}, {md43['myday_today_n']}/{md43['myday_tom_n']})")
-    check(md43["myday_more_today"] == "2" and md43["myday_more_tom"] == "2",
-          f"43_myday_stale: the fold counts 2 and 2 under the banner ({md43['myday_more_today']}/{md43['myday_more_tom']})")
+    check(md43["myday_state"] == "events" and md43["myday_today_n"] == "4" and md43["myday_tom_n"] == "2",
+          f"43_myday_stale: populated data under the stale stamp, the banner pushes the rows down the scroll (state={md43['myday_state']}, {md43['myday_today_n']}/{md43['myday_tom_n']})")
+    check(md43["myday_more_today"] == "0" and md43["myday_more_tom"] == "0",
+          f"43_myday_stale: no row folds under the banner ({md43['myday_more_today']}/{md43['myday_more_tom']})")
     check(md43["myday_fresh"] == "Calendar is 8 hours old · from 7:02 AM",
           f"43_myday_stale: freshness line in its stale form, age spelled out ({md43['myday_fresh']})")
     check(md43["myday_nextup"] == "Video call with Grandma" and md43["myday_nowup"] == "Cleo's soccer practice"
           and md43["myday_done"] == "Lila's library story time" and md43["myday_dimmed"] == "Lila's library story time",
           f"43_myday_stale: Grandma next, soccer now, story time done (nextup={md43['myday_nextup']!r}, nowup={md43['myday_nowup']!r}, done={md43['myday_done']!r})")
-    check(md43["myday_icons"] == "camera,book" and md43["myday_half"] == "0",
-          f"43_myday_stale: the visible rows' icons under the stale stamp (icons={md43['myday_icons']}, half={md43['myday_half']})")
+    check(md43["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano" and md43["myday_half"] == "0",
+          f"43_myday_stale: every row's icons under the stale stamp (icons={md43['myday_icons']}, half={md43['myday_half']})")
     md44 = dump("44_myday_never")
     check(md44["myday_state"] == "never",
           f"44_myday_never: configured but never loaded state (state={md44['myday_state']})")
@@ -1453,8 +1453,8 @@ def main():
           f"45_myday_late: story time DONE and dimmed as past (done={md45['myday_done']!r})")
     check(md45["myday_tom1"] == "4:00-4:30 PM|Cleo's piano lesson|",
           f"45_myday_late: tomorrow rows unchanged in the afternoon ({md45['myday_tom1']})")
-    check(md45["myday_icons"] == "camera,book,soccer" and md45["myday_half"] == "0",
-          f"45_myday_late: the visible rows' icons in the afternoon (icons={md45['myday_icons']}, half={md45['myday_half']})")
+    check(md45["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano" and md45["myday_half"] == "0",
+          f"45_myday_late: every row's icons in the afternoon (icons={md45['myday_icons']}, half={md45['myday_half']})")
     # Iter-29: the fall-back weekend (clock Sat Oct 31 2026, 8:05 AM;
     # tomorrow is Sun Nov 1, when America/New_York repeats 1 AM).
     # The fixture's TZID times resolve through its VTIMEZONE block,
@@ -1462,10 +1462,10 @@ def main():
     # a fixed -4 reading would put the pancakes at 4:30 AM, a UTC
     # reading at 8:30 AM, and the owl walk on the wrong hour too.
     md46 = dump("46_myday_dst")
-    check(md46["myday_state"] == "events" and md46["myday_today_n"] == "2" and md46["myday_tom_n"] == "0",
-          f"46_myday_dst: 2 rows today, tomorrow's 3 folded over the fall-back (state={md46['myday_state']}, {md46['myday_today_n']}/{md46['myday_tom_n']})")
-    check(md46["myday_more_tom"] == "3" and md46["myday_icons"] == "star,videocall",
-          f"46_myday_dst: the fold counts tomorrow's 3 (more={md46['myday_more_tom']}, icons={md46['myday_icons']})")
+    check(md46["myday_state"] == "events" and md46["myday_today_n"] == "2" and md46["myday_tom_n"] == "3",
+          f"46_myday_dst: 2 rows today, tomorrow's 3 all have cards over the fall-back (state={md46['myday_state']}, {md46['myday_today_n']}/{md46['myday_tom_n']})")
+    check(md46["myday_more_tom"] == "0" and md46["myday_icons"] == "star,videocall,star,star,star",
+          f"46_myday_dst: no row folds, every row's icons (more={md46['myday_more_tom']}, icons={md46['myday_icons']})")
     check(md46["myday_today0"] == "10:00-11:00 AM|Pumpkin patch visit|",
           f"46_myday_dst: today's first row (today0={md46['myday_today0']!r})")
     check(md46["myday_today1"] == "1:00-1:45 PM|Video call with Grandpa|",
@@ -1485,13 +1485,13 @@ def main():
     # Iter-35: the stress and evening fixtures. Stress (9:20 AM):
     # six events today (an all-day, a DONE naming both girls with
     # a long street address in the feed, a NOW, a NEXT with a
-    # 38-char title), one tomorrow. Iter-36: the shorter
-    # full-width cards fit three, the rest fold.
+    # 38-char title), one tomorrow. Iter-37: all seven cards
+    # stand in the scrolling column.
     md47 = dump("47_myday_stress")
-    check(md47["myday_state"] == "events" and md47["myday_today_n"] == "3" and md47["myday_tom_n"] == "0",
-          f"47_myday_stress: populated, 3 cards shown of 7 (state={md47['myday_state']}, {md47['myday_today_n']}/{md47['myday_tom_n']})")
-    check(md47["myday_more_today"] == "3" and md47["myday_more_tom"] == "1",
-          f"47_myday_stress: the fold counts 3 today, 1 tomorrow ({md47['myday_more_today']}/{md47['myday_more_tom']})")
+    check(md47["myday_state"] == "events" and md47["myday_today_n"] == "6" and md47["myday_tom_n"] == "1",
+          f"47_myday_stress: populated, all 7 cards stand (state={md47['myday_state']}, {md47['myday_today_n']}/{md47['myday_tom_n']})")
+    check(md47["myday_more_today"] == "0" and md47["myday_more_tom"] == "0",
+          f"47_myday_stress: no row folds ({md47['myday_more_today']}/{md47['myday_more_tom']})")
     check(md47["myday_today0"] == "ALL DAY|Autumn classroom photo retake day|",
           f"47_myday_stress: the all-day row ({md47['myday_today0']})")
     check(md47["myday_today1"] == "7:30-8:15 AM|Cleo and Lila dentist checkup and cleaning|",
@@ -1502,16 +1502,16 @@ def main():
           and md47["myday_nowup"] == "Lila's occupational therapy evaluation"
           and md47["myday_nextup"] == "Cleo's reading buddy celebration party",
           f"47_myday_stress: DONE, NOW and NEXT at 9:20 (done={md47['myday_done']!r}, now={md47['myday_nowup']!r}, next={md47['myday_nextup']!r})")
-    check(md47["myday_icons"] == "camera,tooth,star",
-          f"47_myday_stress: the visible rows' icons ({md47['myday_icons']})")
+    check(md47["myday_icons"] == "camera,tooth,star,palette,star,piano,book",
+          f"47_myday_stress: every row's icons ({md47['myday_icons']})")
     # Evening (6:30 PM): three of today's events are finished and
-    # fold into the done line; tonight's call and one of
-    # tomorrow's two events show.
+    # fold into the done line; tonight's call and both of
+    # tomorrow's events have cards.
     md48 = dump("48_myday_evening")
     check(md48["myday_state"] == "events" and md48["myday_done_line"] == "3 done today",
           f"48_myday_evening: the evening collapse line (done_line={md48['myday_done_line']!r})")
-    check(md48["myday_today_n"] == "1" and md48["myday_tom_n"] == "1" and md48["myday_more_tom"] == "1",
-          f"48_myday_evening: tonight's call and one tomorrow row show (today={md48['myday_today_n']}, tom={md48['myday_tom_n']}, more_tom={md48['myday_more_tom']})")
+    check(md48["myday_today_n"] == "1" and md48["myday_tom_n"] == "2" and md48["myday_more_tom"] == "0",
+          f"48_myday_evening: tonight's call and both tomorrow rows stand (today={md48['myday_today_n']}, tom={md48['myday_tom_n']}, more_tom={md48['myday_more_tom']})")
     check(md48["myday_today0"] == "7:00-7:45 PM|Video call with Grandma|"
           and md48["myday_nextup"] == "Video call with Grandma",
           f"48_myday_evening: the call is tonight's row and carries NEXT ({md48['myday_today0']})")
@@ -1694,7 +1694,8 @@ def main():
     # the sim (ui_test_layout_check) now carries the structural
     # proof, so these checks pin the new design's visible facts:
     # one white bordered card style, pills on line 1 only, the
-    # fold line inside the list, and the DONE row's legibility.
+    # fourth card clipped at the list's edge, and the DONE
+    # row's legibility.
     img47 = Image.open(os.path.join(OUT, "47_myday_stress.png"))
     img48 = Image.open(os.path.join(OUT, "48_myday_evening.png"))
 
@@ -1756,11 +1757,12 @@ def main():
         rows = ink_rows(img, zone, is_saturated)
         check(40 <= len(rows) <= 52, f"40_myday: medallion stands 48 px tall, {what} ({len(rows)} saturated rows; the disc's pale rim rows are not saturated)")
 
-    # The fold line lives inside the list: its ink is present
-    # above the list's bottom edge, and the 12 px band between
-    # the list and the tab row stays empty.
-    frac = non_bg_fraction(img, (28, 352, 240, 384))
-    check(frac > 0.005, f"40_myday: the '+3 more' line inks inside the list ({frac:.1%} non-background, need > 0.5%)")
+    # Iter-37: no fold line any more. The fourth card runs to
+    # the list's bottom edge and is clipped by it (its white
+    # interior fills the list's last band), and the 12 px band
+    # between the list and the tab row stays empty.
+    frac = count_where(img, (150, 395, 700, 410), is_white) / ((700 - 150) * (410 - 395))
+    check(frac > 0.75, f"40_myday: the fourth card's interior reaches the list's bottom edge ({frac:.1%} white, need > 75%)")
     n = count_where(img, (28, 413, 592, 423), is_full_ink)
     check(n == 0, f"40_myday: nothing inks the band above the tab row ({n} px, need 0)")
 
@@ -1784,6 +1786,28 @@ def main():
     check(n == 0, f"47_myday_stress: no second line under the dentist title ({n} px, need 0)")
     frac = non_bg_fraction(img48, (28, 116, 300, 150))
     check(frac > 0.01, f"48_myday_evening: the '3 done today' line inks ({frac:.1%} non-background, need > 1%)")
+
+    # Iter-37: the scrolled stress render. Same populate as 47
+    # (scrolling changes no words, so the dump matches), with
+    # the list scrolled to its bottom: the last card (tomorrow's
+    # book fair) stands fully inside the viewport, its interior
+    # white down to the list's bottom edge, its title inked,
+    # and the band above the tab row stays empty.
+    md47c = dump("47c_myday_stress_scrolled")
+    check(md47c["myday_today_n"] == "6" and md47c["myday_tom_n"] == "1"
+          and md47c["myday_more_today"] == "0" and md47c["myday_more_tom"] == "0",
+          f"47c_myday_stress_scrolled: the same seven cards as 47 (today={md47c['myday_today_n']}, tom={md47c['myday_tom_n']})")
+    check(md47c["myday_tom0"] == "8:30-9:15 AM|Lila's book fair preview morning|",
+          f"47c_myday_stress_scrolled: the last card is tomorrow's book fair ({md47c['myday_tom0']})")
+    check(sha("47c_myday_stress_scrolled.png") != sha("47_myday_stress.png"),
+          "47c_myday_stress_scrolled differs from 47_myday_stress (the list scrolled)")
+    img47c = Image.open(os.path.join(OUT, "47c_myday_stress_scrolled.png"))
+    frac = count_where(img47c, (200, 392, 700, 408), is_white) / ((700 - 200) * (408 - 392))
+    check(frac > 0.9, f"47c_myday_stress_scrolled: the last card's interior fills the list's bottom band ({frac:.1%} white, need > 90%)")
+    n = count_where(img47c, (106, 340, 700, 390), is_full_ink)
+    check(n > 200, f"47c_myday_stress_scrolled: the last card's title inks ({n} px, need > 200)")
+    n = count_where(img47c, (28, 413, 592, 423), is_full_ink)
+    check(n == 0, f"47c_myday_stress_scrolled: nothing inks the band above the tab row ({n} px, need 0)")
 
     # Fresh "Updated" rides the tab-bar row at the right, one
     # line of small ink clear of the last tab pill.
