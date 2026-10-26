@@ -7,6 +7,7 @@
  * clock independently of the forecast's own time (the plan's stale/rollover
  * cases). Without it the clock is the forecast time + 7 minutes, as before.
  */
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -123,6 +124,20 @@ static void pump(int frames)
 }
 
 static int s_layout_fails;
+
+/* Like save(), but without the layout gate: for the iter-36
+ * outline debug render, whose 1 px borders deliberately
+ * perturb the layout the gate measures. */
+static void save_raw(const char *dir, const char *name)
+{
+    pump(30);
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s.rgb565", dir, name);
+    FILE *f = fopen(path, "wb");
+    fwrite(fb, 2, UI_W * UI_H, f);
+    fclose(f);
+    printf("saved %s\n", path);
+}
 
 static void save(const char *dir, const char *name)
 {
@@ -380,11 +395,15 @@ static void fixture_fetched_at(int hour, int min)
 /* The usual pin: a 7:02 AM fetch ("Updated 7:02 AM"). */
 /* Iter-35: the stress shapes the layout rework has to survive.
  * Invented events (the repo is public), modelled on the lengths
- * and tag combinations real family days produce: a 60+ character
- * title, a long street-address location, an all-day event, names
- * for one kid, the other, and both. The scenario clock is 9:20
- * AM: one event is DONE, one is NOW, three are still to come, and
- * tomorrow is sparse (a single event). */
+ * and tag combinations real family days produce: titles in the
+ * 30-45 character band that used to wrap at the old narrowed
+ * width, a long street-address location in the feed (iter-36:
+ * locations no longer print on cards, but the feed still
+ * carries them), an all-day event, names for one kid, the
+ * other, and both. Two cards carry two pills each (NOW + LILA,
+ * NEXT + CLEO). The scenario clock is 9:20 AM: one event is
+ * DONE, one is NOW, three are still to come, and tomorrow is
+ * sparse (a single event). */
 static void fixture_cal_stress(void)
 {
     struct tm today = now_tm, tom = now_tm;
@@ -415,7 +434,7 @@ static void fixture_cal_stress(void)
                   d0, d0);
     n += snprintf(ics + n, sizeof(ics) - n,
                   "BEGIN:VEVENT\r\nUID:sim-s4\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
-                  "DTEND;TZID=America/New_York:%sT110000\r\nSUMMARY:Cleo's reading buddy celebration with second grade families\r\n"
+                  "DTEND;TZID=America/New_York:%sT110000\r\nSUMMARY:Cleo's reading buddy celebration party\r\n"
                   "LOCATION:Watchung School library\r\nEND:VEVENT\r\n",
                   d0, d0);
     n += snprintf(ics + n, sizeof(ics) - n,
@@ -496,10 +515,114 @@ static void fixture_fetched(void)
     fixture_fetched_at(7, 2);
 }
 
+/* Iter-36 stack probe (host-only diagnostic): runs the My Day
+ * populate path, the one that overflowed the board's 8 KB lvgl
+ * stack, on a pattern-filled pthread stack and reports the peak
+ * usage it finds afterwards. The host build overstates the
+ * device number (8-byte pointers where the board has 4, wider
+ * frames), so a host peak over 8192 is consistent with the
+ * board's overflow at 8192, and a host peak well under 16384
+ * backs the board's bump to a 16 KB lvgl stack. Run with:
+ * WB_SIM_STACK_PROBE=1 ./render out scenarios */
+static uint8_t s_probe_stack[1 << 20] __attribute__((aligned(64)));
+static const char *s_probe_sc;
+
+static void *probe_thread(void *arg)
+{
+    (void)arg;
+    lv_init();
+    lv_tick_set_cb(tick_cb);
+    lv_display_t *d = lv_display_create(UI_W, UI_H);
+    lv_display_set_buffers(d, fb, NULL, sizeof(fb), LV_DISPLAY_RENDER_MODE_DIRECT);
+    lv_display_set_flush_cb(d, flush_cb);
+    ui_init("Cleo & Lila");
+    ui_set_time_cb(time_cb);
+    setenv("TZ", "America/New_York", 1);
+    tzset();
+    const char *early = getenv("WB_SIM_STACK_PROBE");
+    if (early != NULL && strcmp(early, "boot") == 0) {
+        /* Init and the boot screen only: the floor every other
+         * path stands on. */
+        ui_show_boot(NULL);
+        pump(30);
+        return NULL;
+    }
+    load(s_probe_sc, "brief_morning");
+    show();
+    if (early != NULL && strcmp(early, "outfit") == 0) {
+        /* The outfit page's render and draw, nothing else. */
+        pump(30);
+        return NULL;
+    }
+    ui_set_calendar_configured(true);
+    ui_test_set_page(2);
+    const char *mode = getenv("WB_SIM_STACK_PROBE");
+    if (mode != NULL && strcmp(mode, "empty") == 0) {
+        /* No feed ever lands: the lightweight message state, the
+         * path the board took in the earlier "0 bytes" boot. */
+        pump(30);
+        return NULL;
+    }
+    if (mode != NULL && strcmp(mode, "plain") == 0) {
+        /* The ordinary six-event fixture day. */
+        fixture_cal(true);
+        fixture_fetched();
+        pump(30);
+        return NULL;
+    }
+    /* The stress day: the full 12-card pool is filled and the
+     * fit pass folds the overflow, the deepest the populate
+     * path gets. */
+    fixture_cal_stress();
+    fixture_fetched();
+    now_tm.tm_hour = 9;
+    now_tm.tm_min = 20;
+    ui_refresh_clock();
+    pump(30);
+    ui_test_layout_check("stack_probe_stress");
+    /* The evening shape too: the collapse partition runs first. */
+    fixture_cal_evening();
+    fixture_fetched_at(18, 2);
+    now_tm.tm_hour = 18;
+    now_tm.tm_min = 30;
+    ui_refresh_clock();
+    pump(30);
+    ui_test_layout_check("stack_probe_evening");
+    return NULL;
+}
+
+static int run_stack_probe(const char *sc)
+{
+    s_probe_sc = sc;
+    memset(s_probe_stack, 0xA5, sizeof(s_probe_stack));
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstack(&attr, s_probe_stack, sizeof(s_probe_stack));
+    pthread_t th;
+    if (pthread_create(&th, &attr, probe_thread, NULL) != 0) {
+        fprintf(stderr, "stack probe: pthread_create failed\n");
+        return 1;
+    }
+    pthread_join(th, NULL);
+    pthread_attr_destroy(&attr);
+    size_t untouched = 0;
+    while (untouched < sizeof(s_probe_stack) && s_probe_stack[untouched] == 0xA5) {
+        untouched++;
+    }
+    printf("STACK PROBE: peak stack used %u bytes (host x86-64 build; the device "
+           "build's pointers and frames are smaller)\n",
+           (unsigned)(sizeof(s_probe_stack) - untouched));
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     const char *out = argc > 1 ? argv[1] : "out";
     const char *sc = argc > 2 ? argv[2] : "scenarios";
+
+    if (getenv("WB_SIM_STACK_PROBE")) {
+        return run_stack_probe(sc);
+    }
 
     lv_init();
     lv_tick_set_cb(tick_cb);
@@ -926,6 +1049,24 @@ int main(int argc, char **argv)
     pump(10);
     save(out, "48_myday_evening");
     dump(out, "48_myday_evening");
+
+    /* Iter-36: the debug outline render of the worst-case
+     * fixture: the stress day again, with a 1 px outline drawn
+     * on every object, so the boxes the layout gate reasons
+     * about are visible in the PNG. The gate does not run on
+     * this frame (the outlines inset content by a pixel); the
+     * plain 47 render above is the gated measurement of the
+     * same state. */
+    fixture_cal_stress();
+    fixture_fetched();
+    now_tm.tm_hour = 9;
+    now_tm.tm_min = 20;
+    ui_refresh_clock();
+    pump(10);
+    ui_test_outline(true);
+    save_raw(out, "47b_myday_stress_outline");
+    ui_test_outline(false);
+    pump(10);
 
     /* Iter-35: a LOCAL-ONLY real-data fixture, gated on an env
      * var so `make shots` never sees it. The file named by

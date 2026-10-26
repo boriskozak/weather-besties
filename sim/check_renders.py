@@ -1361,13 +1361,13 @@ def main():
           f"40_myday: today row 1 is the all-day picture day with the ALL DAY pill ({md['myday_today0']})")
     check(md["myday_today1"] == "10:00-10:45 AM|Lila's library story time|",
           f"40_myday: today row 2 is Lila's library story time with its end time ({md['myday_today1']})")
-    check(md["myday_today2"] == "3:30-4:30 PM|Cleo's soccer practice|Roosevelt Field",
+    check(md["myday_today2"] == "3:30-4:30 PM|Cleo's soccer practice|",
           f"40_myday: today row 3 is soccer with its end time ({md['myday_today2']})")
     check(md["myday_today3"] == "4:00-4:45 PM|Video call with Grandma|",
           f"40_myday: today row 4 is the UTC call at 4 PM local with its end time ({md['myday_today3']})")
-    check(md["myday_tom0"] == "8:00-9:00 AM|School bake sale|Watchung School gym",
+    check(md["myday_tom0"] == "8:00-9:00 AM|School bake sale|",
           f"40_myday: tomorrow row 1 is the bake sale with its end time ({md['myday_tom0']})")
-    check(md["myday_tom1"] == "4:00-4:30 PM|Cleo's piano lesson|Music school",
+    check(md["myday_tom1"] == "4:00-4:30 PM|Cleo's piano lesson|",
           f"40_myday: tomorrow row 2 is Cleo's piano with its end time, folded summary unfolded ({md['myday_tom1']})")
     # Iter-15: the freshness line (fixture fetch pinned to 7:02 AM
     # today, so the same-day form). Iter-16: the NEXT tag — at the
@@ -1451,7 +1451,7 @@ def main():
           f"45_myday_late: NOW tag on soccer practice, in progress at 3:45 ({md45['myday_nowup']})")
     check(md45["myday_done"] == "Lila's library story time" and md45["myday_dimmed"] == "Lila's library story time",
           f"45_myday_late: story time DONE and dimmed as past (done={md45['myday_done']!r})")
-    check(md45["myday_tom1"] == "4:00-4:30 PM|Cleo's piano lesson|Music school",
+    check(md45["myday_tom1"] == "4:00-4:30 PM|Cleo's piano lesson|",
           f"45_myday_late: tomorrow rows unchanged in the afternoon ({md45['myday_tom1']})")
     check(md45["myday_icons"] == "camera,book,soccer" and md45["myday_half"] == "0",
           f"45_myday_late: the visible rows' icons in the afternoon (icons={md45['myday_icons']}, half={md45['myday_half']})")
@@ -1466,7 +1466,7 @@ def main():
           f"46_myday_dst: 2 rows today, tomorrow's 3 folded over the fall-back (state={md46['myday_state']}, {md46['myday_today_n']}/{md46['myday_tom_n']})")
     check(md46["myday_more_tom"] == "3" and md46["myday_icons"] == "star,videocall",
           f"46_myday_dst: the fold counts tomorrow's 3 (more={md46['myday_more_tom']}, icons={md46['myday_icons']})")
-    check(md46["myday_today0"] == "10:00-11:00 AM|Pumpkin patch visit|Chestnut Hill Farm",
+    check(md46["myday_today0"] == "10:00-11:00 AM|Pumpkin patch visit|",
           f"46_myday_dst: today's first row (today0={md46['myday_today0']!r})")
     check(md46["myday_today1"] == "1:00-1:45 PM|Video call with Grandpa|",
           f"46_myday_dst: the UTC call lands at 1 PM EDT today ({md46['myday_today1']})")
@@ -1484,24 +1484,25 @@ def main():
 
     # Iter-35: the stress and evening fixtures. Stress (9:20 AM):
     # six events today (an all-day, a DONE naming both girls with
-    # a long street address, a NOW, a NEXT with a 61-char title),
-    # one tomorrow; only the first two cards fit, the rest fold.
+    # a long street address in the feed, a NOW, a NEXT with a
+    # 38-char title), one tomorrow. Iter-36: the shorter
+    # full-width cards fit three, the rest fold.
     md47 = dump("47_myday_stress")
-    check(md47["myday_state"] == "events" and md47["myday_today_n"] == "2" and md47["myday_tom_n"] == "0",
-          f"47_myday_stress: populated, 2 cards shown of 7 (state={md47['myday_state']}, {md47['myday_today_n']}/{md47['myday_tom_n']})")
-    check(md47["myday_more_today"] == "4" and md47["myday_more_tom"] == "1",
-          f"47_myday_stress: the fold counts 4 today, 1 tomorrow ({md47['myday_more_today']}/{md47['myday_more_tom']})")
+    check(md47["myday_state"] == "events" and md47["myday_today_n"] == "3" and md47["myday_tom_n"] == "0",
+          f"47_myday_stress: populated, 3 cards shown of 7 (state={md47['myday_state']}, {md47['myday_today_n']}/{md47['myday_tom_n']})")
+    check(md47["myday_more_today"] == "3" and md47["myday_more_tom"] == "1",
+          f"47_myday_stress: the fold counts 3 today, 1 tomorrow ({md47['myday_more_today']}/{md47['myday_more_tom']})")
     check(md47["myday_today0"] == "ALL DAY|Autumn classroom photo retake day|",
           f"47_myday_stress: the all-day row ({md47['myday_today0']})")
-    check(md47["myday_today1"] == "7:30-8:15 AM|Cleo and Lila dentist checkup and cleaning|Bright Smiles Dental, 214 Maplewood Avenue, Suite 3",
-          f"47_myday_stress: the dentist row carries its long address in full ({md47['myday_today1']})")
-    check(md47["myday_today3"] == "10:00-11:00 AM|Cleo's reading buddy celebration with second grade families|Watchung School library",
-          f"47_myday_stress: the 61-char title row ({md47['myday_today3']})")
+    check(md47["myday_today1"] == "7:30-8:15 AM|Cleo and Lila dentist checkup and cleaning|",
+          f"47_myday_stress: the dentist row (the feed's long address no longer prints on the card, iter-36) ({md47['myday_today1']})")
+    check(md47["myday_today3"] == "10:00-11:00 AM|Cleo's reading buddy celebration party|",
+          f"47_myday_stress: the 38-char title row ({md47['myday_today3']})")
     check(md47["myday_done"] == "Cleo and Lila dentist checkup and cleaning"
           and md47["myday_nowup"] == "Lila's occupational therapy evaluation"
-          and md47["myday_nextup"] == "Cleo's reading buddy celebration with second grade families",
+          and md47["myday_nextup"] == "Cleo's reading buddy celebration party",
           f"47_myday_stress: DONE, NOW and NEXT at 9:20 (done={md47['myday_done']!r}, now={md47['myday_nowup']!r}, next={md47['myday_nextup']!r})")
-    check(md47["myday_icons"] == "camera,tooth",
+    check(md47["myday_icons"] == "camera,tooth,star",
           f"47_myday_stress: the visible rows' icons ({md47['myday_icons']})")
     # Evening (6:30 PM): three of today's events are finished and
     # fold into the done line; tonight's call and one of
@@ -1538,8 +1539,8 @@ def main():
     img = Image.open(os.path.join(OUT, "40_myday.png"))
     frac = non_bg_fraction(img, (28, 100, 772, 416))
     check(frac > 0.01, f"40_myday: agenda band carries rows ({frac:.1%} non-background, need > 1%)")
-    frac = non_bg_fraction(img, (600, 110, 772, 360))
-    check(frac > 0.05, f"40_myday: full Pippa at the right of the list ({frac:.1%} non-background, need > 5%)")
+    frac = non_bg_fraction(img, (630, 0, 779, 152))
+    check(frac > 0.05, f"40_myday: small Pippa in the header at the right (iter-36) ({frac:.1%} non-background, need > 5%)")
     for name in ("41_myday_empty.png", "42_myday_unconfigured.png", "44_myday_never.png"):
         img = Image.open(os.path.join(OUT, name))
         frac = non_bg_fraction(img, (545, 120, 760, 390))
@@ -1713,7 +1714,7 @@ def main():
     # One card style: white fill inside every visible card, and
     # the border line present along a card's top edge.
     for name, im, zone in (("40_myday", img, (350, 96, 480, 158)),
-                           ("40_myday", img, (500, 310, 580, 360)),
+                           ("40_myday", img, (500, 300, 580, 340)),
                            ("45_myday_late", img45, (350, 96, 480, 158))):
         n = count_where(im, zone, is_white)
         check(n > (zone[2] - zone[0]) * (zone[3] - zone[1]) * 0.9,
@@ -1724,17 +1725,17 @@ def main():
     # Pills live on line 1 only: NEXT and LILA on the story row's
     # first line, CLEO on the soccer row's first line, and no pill
     # colours anywhere on the title lines under them.
-    n = count_where(img, (420, 184, 590, 212), is_next_pink)
+    n = count_where(img, (560, 184, 762, 214), is_next_pink)
     check(n > 400, f"40_myday: NEXT pill on the story row's line 1 ({n} pink px, need > 400)")
-    n = count_where(img, (420, 184, 590, 212), is_lila_fill)
+    n = count_where(img, (560, 184, 762, 214), is_lila_fill)
     check(n > 400, f"40_myday: LILA tag on the story row's line 1 ({n} fill px, need > 400)")
-    n = count_where(img, (106, 214, 590, 248), is_next_pink) + count_where(img, (106, 214, 590, 248), is_lila_fill)
+    n = count_where(img, (106, 215, 762, 246), is_next_pink) + count_where(img, (106, 215, 762, 246), is_lila_fill)
     check(n == 0, f"40_myday: no pills on the story row's title line ({n} px, need 0)")
-    n = count_where(img, (420, 273, 590, 301), is_cleo_fill)
+    n = count_where(img, (560, 273, 762, 303), is_cleo_fill)
     check(n > 400, f"40_myday: CLEO tag on the soccer row's line 1 ({n} fill px, need > 400)")
-    n = count_where(img45, (420, 184, 590, 212), is_done_fill)
+    n = count_where(img45, (560, 184, 762, 214), is_done_fill)
     check(n > 400, f"45_myday_late: DONE pill on the story row's line 1 ({n} fill px, need > 400)")
-    n = count_where(img45, (420, 273, 590, 301), is_now_green)
+    n = count_where(img45, (560, 273, 762, 303), is_now_green)
     check(n > 400, f"45_myday_late: NOW pill in deep green on the soccer row's line 1 ({n} green px, need > 400)")
 
     # DONE readability: the finished row's title keeps a floor of
@@ -1758,7 +1759,7 @@ def main():
     # The fold line lives inside the list: its ink is present
     # above the list's bottom edge, and the 12 px band between
     # the list and the tab row stays empty.
-    frac = non_bg_fraction(img, (28, 376, 220, 408))
+    frac = non_bg_fraction(img, (28, 352, 240, 384))
     check(frac > 0.005, f"40_myday: the '+3 more' line inks inside the list ({frac:.1%} non-background, need > 0.5%)")
     n = count_where(img, (28, 413, 592, 423), is_full_ink)
     check(n == 0, f"40_myday: nothing inks the band above the tab row ({n} px, need 0)")
@@ -1773,16 +1774,14 @@ def main():
     lum45 = (p45[0] + p45[1] + p45[2]) / 3
     check(lum43 < lum45 - 8, f"43_myday_stale: card fill muted vs fresh (lum {lum43:.0f} vs {lum45:.0f})")
 
-    # Stress: the long location truncates inside its card (ink on
-    # the location line, none past the card's right border), and
-    # the evening collapse line inks above tonight's card.
-    n = count_where(img47, (106, 282, 590, 312), is_full_ink)
-    check(n > 200, f"47_myday_stress: the dentist location inks its line ({n} px, need > 200)")
-    # The gutter between the card's right border (x 591) and
-    # Pippa's ink stays empty: the truncated location stops at
-    # the border instead of running underneath her.
-    n = count_where(img47, (594, 282, 618, 312), is_full_ink)
-    check(n == 0, f"47_myday_stress: no location ink past the card's border ({n} px, need 0)")
+    # Stress (iter-36): the dentist title inks its one line, and
+    # the band under it stays empty: no second title line and no
+    # location line (locations no longer print on cards). The
+    # evening collapse line inks above tonight's card.
+    n = count_where(img47, (106, 213, 700, 247), is_full_ink)
+    check(n > 200, f"47_myday_stress: the dentist title inks its one line ({n} px, need > 200)")
+    n = count_where(img47, (106, 246, 758, 260), is_full_ink)
+    check(n == 0, f"47_myday_stress: no second line under the dentist title ({n} px, need 0)")
     frac = non_bg_fraction(img48, (28, 116, 300, 150))
     check(frac > 0.01, f"48_myday_evening: the '3 done today' line inks ({frac:.1%} non-background, need > 1%)")
 
@@ -1791,7 +1790,7 @@ def main():
     n = count_where(img, (620, 430, 795, 474), is_tab_ink)
     check(n > 150, f"40_myday: freshness ink in the tab-bar row ({n} px, need > 150)")
     for name, im in (("43_myday_stale", img43), ("45_myday_late", img45)):
-        n = count_where(im, (630, 48, 795, 92), is_warn_bg)
+        n = count_where(im, (630, 44, 772, 84), is_warn_bg)
         check(n == 0, f"{name}: no weather-stale chip, only the calendar can be stale ({n} px, need 0)")
     img44 = Image.open(os.path.join(OUT, "44_myday_never.png"))
     # The zone starts below the message Pippa's boot shadow; a
@@ -1818,17 +1817,20 @@ def main():
 
     # Pippa one size (iter-24, round 20, fix 5): the same drawn
     # height in the populated and message states, so she never
-    # visibly grows or shrinks switching between them.
+    # visibly grows or shrinks switching between them. Iter-36
+    # supersedes this on the populated page only: she is the
+    # small header cat there now, while the message states keep
+    # the full-size cat, so the two heights differ on purpose.
     def cat_ink_h(im, box):
         rows = ink_rows(im, box, lambda r, g, b: abs(r - 251) + abs(g - 246) + abs(b - 238) > 40)
         return (rows[-1] - rows[0] + 1) if rows else 0
 
-    hp = cat_ink_h(img, (595, 55, 795, 330))
+    hp = cat_ink_h(img, (615, 0, 795, 155))
     img41p = Image.open(os.path.join(OUT, "41_myday_empty.png"))
     hm = cat_ink_h(img41p, (520, 54, 795, 424))
     print(f"  Pippa ink height: populated {hp}, message {hm}")
-    check(hp >= 250 and abs(hp - hm) <= 2,
-          f"41_myday_empty: Pippa one drawn height in every state (populated {hp} vs message {hm} ink rows, need equal within 2)")
+    check(120 <= hp <= 170 and hm >= 250,
+          f"41_myday_empty: populated Pippa is the small header cat, message states keep the full cat (iter-36) (populated {hp} vs message {hm} ink rows)")
 
     # Iter-25: the outfit rotation, asserted on the dumps. The six
     # dress-band Todays (2026-11-08..13, identical weather) walk the
