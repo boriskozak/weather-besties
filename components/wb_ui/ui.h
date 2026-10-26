@@ -91,6 +91,10 @@ int ui_test_layout_check(const char *tag);
  * 1 px red (and restore the real borders on false), for the
  * debug render of the worst-case My Day fixture. */
 void ui_test_outline(bool on);
+/* Iter-37: scroll the My Day list to its very bottom, so a
+ * render can prove the last card is reachable and lands clear
+ * of the tab bar; the layout gate runs on the scrolled state. */
+void ui_test_scroll_myday_bottom(void);
 #endif
 
 #ifdef __cplusplus

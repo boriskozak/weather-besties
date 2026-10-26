@@ -280,9 +280,11 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
  * the message states centre their cat-and-words group vertically
  * in the content area as well as horizontally. */
 /* Iter-35: the row pool grows to 6 + 6. The layout is a flex
- * column now (see build_myday_page), so a section can carry more
- * rows than fit and the overflow folds into the "+N more" line by
- * measured height, not by a per-section cap tuned to one design. */
+ * column now (see build_myday_page). Iter-37: the list scrolls,
+ * so a section can carry more rows than fit the viewport and
+ * every pooled row stays reachable by dragging; the pool cap is
+ * the only limit left, and rows past it are counted in the sim
+ * dump (myday_more_*), never folded into a "+N more" line. */
 #define MD_TODAY_MAX 6
 #define MD_TOM_MAX 6
 #define MD_ROWS (MD_TODAY_MAX + MD_TOM_MAX)
@@ -488,7 +490,7 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * Through iter-35 she stood at 290 (258 px
                          * tall) and the list narrowed to end at her
                          * left edge. Her feet reach about y=148 now;
-                         * md_fit_list narrows any card that reaches
+                         * md_notch_list narrows any card that reaches
                          * into her column to clear her (a notch),
                          * which is safe because card heights no
                          * longer depend on their width (iter-36's
@@ -530,21 +532,25 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
 /* Iter-35: MD_LIST_BOTTOM is the flex list's own bottom edge, 12 px
  * above the tab row at y=424 (the plan's clearance). The old value
  * (422) was the absolute-layout card limit; the list clips at its
- * own edge now, and the fit pass folds overflow into "+N more". */
+ * own edge. Iter-37: the list scrolls within this same box, so the
+ * edge is a viewport edge now, not a content limit. */
 #define MD_LIST_BOTTOM 412
 #define MD_FRESH_BOTTOM 422   /* the freshness line's box bottom; the tab bar starts at 424 */
 static lv_obj_t *md_date;
 /* Iter-35: the list and its flex children. md_list is a flex column
- * (headers, stale banner, evening done line, cards, "+N more" are
- * all children in build order), so no two of them can ever overlap:
- * the collisions in the fd2f37c hardware photo (headers over cards,
+ * (headers, stale banner, evening done line, cards are all children
+ * in build order), so no two of them can ever overlap: the
+ * collisions in the fd2f37c hardware photo (headers over cards,
  * "+1 more" over the tab bar, pills on the location line) were all
- * absolute-y arithmetic; flex has no y arithmetic to get wrong. */
+ * absolute-y arithmetic; flex has no y arithmetic to get wrong.
+ * Iter-37: the column scrolls vertically (see build_myday_page);
+ * the children keep their flex order down the whole content, and
+ * the viewport shows one window of it. */
 static lv_obj_t *md_list;
 static lv_obj_t *md_hdr[2];        /* a section's header row (bar + word [+ date]) */
 static lv_obj_t *md_done_line;     /* the evening collapse line: "N done today" */
 static lv_obj_t *md_done_lbl;
-static lv_obj_t *md_more_lbl;      /* the single "+N more" line, last in the list */
+/* Iter-37: the "+N more" line is gone; the list scrolls instead. */
 static lv_obj_t *md_stack[MD_ROWS];   /* a card's text stack (line 1, title) */
 static lv_obj_t *md_line1[MD_ROWS];   /* a card's line 1: time left, tag pills right */
 static lv_obj_t *md_pills[MD_ROWS];   /* line 1's right-hand pill row (status, name) */
@@ -597,7 +603,9 @@ static char s_md_icon_list[128];                     /* shown rows' categories, 
 static int s_md_half;                                /* iter-35: always 0 (the half-card form is
                                                       * gone; the key stays so old dump readers
                                                       * see a plain "not half" answer) */
-static int s_md_more[2];                             /* rows folded into "+N more", per section (iter-35) */
+static int s_md_more[2];                             /* rows that never got a card (pool cap), per
+                                                      * section (iter-37: the fit fold is gone;
+                                                      * the key stays for the dump readers) */
 static char s_md_done_line[32];                      /* the evening collapse line's text, "" = not shown (iter-35) */
 static char s_md_cat_look[20];                       /* the look Pippa wears on the page (iter-20);
                                                       * iter-25: sized for the rotation's longer
@@ -2396,25 +2404,48 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_set_pos(md_date, 172, 14);
 
     /* Iter-35: the agenda is ONE flex column. The section
-     * headers, the stale banner, the evening done line, the cards
-     * and the "+N more" line are all children of md_list, in the
-     * build order below, laid out by LVGL: a header can never
-     * overlap a card, the "+N more" line lives inside the list
-     * (whose bottom edge MD_LIST_BOTTOM stops 12 px above the tab
-     * row), and a card's height comes from its content, not from
-     * hand-kept y arithmetic. The list never scrolls;
-     * render_myday folds overflow into "+N more" by measured
-     * height. The fd2f37c hardware photo is the bug list this
-     * replaces: two-line titles overlapping themselves, a ~280 px
-     * time column squeezing the titles, locations clipped under
-     * cards, tag pills on the location line, cards colliding with
-     * section headers, "+1 more" over the tab bar, and three
-     * different card styles on one page. */
+     * headers, the stale banner, the evening done line and the
+     * cards are all children of md_list, in the build order
+     * below, laid out by LVGL: a header can never overlap a
+     * card, the list's bottom edge MD_LIST_BOTTOM stops 12 px
+     * above the tab row, and a card's height comes from its
+     * content, not from hand-kept y arithmetic. The fd2f37c
+     * hardware photo is the bug list this replaces: two-line
+     * titles overlapping themselves, a ~280 px time column
+     * squeezing the titles, locations clipped under cards, tag
+     * pills on the location line, cards colliding with section
+     * headers, "+1 more" over the tab bar, and three different
+     * card styles on one page.
+     * Iter-37: the list SCROLLS vertically. Through iter-36 the
+     * column never scrolled and render_myday folded whatever ran
+     * past the bottom edge into a "+N more" line, which on the
+     * real board hid most of Tomorrow behind one visible card
+     * (the owner's report). Now every pooled card stays in the
+     * column and a drag moves the window; the scrollbar stays
+     * hidden (a kids' page, and the clipped card at the edge is
+     * the affordance). box() strips SCROLLABLE and CLICKABLE;
+     * both go back on here, because LVGL hit-testing skips
+     * non-clickable objects and its scroll search starts from
+     * the pressed object: with the list itself clickable, a
+     * press anywhere in the column (the cards are deliberately
+     * not tappable, so the press resolves to the list or chains
+     * up to it through the children's SCROLL_CHAIN flags) finds
+     * the one scrollable ancestor. The page's other gestures
+     * are indev-level and direction-aware, so a vertical drag
+     * cannot fight them: the page swipe needs |dx| dominant
+     * (80 px and 3:2), and the Settings hold spoils after three
+     * polls outside its 60 px radius, which a scroll drag exits
+     * at once. The tab bar lives outside the list and never
+     * moves. render_myday resets the scroll to the top on every
+     * populate (see md_notch_list). */
     md_list = box(page_myday);
     lv_obj_set_pos(md_list, 28, MD_TOP_Y);
     lv_obj_set_size(md_list, UI_W - 56, MD_LIST_BOTTOM - MD_TOP_Y);
     lv_obj_set_flex_flow(md_list, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(md_list, 8, 0);
+    lv_obj_add_flag(md_list, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scroll_dir(md_list, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(md_list, LV_SCROLLBAR_MODE_OFF);
     hide(md_list);
 
     md_build_header(0);
@@ -2468,20 +2499,11 @@ static void build_myday_page(lv_obj_t *scr)
     lv_obj_set_style_pad_left(md_none[1], 76, 0);
     hide(md_none[1]);
 
-    /* The one "+N more" line for the whole page, last in the
-     * list, inside it: render_myday counts the folded rows across
-     * both sections into it. font_body, muted, like the section
-     * furniture it belongs with. */
-    md_more_lbl = label(md_list, &font_body, "");
-    lv_obj_set_style_text_color(md_more_lbl, C(COL_INK2), 0);
-    lv_obj_set_style_pad_left(md_more_lbl, 76, 0);
-    hide(md_more_lbl);
-
     /* Pippa on the populated page (iter-15): the full sprite in
      * today's look. Iter-36: she stands small in the header at
      * the page's top right and the list runs full width beneath
      * her; render_myday sets her position and source, and
-     * md_fit_list narrows any card that reaches her column. */
+     * md_notch_list narrows any card that reaches her column. */
     md_cat = lv_image_create(page_myday);
     lv_image_set_pivot(md_cat, 0, 0);   /* iter-23: she scales up on the
                                          * populated page (MD_CAT_SCALE);
@@ -3241,8 +3263,8 @@ static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, c
      * box to one or two lines; iter-36 makes it one line by
      * construction, so there is nothing to measure and no
      * second line to collide with the first. The card goes back
-     * to the list's full width here; md_fit_list may narrow it
-     * afterwards to clear Pippa's column. */
+     * to the list's full width here; md_notch_list may narrow
+     * it afterwards to clear Pippa's column. */
     lv_label_set_text(md_name[r], ev->summary);
     lv_obj_set_style_text_color(md_name[r], s_md_stale ? md_mute(COL_INK, 185) : (past ? C(COL_INK2) : C(COL_INK)), 0);
     lv_obj_set_width(md_row[r], lv_pct(100));
@@ -3266,9 +3288,11 @@ static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, c
 /* Fill one section of the list (iter-35): its header, then cards,
  * or the "Nothing planned" line when the section is empty. slot0
  * is the section's first row slot, max_rows its pool cap; the
- * return is the count shown, so the caller can fold the pool
- * overflow (n minus the return) into "+N more" alongside the fit
- * pass's page overflow. Statuses are the iter-18 verdicts,
+ * return is the count shown, so the caller can count the pool
+ * overflow (n minus the return): events past the cap never get a
+ * card, the only hiding left since iter-37 made the list scroll
+ * (the fit pass that folded by measured height is gone, and with
+ * it the "+N more" line). Statuses are the iter-18 verdicts,
  * computed here per row against the clock (today only; now_min < 0
  * turns them off for Tomorrow). next_used keeps NEXT to one row.
  * The caller owns the evening collapse: the events handed here
@@ -3320,32 +3344,35 @@ static int md_fill_section(int sec, int slot0, int max_rows, const cal_event_t *
     return shown;
 }
 
-/* The fit pass (iter-35): after lv_obj_update_layout, hide the
- * cards that run past the list's bottom edge and fold them into
- * the page's single "+N more" line. pool_more is the sections'
- * pool-cap overflow (events that never got a card); the line's
- * count is pool overflow plus page overflow. The reserve keeps
- * the more line itself on the page: it is measured with its text
- * set, so the line's own height is the reserve. Cards hide in
- * list order from the first overflow on, so a section never keeps
- * a later row while an earlier one folds, and a header whose
- * whole section folds hides with it (a bare header never stands
- * over empty room). */
-static void md_fit_list(int pool_more)
+/* The notch pass (iter-35 as md_fit_list; iter-37 keeps only
+ * the notch). The list scrolls now, so nothing is hidden for
+ * height and there is no "+N more" line to feed: every pooled
+ * card stands in the column and a drag reaches the rest. What
+ * remains is the scroll reset and Pippa's notch.
+ *
+ * The reset comes first: a populate always starts at the top,
+ * so a refresh never leaves the kids looking at yesterday's
+ * scroll position (and the notch below measures the unscrolled
+ * coordinates it was designed against).
+ *
+ * Pippa stands in the header over the list's top-right corner.
+ * A card whose box reaches into her drawn column is narrowed
+ * to end 8 px before her (the notch), so her ink never shares
+ * a card; cards lower down run the list's full width. The
+ * measurement runs on the unscrolled layout, where only the
+ * first card's top reaches her feet (about y=148): later cards
+ * start below her, and when a drag later slides one up through
+ * her corner it passes under her sprite, which is drawn after
+ * the list on the page. Card heights are width-independent
+ * now (one-line titles, no place line), so narrowing cannot
+ * move anything vertically and one more layout pass settles
+ * it. Her drawn size comes from the sprite and the image's
+ * scale: the widget's own box stays the sprite's native
+ * size, pivot pinned to its corner. */
+static void md_notch_list(void)
 {
+    lv_obj_scroll_to_y(md_list, 0, LV_ANIM_OFF);
     lv_obj_update_layout(md_list);
-    lv_area_t la;
-    lv_obj_get_coords(md_list, &la);
-    /* Iter-36: Pippa stands in the header over the list's
-     * top-right corner. A card whose box reaches into her drawn
-     * column is narrowed to end 8 px before her (the notch), so
-     * her ink never shares a card; cards lower down run the
-     * list's full width. Card heights are width-independent
-     * now (one-line titles, no place line), so narrowing cannot
-     * move anything vertically and one more layout pass settles
-     * it. Her drawn size comes from the sprite and the image's
-     * scale: the widget's own box stays the sprite's native
-     * size, pivot pinned to its corner. */
     if (!lv_obj_has_flag(md_cat, LV_OBJ_FLAG_HIDDEN)) {
         const lv_image_dsc_t *cs = lv_image_get_src(md_cat);
         if (cs != NULL) {
@@ -3378,96 +3405,6 @@ static void md_fit_list(int pool_more)
             }
         }
     }
-    bool any_over = false;
-    for (int i = 0; i < (int)lv_obj_get_child_count(md_list); i++) {
-        lv_obj_t *ch = lv_obj_get_child(md_list, i);
-        if (ch == md_more_lbl || lv_obj_has_flag(ch, LV_OBJ_FLAG_HIDDEN)) {
-            continue;
-        }
-        lv_area_t ca;
-        lv_obj_get_coords(ch, &ca);
-        if (ca.y2 > la.y2) {
-            any_over = true;
-            break;
-        }
-    }
-    if (!any_over) {
-        if (pool_more > 0) {
-            char buf[24];
-            snprintf(buf, sizeof(buf), "+%d more", pool_more);
-            lv_label_set_text(md_more_lbl, buf);
-            show_obj(md_more_lbl);
-            lv_obj_update_layout(md_list);
-        } else {
-            hide(md_more_lbl);
-        }
-        return;
-    }
-    /* Measure the more line with a worst-case count first, so
-     * the reserve is exact even if the final count is shorter.
-     * Showing it appends at the list's end and cannot move the
-     * earlier children, so the first pass's coordinates stay
-     * valid for the cutting walk below. */
-    char buf[24];
-    snprintf(buf, sizeof(buf), "+%d more", 99);
-    lv_label_set_text(md_more_lbl, buf);
-    show_obj(md_more_lbl);
-    lv_obj_update_layout(md_list);
-    lv_area_t ma;
-    lv_obj_get_coords(md_more_lbl, &ma);
-    int reserve = (ma.y2 - ma.y1 + 1) + 8;
-    hide(md_more_lbl);
-
-    int hidden[2] = {0, 0};
-    bool cutting = false;
-    int limit = la.y2 - reserve;
-    for (int i = 0; i < (int)lv_obj_get_child_count(md_list); i++) {
-        lv_obj_t *ch = lv_obj_get_child(md_list, i);
-        if (ch == md_more_lbl || lv_obj_has_flag(ch, LV_OBJ_FLAG_HIDDEN)) {
-            continue;
-        }
-        lv_area_t ca;
-        lv_obj_get_coords(ch, &ca);
-        if (!cutting && ca.y2 > limit) {
-            cutting = true;
-        }
-        if (cutting) {
-            hide(ch);
-            for (int r = 0; r < MD_ROWS; r++) {
-                if (md_row[r] == ch) {
-                    hidden[r < MD_TODAY_MAX ? 0 : 1]++;
-                    break;
-                }
-            }
-        }
-    }
-    int total = pool_more + hidden[0] + hidden[1];
-#ifdef WB_SIM
-    s_md_more[0] += hidden[0];
-    s_md_more[1] += hidden[1];
-#endif
-    if (total > 0) {
-        snprintf(buf, sizeof(buf), "+%d more", total);
-        lv_label_set_text(md_more_lbl, buf);
-        show_obj(md_more_lbl);
-    } else {
-        hide(md_more_lbl);
-    }
-    lv_obj_update_layout(md_list);
-#ifdef WB_SIM
-    /* Re-count the visible rows per section after the fold. */
-    for (int s = 0; s < 2; s++) {
-        int base = s ? MD_TODAY_MAX : 0;
-        int cap = s ? MD_TOM_MAX : MD_TODAY_MAX;
-        int vis = 0;
-        for (int r = base; r < base + cap; r++) {
-            if (!lv_obj_has_flag(md_row[r], LV_OBJ_FLAG_HIDDEN)) {
-                vis++;
-            }
-        }
-        s_md_n[s] = vis;
-    }
-#endif
 }
 
 static void render_myday(const struct tm *now)
@@ -3752,7 +3689,7 @@ static void render_myday(const struct tm *now)
      * weather, or stale past using) she wears the base sprite, the
      * unavailable screen's choice. Iter-36: she stands small in
      * the header, right-aligned at the page's right margin; the
-     * list runs the full width beneath her and md_fit_list
+     * list runs the full width beneath her and md_notch_list
      * notches any card that reaches her column. */
     int var = PIPPA_BASE;
     static outfit_t o;   /* static: see the bucket arrays' iter-36 note */
@@ -3824,8 +3761,10 @@ static void render_myday(const struct tm *now)
     }
 
     /* The rows' statuses (DONE, NOW, NEXT) are computed inside
-     * md_fill_section against now_min (iter-18, kept). The fit
-     * pass folds whatever the page cannot hold into "+N more". */
+     * md_fill_section against now_min (iter-18, kept). Every
+     * pooled card stands in the scrolling list (iter-37); the
+     * notch pass resets the scroll to the top and narrows the
+     * one card that reaches Pippa's column. */
     bool next_used = false;
     int shown0 = md_fill_section(0, 0, MD_TODAY_MAX, show_tod, nshow, now_min, &next_used);
     int shown1 = md_fill_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, -1, &next_used);
@@ -3833,7 +3772,7 @@ static void render_myday(const struct tm *now)
     s_md_more[0] = nshow - shown0;
     s_md_more[1] = ntom - shown1;
 #endif
-    md_fit_list((nshow - shown0) + (ntom - shown1));
+    md_notch_list();
 #ifdef WB_SIM
     s_md_icon_list[0] = 0;
     for (int s = 0; s < 2; s++) {
@@ -4733,18 +4672,45 @@ static void lc_fail(const char *what, lv_obj_t *o)
     s_lc_fails++;
 }
 
-static void lc_walk(lv_obj_t *o, const lv_area_t *tab, bool in_myday)
+/* Iter-37: the gate meets the scrolling list. Coordinates in a
+ * scrolled container are content coordinates: children below the
+ * fold legitimately extend past the list's bottom edge (and, once
+ * scrolled, above its top edge), and LVGL clips their drawing to
+ * the list's box, so raw coordinates overstate what is on screen.
+ * The walk therefore tracks whether it is inside md_list:
+ * - the tab-bar test runs on the VISIBLE part of a list
+ *   descendant (its box clipped to the list's box); a box that
+ *   clips away entirely is not on screen and cannot hit the tabs;
+ * - the containment test on the list's own children checks the
+ *   content WIDTH only (their y is the scroll axis);
+ * - every deeper parent keeps the full four-side test: a card and
+ *   its children shift together under scroll, so their relative
+ *   containment is scroll-invariant, as are the sibling-overlap
+ *   and label checks.
+ * ui_test_layout_check adds the viewport's own invariant: the
+ * list's box itself must clear the tab bar (MD_LIST_BOTTOM). */
+static void lc_walk(lv_obj_t *o, const lv_area_t *tab, bool in_myday, bool in_list)
 {
     if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
         return;
     }
+    bool self_list = in_myday && o == md_list;
     lv_area_t a;
     lv_obj_get_coords(o, &a);
     if (tab != NULL && o != s_lc_root && o != md_tabfresh &&
         (lv_obj_get_class(o) == &lv_label_class ||
          lv_obj_get_class(o) == &lv_button_class)) {
+        lv_area_t vis = a;
+        bool clipped_away = false;
+        if (in_list || self_list) {
+            lv_area_t la;
+            lv_obj_get_coords(md_list, &la);
+            if (!_lv_area_intersect(&vis, &a, &la)) {
+                clipped_away = true;
+            }
+        }
         lv_area_t hit;
-        if (_lv_area_intersect(&hit, &a, tab) &&
+        if (!clipped_away && _lv_area_intersect(&hit, &vis, tab) &&
             lv_area_get_width(&hit) > 0 && lv_area_get_height(&hit) > 0) {
             lc_fail("object in the tab bar area", o);
         }
@@ -4796,9 +4762,13 @@ static void lc_walk(lv_obj_t *o, const lv_area_t *tab, bool in_myday)
             if (lv_obj_get_class(c) != &lv_image_class) {
                 lv_area_t ca;
                 lv_obj_get_coords(c, &ca);
+                /* The scroller's own children may run past its
+                 * top and bottom (the scroll axis); their width
+                 * may not leave the content width. */
                 if (!lc_is_pill(o) &&
-                    (ca.x1 < content.x1 - 1 || ca.y1 < content.y1 - 1 ||
-                     ca.x2 > content.x2 + 1 || ca.y2 > content.y2 + 1)) {
+                    (ca.x1 < content.x1 - 1 || ca.x2 > content.x2 + 1 ||
+                     (!self_list &&
+                      (ca.y1 < content.y1 - 1 || ca.y2 > content.y2 + 1)))) {
                     lc_fail("child exceeds its parent's content area", c);
                 }
                 for (uint32_t j = i + 1; j < n; j++) {
@@ -4819,7 +4789,7 @@ static void lc_walk(lv_obj_t *o, const lv_area_t *tab, bool in_myday)
     }
     uint32_t n = lv_obj_get_child_count(o);
     for (uint32_t i = 0; i < n; i++) {
-        lc_walk(lv_obj_get_child(o, i), tab, in_myday);
+        lc_walk(lv_obj_get_child(o, i), tab, in_myday, in_list || self_list);
     }
 }
 
@@ -4856,7 +4826,18 @@ int ui_test_layout_check(const char *tag)
                (int)font_small.line_height, (int)font_small.base_line);
     }
     int before = s_lc_fails;
-    lc_walk(root, &tab, root == page_myday);
+    if (root == page_myday) {
+        /* Iter-37: the scrolling list's viewport must itself
+         * clear the tab bar; its contents may extend past its
+         * own edges (lc_walk clips them), the box may not. */
+        lv_area_t la, hit;
+        lv_obj_get_coords(md_list, &la);
+        if (_lv_area_intersect(&hit, &la, &tab) &&
+            lv_area_get_width(&hit) > 0 && lv_area_get_height(&hit) > 0) {
+            lc_fail("list reaches into the tab bar area", md_list);
+        }
+    }
+    lc_walk(root, &tab, root == page_myday, false);
     return s_lc_fails - before;
 }
 
@@ -4912,6 +4893,20 @@ void ui_test_outline(bool on)
         s_ol_on = false;
         lv_obj_invalidate(lv_screen_active());
     }
+}
+
+/* Iter-37: scroll the populated My Day list to its bottom in
+ * one jump (no animation), so the sim can render and gate the
+ * scrolled state: the last card fully inside the viewport and
+ * clear of the tab bar. */
+void ui_test_scroll_myday_bottom(void)
+{
+    if (lv_obj_has_flag(md_list, LV_OBJ_FLAG_HIDDEN)) {
+        return;
+    }
+    lv_obj_update_layout(md_list);
+    lv_obj_scroll_to_y(md_list, lv_obj_get_scroll_bottom(md_list), LV_ANIM_OFF);
+    lv_obj_update_layout(md_list);
 }
 
 void ui_test_dump(const char *path)
