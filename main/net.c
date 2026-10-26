@@ -593,6 +593,12 @@ static void net_task(void *arg)
             show_weather(true, last);
             fetch_calendar();
             board_mem_log("calendar");
+            /* Iter-36: the calendar populate is the lvgl stack's
+             * deepest known path (it overflowed at 8 KB in
+             * 2.0.1); log its high-water mark beside the stage
+             * line, and again at the cycle's end below, after the
+             * lvgl task has drawn the new tree. */
+            board_lvgl_stack_log("calendar");
             ota_mark_good();   /* a new version that gets the weather is a keeper */
 
             /* Nightly update check, around 3 AM, once a day, and only when a
@@ -623,6 +629,7 @@ static void net_task(void *arg)
         size_t free_int = board_free_internal();
         ESP_LOGI(TAG, "internal RAM free %u KB, drawing area %d lines", (unsigned)(free_int / 1024),
                  board_draw_lines());
+        board_lvgl_stack_log("cycle");
         /* Iter-35 guardrail: under 60 KB internal free after a fetch
          * cycle, the next TLS handshake is living on borrowed room;
          * say so loudly. (The 24 KB line below stays the shrink

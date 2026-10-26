@@ -477,22 +477,22 @@ static lv_obj_t *fc_pippa[3];   /* mini Pippa in each card's day look (iter-07) 
                          * first card; the advance leaves a visible
                          * 4 px of page between the two, measured on
                          * the renders in every round since) */
-#define MD_CAT_Y 64     /* Pippa's top on the populated page (iter-19:
-                         * iter-15 put her at 120; the mockup stands
-                         * her at the title line, and down at 120 her
-                         * feet block the Tomorrow half cards, which
-                         * pass below them at this height) */
-#define MD_CAT_SCALE 290 /* Pippa's scale on the populated page
-                         * (iter-23, round 19): the concept stands her
-                         * at about 55% of the screen height beside a
-                         * list ending near 62% of the width, but at
-                         * native size she stood 228 px (47%) beside a
-                         * list ending at 77%. 290 (of 256 = 1.0) is
-                         * the largest scale whose narrowed list still
-                         * holds the widest fixture title ("Video call
-                         * with Grandma", 334 px of advance) on one
-                         * line with 4 px to spare: she renders 258 px
-                         * tall (54%) and the list ends at 74%. */
+#define MD_CAT_Y 2      /* Pippa's top on the populated page (iter-36:
+                         * she tucks into the header band beside the
+                         * date; through iter-35 she stood at y=64
+                         * beside the list at near full height) */
+#define MD_CAT_SCALE 148 /* Pippa's scale on the populated page
+                         * (iter-36): about 150 px wide (260 * 148 /
+                         * 256), up in the header next to the date,
+                         * so the list takes the page's full width.
+                         * Through iter-35 she stood at 290 (258 px
+                         * tall) and the list narrowed to end at her
+                         * left edge. Her feet reach about y=148 now;
+                         * md_fit_list narrows any card that reaches
+                         * into her column to clear her (a notch),
+                         * which is safe because card heights no
+                         * longer depend on their width (iter-36's
+                         * single-line titles, no place line). */
 #define MD_FEET_Y 322   /* below this y the page is clear of her ink:
                          * a Tomorrow section starting here may run
                          * its half cards to the page's right edge
@@ -545,7 +545,7 @@ static lv_obj_t *md_hdr[2];        /* a section's header row (bar + word [+ date
 static lv_obj_t *md_done_line;     /* the evening collapse line: "N done today" */
 static lv_obj_t *md_done_lbl;
 static lv_obj_t *md_more_lbl;      /* the single "+N more" line, last in the list */
-static lv_obj_t *md_stack[MD_ROWS];   /* a card's text stack (line 1, title, place) */
+static lv_obj_t *md_stack[MD_ROWS];   /* a card's text stack (line 1, title) */
 static lv_obj_t *md_line1[MD_ROWS];   /* a card's line 1: time left, tag pills right */
 static lv_obj_t *md_pills[MD_ROWS];   /* line 1's right-hand pill row (status, name) */
 static lv_obj_t *md_iconcol[MD_ROWS]; /* a card's fixed 64 px icon column */
@@ -553,7 +553,7 @@ static lv_obj_t *md_sec[2];        /* section headers: Today, Tomorrow */
 static lv_obj_t *md_sec_date;      /* Tomorrow's date, muted, after its header (iter-17) */
 static lv_obj_t *md_bar[2];        /* a header's pink accent bar */
 static lv_obj_t *md_none[2];       /* a section's "Nothing planned" line */
-static lv_obj_t *md_row[MD_ROWS], *md_time[MD_ROWS], *md_name[MD_ROWS], *md_loc[MD_ROWS];
+static lv_obj_t *md_row[MD_ROWS], *md_time[MD_ROWS], *md_name[MD_ROWS];
 static lv_obj_t *md_pill[MD_ROWS], *md_pill_lbl[MD_ROWS];   /* the ALL DAY pill on a card's line 1 */
 static lv_obj_t *md_next[MD_ROWS], *md_next_lbl[MD_ROWS];   /* the NEXT tag after a row's title */
 static lv_obj_t *md_tag[MD_ROWS], *md_tag_lbl[MD_ROWS];     /* the name tag after a title (iter-17) */
@@ -2250,8 +2250,11 @@ static void md_build_header(int s)
  * colours (the stale state mutes them), the shape lives here.
  * The card is a flex row: a fixed 64 px icon column (the 48 px
  * category icon, centred) and a text stack that takes the rest.
- * The stack is three lines: line 1 (the time at the left, the
- * tag pills at the right), the title, the place line. */
+ * The stack is two lines (iter-36): line 1 (the time at the
+ * left, the tag pills at the right), then the title. The place
+ * line is gone entirely (iter-36, the owner's call: the kids
+ * do not need to know where a thing is); the feed still carries
+ * locations, the cards just stop printing them. */
 static void md_build_card(int r)
 {
     lv_obj_t *card = box(md_list);
@@ -2349,26 +2352,20 @@ static void md_build_card(int r)
     hide(md_tag[r]);
 
     /* The title: font_body (iter-35; font_label through
-     * iter-34), the stack's full width, at most two lines ending
-     * in an ellipsis (LV_LABEL_LONG_MODE_DOTS), in a box exactly
-     * the used lines tall (render sets the height). Line space
-     * 2, never negative: iter-34's tightened step is what drew
-     * line 2 into line 1's ink in the hardware photo. */
+     * iter-34), the stack's full width, ONE line (iter-36),
+     * ending in an ellipsis (LV_LABEL_LONG_MODE_DOTS), in a box
+     * exactly one line_height tall. Two-line titles were where
+     * every layout bug on this page lived (line 2 drawn into
+     * line 1's ink in the hardware photos); a single line at
+     * font_body fits about 38 characters at the old narrowed
+     * width and far more now that the list runs full width.
+     * Line space 2, never negative. */
     md_name[r] = label(md_stack[r], &font_body, "");
     lv_obj_set_style_text_color(md_name[r], C(COL_INK), 0);
     lv_obj_set_style_text_line_space(md_name[r], 2, 0);
     lv_label_set_long_mode(md_name[r], LV_LABEL_LONG_MODE_DOTS);
     lv_obj_set_width(md_name[r], lv_pct(100));
-
-    /* The place line: font_small, one line, ellipsised, exactly
-     * one line tall. A long address can no longer spill under
-     * the card (the photo's clipped locations). */
-    md_loc[r] = label(md_stack[r], &font_small, "");
-    lv_obj_set_style_text_color(md_loc[r], C(COL_INK), 0);
-    lv_obj_set_style_text_opa(md_loc[r], LV_OPA_90, 0);
-    lv_label_set_long_mode(md_loc[r], LV_LABEL_LONG_MODE_DOTS);
-    lv_obj_set_width(md_loc[r], lv_pct(100));
-    lv_obj_set_height(md_loc[r], lv_font_get_line_height(&font_small));
+    lv_obj_set_height(md_name[r], lv_font_get_line_height(&font_body));
 
     hide(card);
 }
@@ -2388,14 +2385,15 @@ static void build_myday_page(lv_obj_t *scr)
      * 4 px of air below the ink (checked). */
     lv_obj_set_pos(t, 28, 4);
 
-    /* The date rides the title line, right-aligned, the way the
-     * outfit pages keep their weather block at the top right: the
-     * agenda needs every vertical pixel for rows. */
+    /* The date rides the title line (iter-36: at its left, after
+     * the title, since Pippa now tucks into the top-right corner
+     * beside it). Through iter-35 it was right-aligned at the
+     * page's right edge, where she stands now. */
     md_date = label(page_myday, &font_label, "");
     lv_obj_set_style_text_color(md_date, C(COL_INK2), 0);
-    lv_obj_set_width(md_date, 342);
-    lv_obj_set_style_text_align(md_date, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_pos(md_date, 430, 16);
+    lv_obj_set_width(md_date, 452);
+    lv_obj_set_style_text_align(md_date, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_set_pos(md_date, 172, 14);
 
     /* Iter-35: the agenda is ONE flex column. The section
      * headers, the stale banner, the evening done line, the cards
@@ -2480,9 +2478,10 @@ static void build_myday_page(lv_obj_t *scr)
     hide(md_more_lbl);
 
     /* Pippa on the populated page (iter-15): the full sprite in
-     * today's look, standing at the right of the list. Position and
-     * source are set by render_myday (her width sets the list's
-     * right edge, so the two never collide). */
+     * today's look. Iter-36: she stands small in the header at
+     * the page's top right and the list runs full width beneath
+     * her; render_myday sets her position and source, and
+     * md_fit_list narrows any card that reaches her column. */
     md_cat = lv_image_create(page_myday);
     lv_image_set_pivot(md_cat, 0, 0);   /* iter-23: she scales up on the
                                          * populated page (MD_CAT_SCALE);
@@ -3158,15 +3157,11 @@ static bool md_name_tag(const char *title, char *out, size_t n)
 /* Fill one card's slot with an event and show it (iter-35). status
  * is the iter-18 verdict (0 none, 1 DONE, 2 NOW, 3 NEXT) computed by
  * the caller against the clock; named/namebuf are md_name_tag's
- * verdict. list_w is the list's width (Pippa already narrowed it),
- * from which the title's pixel width is computed, so the title box
- * gets exactly the lines it uses: one line, or two capped with an
- * ellipsis. The sim dump fields are written here, per row, as the
- * old section code wrote them. DONE rows lighten their TEXT (title
- * and place in ink2, full opacity), never the card: the spec's
- * floor is 70% text opacity, and iter-34's 40-50% fades are gone. */
-static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, const char *namebuf,
-                         int list_w)
+ * verdict. The sim dump fields are written here, per row, as the
+ * old section code wrote them. DONE rows lighten their TEXT (the
+ * title in ink2, full opacity), never the card: the spec's floor
+ * is 70% text opacity, and iter-34's 40-50% fades are gone. */
+static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, const char *namebuf)
 {
     bool past = status == 1;
     char tbuf[40];
@@ -3240,39 +3235,24 @@ static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, c
         hide(md_tag[r]);
     }
 
-    /* The title's line count is computed off the stack's exact
-     * pixel width (list width minus the card's borders, pads and
-     * the icon column), not measured off the render: the box gets
-     * one line, or two lines plus its line space, and DOTS caps
-     * anything longer. */
-    int stack_w = list_w - 4 - 24 - 64;
+    /* The title is one line in a box exactly one line_height
+     * tall (set at build); DOTS ellipsises whatever runs long.
+     * Through iter-35 the fill measured the title and sized the
+     * box to one or two lines; iter-36 makes it one line by
+     * construction, so there is nothing to measure and no
+     * second line to collide with the first. The card goes back
+     * to the list's full width here; md_fit_list may narrow it
+     * afterwards to clear Pippa's column. */
     lv_label_set_text(md_name[r], ev->summary);
     lv_obj_set_style_text_color(md_name[r], s_md_stale ? md_mute(COL_INK, 185) : (past ? C(COL_INK2) : C(COL_INK)), 0);
-    lv_point_t sz;
-    int lh = (int)lv_font_get_line_height(&font_body);
-    lv_text_get_size(&sz, ev->summary, &font_body, 0, 2, stack_w, LV_TEXT_FLAG_NONE);
-    int lines = (sz.y + 2) / (lh + 2);
-    if (lines < 1) {
-        lines = 1;
-    }
-    if (lines > 2) {
-        lines = 2;
-    }
-    lv_obj_set_height(md_name[r], lines == 1 ? lh : 2 * lh + 2);
-
-    if (ev->location[0]) {
-        lv_label_set_text(md_loc[r], ev->location);
-        lv_obj_set_style_text_color(md_loc[r], s_md_stale ? md_mute(COL_INK, 185) : (past ? C(COL_INK2) : C(COL_INK)), 0);
-        lv_obj_set_style_text_opa(md_loc[r], LV_OPA_90, 0);
-        show_obj(md_loc[r]);
-    } else {
-        hide(md_loc[r]);
-    }
+    lv_obj_set_width(md_row[r], lv_pct(100));
 
     md_card_style(md_row[r], s_md_stale);
     show_obj(md_row[r]);
 #ifdef WB_SIM
-    snprintf(s_md_rows[r], sizeof(s_md_rows[r]), "%.39s|%.63s|%.63s", tbuf, ev->summary, ev->location);
+    /* Iter-36: the place field stays in the dump's format but is
+     * always empty now; the cards no longer print locations. */
+    snprintf(s_md_rows[r], sizeof(s_md_rows[r]), "%.39s|%.63s|", tbuf, ev->summary);
     snprintf(s_md_icons[r], sizeof(s_md_icons[r]), "%s", EV_ICON_NAMES[cat]);
     if (past) {
         size_t dl = strlen(s_md_dimmed);
@@ -3293,7 +3273,7 @@ static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, c
  * turns them off for Tomorrow). next_used keeps NEXT to one row.
  * The caller owns the evening collapse: the events handed here
  * are the ones to show. */
-static int md_fill_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n, int list_w,
+static int md_fill_section(int sec, int slot0, int max_rows, const cal_event_t **evs, int n,
                            long now_min, bool *next_used)
 {
     show_obj(md_hdr[sec]);
@@ -3328,7 +3308,7 @@ static int md_fill_section(int sec, int slot0, int max_rows, const cal_event_t *
         }
         char namebuf[8];
         bool named = md_name_tag(ev->summary, namebuf, sizeof(namebuf));
-        md_fill_card(slot0 + shown, ev, status, named, namebuf, list_w);
+        md_fill_card(slot0 + shown, ev, status, named, namebuf);
         shown++;
     }
     for (int r = slot0 + shown; r < slot0 + max_rows; r++) {
@@ -3356,6 +3336,48 @@ static void md_fit_list(int pool_more)
     lv_obj_update_layout(md_list);
     lv_area_t la;
     lv_obj_get_coords(md_list, &la);
+    /* Iter-36: Pippa stands in the header over the list's
+     * top-right corner. A card whose box reaches into her drawn
+     * column is narrowed to end 8 px before her (the notch), so
+     * her ink never shares a card; cards lower down run the
+     * list's full width. Card heights are width-independent
+     * now (one-line titles, no place line), so narrowing cannot
+     * move anything vertically and one more layout pass settles
+     * it. Her drawn size comes from the sprite and the image's
+     * scale: the widget's own box stays the sprite's native
+     * size, pivot pinned to its corner. */
+    if (!lv_obj_has_flag(md_cat, LV_OBJ_FLAG_HIDDEN)) {
+        const lv_image_dsc_t *cs = lv_image_get_src(md_cat);
+        if (cs != NULL) {
+            int cw = (int)cs->header.w * lv_image_get_scale(md_cat) / 256;
+            int chh = (int)cs->header.h * lv_image_get_scale(md_cat) / 256;
+            int cx1 = (int)lv_obj_get_x(md_cat);
+            int cy2 = (int)lv_obj_get_y(md_cat) + chh - 1;
+            bool notched = false;
+            for (int i = 0; i < (int)lv_obj_get_child_count(md_list); i++) {
+                lv_obj_t *ch = lv_obj_get_child(md_list, i);
+                bool is_card = false;
+                for (int r = 0; r < MD_ROWS; r++) {
+                    if (md_row[r] == ch) {
+                        is_card = true;
+                        break;
+                    }
+                }
+                if (!is_card || lv_obj_has_flag(ch, LV_OBJ_FLAG_HIDDEN)) {
+                    continue;
+                }
+                lv_area_t ca;
+                lv_obj_get_coords(ch, &ca);
+                if (ca.y1 < cy2 && ca.x2 > cx1 - 8 && ca.x1 < cx1 - 8 - 200) {
+                    lv_obj_set_width(ch, (cx1 - 8) - ca.x1);
+                    notched = true;
+                }
+            }
+            if (notched) {
+                lv_obj_update_layout(md_list);
+            }
+        }
+    }
     bool any_over = false;
     for (int i = 0; i < (int)lv_obj_get_child_count(md_list); i++) {
         lv_obj_t *ch = lv_obj_get_child(md_list, i);
@@ -3497,7 +3519,14 @@ static void render_myday(const struct tm *now)
      * started yesterday and runs into today is not shown in v1. */
     long today = days_from_civil(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday);
     long now_min = minutes_of(now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min);
-    const cal_event_t *tod[CAL_MAX_EVENTS], *tom[CAL_MAX_EVENTS];
+    /* Iter-36: the bucket arrays are static, not stack. Render
+     * is serialised by the LVGL lock (and single-threaded in the
+     * sim), so sharing them across calls is safe; on the stack
+     * they were 3 x CAL_MAX_EVENTS pointers (576 B on the board)
+     * inside the frame chain that overflowed the lvgl task's old
+     * 8 KB stack in 2.0.1. The outfit_t locals below moved the
+     * same way for the same reason (about 400 B each). */
+    static const cal_event_t *tod[CAL_MAX_EVENTS], *tom[CAL_MAX_EVENTS];
     int ntod = 0, ntom = 0;
     if (s_cal_configured) {
         for (int i = 0; i < cal_count(); i++) {
@@ -3647,7 +3676,7 @@ static void render_myday(const struct tm *now)
          * MD_MSG_SCALE here (round 16: at native size she shrank
          * beside the words and the group ran left-heavy). */
         int mlook = LOOK_FALL;
-        outfit_t mo;
+        static outfit_t mo;   /* static: see the bucket arrays' iter-36 note */
         if (s_have_wx && s_md_bucket < 2 && outfit_make(&s_wx, now, 0, &s_opts, &mo) && mo.ok) {
             mlook = mo.look;
         }
@@ -3721,13 +3750,12 @@ static void render_myday(const struct tm *now)
      * stage would wear (pippa_variant_for over the outfit engine's
      * own resolution for today). When no look can be resolved (no
      * weather, or stale past using) she wears the base sprite, the
-     * unavailable screen's choice. She stands right-aligned at
-     * MD_CAT_Y (iter-19: the mockup's high stance, which also
-     * clears her feet for the Tomorrow half cards); her width
-     * sets the list's right edge, so titles can never run under
-     * her. */
+     * unavailable screen's choice. Iter-36: she stands small in
+     * the header, right-aligned at the page's right margin; the
+     * list runs the full width beneath her and md_fit_list
+     * notches any card that reaches her column. */
     int var = PIPPA_BASE;
-    outfit_t o;
+    static outfit_t o;   /* static: see the bucket arrays' iter-36 note */
     if (s_have_wx && s_md_bucket < 2 && outfit_make(&s_wx, now, 0, &s_opts, &o) && o.ok) {
         var = pippa_variant_for(o.look, o.year, o.month, o.day);
 #ifdef WB_SIM
@@ -3736,25 +3764,19 @@ static void render_myday(const struct tm *now)
     }
     const lv_image_dsc_t *spr = WB_PIPPA_SPRITES[var];
     lv_image_set_src(md_cat, spr);
-    /* Iter-23 (round 19): she stands at MD_CAT_SCALE, not native
-     * size — the concept's near-full-height stance. Her scaled
-     * width sets the list's right edge, exactly as her native
-     * width did, so the two never collide. */
     lv_image_set_scale(md_cat, MD_CAT_SCALE);
     int cat_w = (int)spr->header.w * MD_CAT_SCALE / 256;
-    lv_obj_set_pos(md_cat, 778 - cat_w, MD_CAT_Y);
+    lv_obj_set_pos(md_cat, 772 - cat_w, MD_CAT_Y);
     show_obj(md_cat);
-    int right = 778 - cat_w - 8;
     /* The cards' border follows the page background's daypart,
      * the tile rule the rest of the app uses (kept in iter-35 as
      * the one card style's border tone). */
     s_md_line_hex = now->tm_hour >= 17 ? COL_TILE_LINE_E : COL_TILE_LINE_M;
 
-    /* Iter-35: the list takes the width Pippa leaves and LVGL's
-     * flex lays the sections out inside it. Tomorrow's date rides
-     * in its header row (iter-17, kept). */
-    int list_w = right - 28;
-    lv_obj_set_width(md_list, list_w);
+    /* The list takes the page's full width now (iter-36; through
+     * iter-35 it stopped at Pippa's left edge). Tomorrow's date
+     * rides in its header row (iter-17, kept). */
+    lv_obj_set_width(md_list, UI_W - 56);
     show_obj(md_list);
     lv_label_set_text(md_sec_date, tom_date);
 
@@ -3765,7 +3787,7 @@ static void render_myday(const struct tm *now)
      * The folded titles still land in the sim's done lists, which
      * are written from this same partition; on cards they would
      * have been written by md_fill_card instead. */
-    const cal_event_t *show_tod[CAL_MAX_EVENTS];
+    static const cal_event_t *show_tod[CAL_MAX_EVENTS];   /* static: iter-36, as above */
     int nshow = 0, ndone = 0;
     bool evening = now->tm_hour >= 17;
     for (int i = 0; i < ntod; i++) {
@@ -3805,8 +3827,8 @@ static void render_myday(const struct tm *now)
      * md_fill_section against now_min (iter-18, kept). The fit
      * pass folds whatever the page cannot hold into "+N more". */
     bool next_used = false;
-    int shown0 = md_fill_section(0, 0, MD_TODAY_MAX, show_tod, nshow, list_w, now_min, &next_used);
-    int shown1 = md_fill_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, list_w, -1, &next_used);
+    int shown0 = md_fill_section(0, 0, MD_TODAY_MAX, show_tod, nshow, now_min, &next_used);
+    int shown1 = md_fill_section(1, MD_TODAY_MAX, MD_TOM_MAX, tom, ntom, -1, &next_used);
 #ifdef WB_SIM
     s_md_more[0] = nshow - shown0;
     s_md_more[1] = ntom - shown1;
@@ -4727,18 +4749,38 @@ static void lc_walk(lv_obj_t *o, const lv_area_t *tab, bool in_myday)
             lc_fail("object in the tab bar area", o);
         }
     }
-    if (lv_obj_get_class(o) == &lv_label_class &&
-        lv_label_get_long_mode(o) != LV_LABEL_LONG_MODE_DOTS) {
-        const char *txt = lv_label_get_text(o);
-        if (txt != NULL && txt[0] != '\0' && lv_obj_get_width(o) > 0) {
-            lv_point_t sz;
-            lv_text_get_size(&sz, txt,
-                             lv_obj_get_style_text_font(o, LV_PART_MAIN),
-                             lv_obj_get_style_text_letter_space(o, LV_PART_MAIN),
-                             lv_obj_get_style_text_line_space(o, LV_PART_MAIN),
-                             lv_obj_get_width(o), LV_TEXT_FLAG_NONE);
-            if (sz.y > lv_obj_get_height(o) + 1) {
-                lc_fail("label text taller than its box", o);
+    if (lv_obj_get_class(o) == &lv_label_class) {
+        /* Iter-36: a negative text line space draws a label's
+         * second line into its first line's ink, inside the one
+         * label, where no box-overlap check can see it (the
+         * overlapping two-line titles in the hardware photos).
+         * Assert it on every label on every page. */
+        int lsp = lv_obj_get_style_text_line_space(o, LV_PART_MAIN);
+        if (lsp < 0) {
+            lv_area_t a;
+            lv_obj_get_coords(o, &a);
+            printf("LAYOUT FAIL [%s] negative text line space %d at (%d,%d)-(%d,%d) label='%.40s'\n",
+                   s_lc_tag, lsp, (int)a.x1, (int)a.y1, (int)a.x2, (int)a.y2,
+                   lv_label_get_text(o));
+            s_lc_fails++;
+        }
+        if (lv_label_get_long_mode(o) != LV_LABEL_LONG_MODE_DOTS) {
+            const char *txt = lv_label_get_text(o);
+            if (txt != NULL && txt[0] != '\0' && lv_obj_get_width(o) > 0) {
+                lv_point_t sz;
+                lv_text_get_size(&sz, txt,
+                                 lv_obj_get_style_text_font(o, LV_PART_MAIN),
+                                 lv_obj_get_style_text_letter_space(o, LV_PART_MAIN),
+                                 lv_obj_get_style_text_line_space(o, LV_PART_MAIN),
+                                 lv_obj_get_width(o), LV_TEXT_FLAG_NONE);
+                if (sz.y > lv_obj_get_height(o) + 1) {
+                    lc_fail("label text taller than its box", o);
+                }
+                /* Iter-36: the measured size against the box in
+                 * width too (a label LVGL would clip sideways). */
+                if (sz.x > lv_obj_get_width(o) + 1) {
+                    lc_fail("label text wider than its box", o);
+                }
             }
         }
     }
@@ -4801,9 +4843,75 @@ int ui_test_layout_check(const char *tag)
     lv_obj_get_coords(lv_obj_get_parent(tab_btn[0]), &tab);
     s_lc_tag = tag;
     s_lc_root = root;
+    /* Iter-36: the font metrics behind the line-space and
+     * text-fits-box checks, printed once per run so a failure
+     * can be read against the faces' real geometry. */
+    static bool announced;
+    if (!announced) {
+        announced = true;
+        printf("LAYOUT GATE: font_body line_height=%d base_line=%d; font_label line_height=%d "
+               "base_line=%d; font_small line_height=%d base_line=%d\n",
+               (int)font_body.line_height, (int)font_body.base_line,
+               (int)font_label.line_height, (int)font_label.base_line,
+               (int)font_small.line_height, (int)font_small.base_line);
+    }
     int before = s_lc_fails;
     lc_walk(root, &tab, root == page_myday);
     return s_lc_fails - before;
+}
+
+/* Iter-36 debug render support (sim only): draw a 1 px red
+ * outline on every visible object of the active screen, so a
+ * reviewer can see the boxes the layout gate reasons about.
+ * Original border styles are saved per object and restored by
+ * the matching ui_test_outline(false). The borders perturb the
+ * layout slightly (they inset content), so the gate never runs
+ * on an outlined frame; it is a picture, not a measurement. */
+#define OL_MAX 768
+static lv_obj_t *s_ol_obj[OL_MAX];
+static int32_t s_ol_w[OL_MAX];
+static lv_color_t s_ol_col[OL_MAX];
+static lv_opa_t s_ol_opa[OL_MAX];
+static int s_ol_n;
+static bool s_ol_on;
+
+static void ol_walk(lv_obj_t *o)
+{
+    if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+        return;
+    }
+    if (s_ol_n < OL_MAX) {
+        s_ol_obj[s_ol_n] = o;
+        s_ol_w[s_ol_n] = lv_obj_get_style_border_width(o, LV_PART_MAIN);
+        s_ol_col[s_ol_n] = lv_obj_get_style_border_color(o, LV_PART_MAIN);
+        s_ol_opa[s_ol_n] = lv_obj_get_style_border_opa(o, LV_PART_MAIN);
+        s_ol_n++;
+        lv_obj_set_style_border_width(o, 1, LV_PART_MAIN);
+        lv_obj_set_style_border_color(o, lv_color_hex(0xFF0000), LV_PART_MAIN);
+        lv_obj_set_style_border_opa(o, LV_OPA_COVER, LV_PART_MAIN);
+    }
+    uint32_t n = lv_obj_get_child_count(o);
+    for (uint32_t i = 0; i < n; i++) {
+        ol_walk(lv_obj_get_child(o, i));
+    }
+}
+
+void ui_test_outline(bool on)
+{
+    if (on && !s_ol_on) {
+        s_ol_n = 0;
+        ol_walk(lv_screen_active());
+        s_ol_on = true;
+        lv_obj_invalidate(lv_screen_active());
+    } else if (!on && s_ol_on) {
+        for (int i = 0; i < s_ol_n; i++) {
+            lv_obj_set_style_border_width(s_ol_obj[i], s_ol_w[i], LV_PART_MAIN);
+            lv_obj_set_style_border_color(s_ol_obj[i], s_ol_col[i], LV_PART_MAIN);
+            lv_obj_set_style_border_opa(s_ol_obj[i], s_ol_opa[i], LV_PART_MAIN);
+        }
+        s_ol_on = false;
+        lv_obj_invalidate(lv_screen_active());
+    }
 }
 
 void ui_test_dump(const char *path)

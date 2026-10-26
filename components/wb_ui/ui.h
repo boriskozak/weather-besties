@@ -87,6 +87,10 @@ void ui_test_dump(const char *path);       /* last outfit render's state as text
  * content area, label text taller than its box outside DOTS mode,
  * objects in the tab bar area). Prints one line per violation. */
 int ui_test_layout_check(const char *tag);
+/* Iter-36: outline every visible object of the active screen in
+ * 1 px red (and restore the real borders on false), for the
+ * debug render of the worst-case My Day fixture. */
+void ui_test_outline(bool on);
 #endif
 
 #ifdef __cplusplus

@@ -450,7 +450,36 @@ static void lvgl_task(void *arg)
     }
 }
 
+/* Iter-36: the lvgl stack is 16 KB, doubled from 8 KB. The
+ * 2.0.1 board rebooted with "stack overflow in task lvgl" the
+ * first time a real calendar populated the flex My Day cards:
+ * the populate chain (lv_timer_handler -> render ->
+ * render_myday -> md_fill_section -> md_fill_card, then
+ * md_fit_list's repeated lv_obj_update_layout over a card tree
+ * seven levels deep, then the draw pass) peaks well past 8 KB.
+ * Measured on the host sim with a pattern-filled stack
+ * (WB_SIM_STACK_PROBE): 14,456 B for the populated path against
+ * 11,688 B for the message-state path, and the host build's
+ * frames and pointers are larger than the device's, so the
+ * device peak sits under the host number but over 8 KB. 16 KB
+ * keeps roughly 1.5x headroom over that estimate; the drawing
+ * buffer grows out of the same internal RAM, so no bigger
+ * without a measured need. board_lvgl_stack_log reports the
+ * real high-water mark on the board. */
+#define LVGL_TASK_STACK 16384
+
+static TaskHandle_t s_lvgl_task;
+
 void board_start_lvgl_task(void)
 {
-    xTaskCreatePinnedToCore(lvgl_task, "lvgl", 8192, NULL, 4, NULL, 1);
+    xTaskCreatePinnedToCore(lvgl_task, "lvgl", LVGL_TASK_STACK, NULL, 4, NULL, &s_lvgl_task);
+}
+
+void board_lvgl_stack_log(const char *stage)
+{
+    if (s_lvgl_task == NULL) {
+        return;
+    }
+    ESP_LOGI(TAG, "stack[%s]: lvgl high water %u B free of %d", stage,
+             (unsigned)uxTaskGetStackHighWaterMark(s_lvgl_task), LVGL_TASK_STACK);
 }
