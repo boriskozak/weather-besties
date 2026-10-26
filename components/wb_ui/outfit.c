@@ -564,14 +564,21 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
                                          LOOK_DRESS_MUSTARD, LOOK_UNIFORM_DRESS};
         static const int fall_band[] = {LOOK_FALL, LOOK_FALL_HOODIE, LOOK_UNIFORM_FALL};
         static const int warm_band[] = {LOOK_SNOW, LOOK_WARMCOAT};
-        static const int hat_band[] = {LOOK_SNOW,           LOOK_KIT2,
-                                       LOOK_KITP_NAVY_STRIPE,    LOOK_KITP_RUST_STRIPE,
-                                       LOOK_KITP_MUSTARD_STRIPE, LOOK_KITP_NAVY_SOLID,
-                                       LOOK_KITP_MUSTARD_SOLID,  LOOK_KITP_TEAL_SOLID,
-                                       LOOK_KITR_NAVY_STRIPE,    LOOK_KITR_RUST_STRIPE,
-                                       LOOK_KITR_MUSTARD_STRIPE, LOOK_KITR_NAVY_SOLID,
-                                       LOOK_KITR_MUSTARD_SOLID,  LOOK_KITR_TEAL_SOLID,
-                                       LOOK_KITP_DRESS,          LOOK_KITR_DRESS};
+        /* Iter-35: the order interleaves coat colour and shirt
+         * kind (stripe / solid / dress). In the iter-33 order the
+         * striped shirts clustered at the front of the band, so a
+         * run of hat days (Oct 26/27/28 2026 picked indices 0/1/2)
+         * read as the same outfit all week; now no two neighbours
+         * share both the same coat and the same shirt kind, and
+         * the coat colour alternates the whole way around. */
+        static const int hat_band[] = {LOOK_SNOW,           LOOK_KITR_NAVY_SOLID,
+                                       LOOK_KITP_MUSTARD_STRIPE, LOOK_KITR_DRESS,
+                                       LOOK_KITP_NAVY_SOLID,     LOOK_KIT2,
+                                       LOOK_KITP_MUSTARD_SOLID,  LOOK_KITR_NAVY_STRIPE,
+                                       LOOK_KITP_RUST_STRIPE,    LOOK_KITR_MUSTARD_SOLID,
+                                       LOOK_KITP_DRESS,          LOOK_KITR_RUST_STRIPE,
+                                       LOOK_KITP_TEAL_SOLID,     LOOK_KITR_MUSTARD_STRIPE,
+                                       LOOK_KITP_NAVY_STRIPE,    LOOK_KITR_TEAL_SOLID};
         static const int hot_band[] = {LOOK_HOT, LOOK_UNIFORM_HOT};
         int pants_band[5];
         const int *band = NULL;
