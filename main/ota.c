@@ -74,6 +74,17 @@ static void say_briefly(const char *msg)
     vTaskDelay(pdMS_TO_TICKS(3000));   /* the weather screen comes back on the next refresh */
 }
 
+/* Iter-36: a failed update holds its message for 10 seconds.
+ * The first real OTA attempt (Oct 26) died mid-download on a
+ * weak WiFi link and the screen went back to normal so quietly
+ * that the failure read as "stuck, then fine"; a message that
+ * is only up for a blink gets missed the same way. */
+static void say_failed(const char *msg)
+{
+    say(msg);
+    vTaskDelay(pdMS_TO_TICKS(10000));
+}
+
 /* ------------------------------------------------------------------ download */
 
 typedef struct {
@@ -97,10 +108,14 @@ static bool on_chunk(const char *data, size_t len, void *ctx)
     mbedtls_sha256_update(&d->sha, (const unsigned char *)data, len);
     d->got += len;
     int pct = (int)(d->got * 100 / d->size);
-    if (pct / 10 != d->shown_pct / 10) {
+    /* Iter-36: repaint on every percent, not every tenth. The
+     * 10% steps sat at 0% for about a minute on a weak link,
+     * which reads as stuck; a number that counts up shows the
+     * download is alive, and the text names the phase. */
+    if (pct != d->shown_pct) {
         d->shown_pct = pct;
         char m[96];
-        snprintf(m, sizeof(m), "Learning new tricks... %d%%\nPlease don't unplug me!", pct);
+        snprintf(m, sizeof(m), "Downloading new tricks... %d%%\nPlease don't unplug me!", pct);
         say(m);
     }
     return true;
@@ -142,7 +157,7 @@ void ota_run(bool manual)
         return;
     }
     ESP_LOGI(TAG, "updating %s -> %s into %s", WB_VERSION, m.version, part->label);
-    say("Learning new tricks... 0%\nPlease don't unplug me!");
+    say("Downloading new tricks... 0%\nPlease don't unplug me!");
 
     static dl_t d;
     memset(&d, 0, sizeof(d));
@@ -152,7 +167,7 @@ void ota_run(bool manual)
     if (err != ESP_OK) {
         /* e.g. ESP_ERR_OTA_ROLLBACK_INVALID_STATE: this version is still on trial */
         ESP_LOGE(TAG, "esp_ota_begin failed: %s", esp_err_to_name(err));
-        say_briefly("Can't update right now.\nTrying again tonight.");
+        say_failed("Can't update right now.\nTrying again tonight.");
         return;
     }
     mbedtls_sha256_init(&d.sha);
@@ -174,15 +189,18 @@ void ota_run(bool manual)
         ESP_LOGE(TAG, "download failed (HTTP %d, %u of %u bytes%s)", status, (unsigned)d.got, (unsigned)m.size,
                  d.write_failed ? ", flash write error" : "");
         esp_ota_abort(d.h);
-        say_briefly("Update didn't finish.\nTrying again tonight.");
+        say_failed("Update didn't finish.\nTrying again tonight.");
         return;
     }
-    /* esp_ota_end checks the image itself (header, segments, its own checksum). */
+    /* The whole image is down and its hash matches: installing
+     * (esp_ota_end checks the image itself: header, segments,
+     * its own checksum), then the boot partition flips. */
+    say("Installing new tricks...\nPlease don't unplug me!");
     esp_app_desc_t desc;
     if (esp_ota_end(d.h) != ESP_OK || esp_ota_get_partition_description(part, &desc) != ESP_OK ||
         strcmp(desc.version, m.version) != 0) {
         ESP_LOGE(TAG, "downloaded image isn't a valid %s", m.version);
-        say_briefly("Update didn't finish.\nTrying again tonight.");
+        say_failed("Update didn't finish.\nTrying again tonight.");
         return;
     }
     if (esp_ota_set_boot_partition(part) != ESP_OK) {
