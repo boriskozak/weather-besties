@@ -72,6 +72,14 @@ void app_main(void)
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK(err);
+    /* Iter-35: the custom LVGL allocator cores live in
+     * lv_mem_psram.c in this component's archive. Nothing
+     * references them until LVGL's own objects link, by which
+     * point the archive scan has passed, so the link dropped
+     * them (undefined lv_malloc_core et al). This call is a
+     * no-op stub; it exists so the object is pulled. lv_init
+     * calls it again inside board_init, harmlessly. */
+    lv_mem_init();
     settings_load(&S);
     ota_boot_check();   /* if this version is new and unproven, start its trial clock */
 
