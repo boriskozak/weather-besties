@@ -132,8 +132,10 @@ def main():
     check(frac > 0.10, f"20_morning: tile 1 icon box is {frac:.1%} non-white (need > 10%)")
 
     # Scenarios that must differ, differ.
-    check(sha("32_pink_cat.png") != sha("20_morning.png"),
-          "32_pink_cat differs from 20_morning (pink cat is not the black cat)")
+    # Iter-35: 32 does NOT differ from 20 any more (the alias
+    # block below pins why); it left this list.
+    check(sha("32_pink_cat.png") == sha("20_morning.png"),
+          "32_pink_cat is pixel-identical to 20_morning (the pink choice aliases the black sprite on a black-only look)")
     check(sha("23_evening_all_done.png") != sha("21_evening.png"),
           "23_evening_all_done differs from 21_evening (checks change the page)")
 
@@ -157,7 +159,7 @@ def main():
     # family name their boots "Warm boots" unless snow is forecast
     # (boots-naming block below).
     for name in ("28_snow.png", "31_halloween.png", "35_hanukkah.png",
-                 "20_morning.png", "34_long_text.png", "36_bike_bus.png"):
+                 "34_long_text.png", "36_bike_bus.png"):
         img = Image.open(os.path.join(OUT, name))
         green = count_where(img, STAGE, is_snow_green)
         eyes = count_where(img, EYE_BOX, is_eye_yellow)
@@ -173,6 +175,24 @@ def main():
     img = Image.open(os.path.join(OUT, "20_morning.png"))
     fur = count_where(img, HEAD_BOX, is_pink_fur)
     check(fur < 600, f"20_morning: black fur on the head, not the pink colourway ({fur} px, need < 600)")
+    # Iter-35: Oct 27's hat-band pick is the red-coat navy SOLID
+    # (band index 1 after the reorder), not a striped kit: the
+    # stage carries the navy shirt and the red coat, no green
+    # stripe, golden eyes, no denim.
+    def is_navy_shirt(r, g, b):
+        return r < 40 and g > r + 20 and b > 90 and b > r + 60
+    def is_red_coat(r, g, b):
+        return r > 170 and g < 70 and b < 90
+    navy = count_where(img, STAGE, is_navy_shirt)
+    red = count_where(img, STAGE, is_red_coat)
+    green = count_where(img, STAGE, is_snow_green)
+    eyes = count_where(img, EYE_BOX, is_eye_yellow)
+    denim = count_where(img, (24, 100, 190, 352), is_denim)
+    check(navy > 800, f"20_morning: navy solid shirt in stage ({navy} px, need > 800)")
+    check(red > 1000, f"20_morning: red coat in stage ({red} px, need > 1000)")
+    check(green < 120, f"20_morning: no green stripe shirt any more ({green} px, need < 120)")
+    check(eyes > 150, f"20_morning: Pippa golden eyes in stage ({eyes} px, need > 150)")
+    check(denim < 200, f"20_morning: snow-family sprite on stage, no denim ({denim} px, need < 200)")
 
     # Dress family (iter-06; bounded iter-09): since panel round 7
     # the dress look may only be chosen when a LIGHT JACKET is the
@@ -326,15 +346,16 @@ def main():
     # snow family's green striped shirt, no denim.
     img = Image.open(os.path.join(OUT, "32_pink_cat.png"))
     fur = count_where(img, STAGE, is_pink_fur)
-    head = count_where(img, HEAD_BOX, is_pink_fur)
     eyes = count_where(img, EYE_BOX, is_eye_yellow)
-    denim = count_where(img, STAGE, is_denim)
-    green = count_where(img, STAGE, is_snow_green)
-    check(fur > 3000, f"32_pink_cat: Pippa pink fur in stage ({fur} px, need > 3000)")
-    check(head > 2000, f"32_pink_cat: pink fur on the head, not just a pink garment ({head} px, need > 2000)")
+    # Iter-35: the brief morning's pick is a black-fur-only
+    # variant (kitr_navy_solid), so the pink choice has no pink
+    # sprite to show and the batch's rule applies: the pink slot
+    # aliases the black sprite, and the render is the black cat's
+    # own (the sha check above pins them identical). The pink
+    # colourway's positive proof rides 61_kit2_pink, whose date
+    # picks the kit (a look with pink art).
+    check(fur < 600, f"32_pink_cat: no pink fur on a black-only look ({fur} px, need < 600)")
     check(eyes > 150, f"32_pink_cat: Pippa golden eyes in stage ({eyes} px, need > 150)")
-    check(green > 120, f"32_pink_cat: pink snow sprite's green shirt in stage ({green} px, need > 120)")
-    check(denim < 200, f"32_pink_cat: snow variant on stage, no denim ({denim} px, need < 200)")
 
     # Tile icons come from the wardrobe sheet now: its sneakers have
     # broad pink soles (g ~128), where the retired code-drawn icon
@@ -1325,8 +1346,15 @@ def main():
     md = dump("40_myday")
     check(md["myday_state"] == "events",
           f"40_myday: populated state (myday_state={md['myday_state']})")
-    check(md["myday_today_n"] == "4" and md["myday_tom_n"] == "2",
-          f"40_myday: 4 rows today, 2 tomorrow ({md['myday_today_n']}/{md['myday_tom_n']})")
+    # Iter-35: the flex cards size to content, so the six-event
+    # fixture day no longer fits the list beside Pippa: three of
+    # today's cards show, the fourth and both of tomorrow's fold
+    # into the "+3 more" line (the row strings below still pin
+    # every event's text, folded or not).
+    check(md["myday_today_n"] == "3" and md["myday_tom_n"] == "0",
+          f"40_myday: 3 rows today, tomorrow folded ({md['myday_today_n']}/{md['myday_tom_n']})")
+    check(md["myday_more_today"] == "1" and md["myday_more_tom"] == "2",
+          f"40_myday: the fold counts 1 today, 2 tomorrow ({md['myday_more_today']}/{md['myday_more_tom']})")
     # Iter-15: the time column carries ranges (pickup time is half
     # the point) and all-day events read ALL DAY (the navy pill).
     check(md["myday_today0"] == "ALL DAY|Picture Day|",
@@ -1368,10 +1396,12 @@ def main():
           f"40_myday: LILA and CLEO name tags across the page ({md['myday_nametags']!r})")
     check(md["myday_dimmed"] == "",
           f"40_myday: no past rows dimmed in the morning ({md['myday_dimmed']!r})")
-    check(md["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano",
-          f"40_myday: category icons per fixture event ({md['myday_icons']})")
-    check(md["myday_half"] == "1",
-          f"40_myday: tomorrow's two events side by side (myday_half={md['myday_half']})")
+    check(md["myday_icons"] == "camera,book,soccer",
+          f"40_myday: category icons of the visible rows ({md['myday_icons']})")
+    # Iter-35: the half-card form is gone (one card style
+    # everywhere); the dump key stays and reads 0.
+    check(md["myday_half"] == "0",
+          f"40_myday: no half cards in the flex design (myday_half={md['myday_half']})")
 
     md41 = dump("41_myday_empty")
     check(md41["myday_state"] == "empty" and md41["myday_today_n"] == "0" and md41["myday_tom_n"] == "0",
@@ -1395,15 +1425,17 @@ def main():
     # at 3:45), NEXT on the Grandma call; the never state has no
     # freshness footer at all, its body copy carries it.
     md43 = dump("43_myday_stale")
-    check(md43["myday_state"] == "events" and md43["myday_today_n"] == "4" and md43["myday_tom_n"] == "2",
-          f"43_myday_stale: populated data under the stale stamp (state={md43['myday_state']}, {md43['myday_today_n']}/{md43['myday_tom_n']})")
+    check(md43["myday_state"] == "events" and md43["myday_today_n"] == "2" and md43["myday_tom_n"] == "0",
+          f"43_myday_stale: populated data under the stale stamp, the banner eats a row (state={md43['myday_state']}, {md43['myday_today_n']}/{md43['myday_tom_n']})")
+    check(md43["myday_more_today"] == "2" and md43["myday_more_tom"] == "2",
+          f"43_myday_stale: the fold counts 2 and 2 under the banner ({md43['myday_more_today']}/{md43['myday_more_tom']})")
     check(md43["myday_fresh"] == "Calendar is 8 hours old · from 7:02 AM",
           f"43_myday_stale: freshness line in its stale form, age spelled out ({md43['myday_fresh']})")
     check(md43["myday_nextup"] == "Video call with Grandma" and md43["myday_nowup"] == "Cleo's soccer practice"
           and md43["myday_done"] == "Lila's library story time" and md43["myday_dimmed"] == "Lila's library story time",
           f"43_myday_stale: Grandma next, soccer now, story time done (nextup={md43['myday_nextup']!r}, nowup={md43['myday_nowup']!r}, done={md43['myday_done']!r})")
-    check(md43["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano" and md43["myday_half"] == "1",
-          f"43_myday_stale: same icons and half cards under the stale stamp (icons={md43['myday_icons']}, half={md43['myday_half']})")
+    check(md43["myday_icons"] == "camera,book" and md43["myday_half"] == "0",
+          f"43_myday_stale: the visible rows' icons under the stale stamp (icons={md43['myday_icons']}, half={md43['myday_half']})")
     md44 = dump("44_myday_never")
     check(md44["myday_state"] == "never",
           f"44_myday_never: configured but never loaded state (state={md44['myday_state']})")
@@ -1421,8 +1453,8 @@ def main():
           f"45_myday_late: story time DONE and dimmed as past (done={md45['myday_done']!r})")
     check(md45["myday_tom1"] == "4:00-4:30 PM|Cleo's piano lesson|Music school",
           f"45_myday_late: tomorrow rows unchanged in the afternoon ({md45['myday_tom1']})")
-    check(md45["myday_icons"] == "camera,book,soccer,videocall,cupcake,piano" and md45["myday_half"] == "1",
-          f"45_myday_late: same icons and half cards in the afternoon (icons={md45['myday_icons']}, half={md45['myday_half']})")
+    check(md45["myday_icons"] == "camera,book,soccer" and md45["myday_half"] == "0",
+          f"45_myday_late: the visible rows' icons in the afternoon (icons={md45['myday_icons']}, half={md45['myday_half']})")
     # Iter-29: the fall-back weekend (clock Sat Oct 31 2026, 8:05 AM;
     # tomorrow is Sun Nov 1, when America/New_York repeats 1 AM).
     # The fixture's TZID times resolve through its VTIMEZONE block,
@@ -1430,8 +1462,10 @@ def main():
     # a fixed -4 reading would put the pancakes at 4:30 AM, a UTC
     # reading at 8:30 AM, and the owl walk on the wrong hour too.
     md46 = dump("46_myday_dst")
-    check(md46["myday_state"] == "events" and md46["myday_today_n"] == "2" and md46["myday_tom_n"] == "3",
-          f"46_myday_dst: 2 rows today, 3 tomorrow over the fall-back (state={md46['myday_state']}, {md46['myday_today_n']}/{md46['myday_tom_n']})")
+    check(md46["myday_state"] == "events" and md46["myday_today_n"] == "2" and md46["myday_tom_n"] == "0",
+          f"46_myday_dst: 2 rows today, tomorrow's 3 folded over the fall-back (state={md46['myday_state']}, {md46['myday_today_n']}/{md46['myday_tom_n']})")
+    check(md46["myday_more_tom"] == "3" and md46["myday_icons"] == "star,videocall",
+          f"46_myday_dst: the fold counts tomorrow's 3 (more={md46['myday_more_tom']}, icons={md46['myday_icons']})")
     check(md46["myday_today0"] == "10:00-11:00 AM|Pumpkin patch visit|Chestnut Hill Farm",
           f"46_myday_dst: today's first row (today0={md46['myday_today0']!r})")
     check(md46["myday_today1"] == "1:00-1:45 PM|Video call with Grandpa|",
@@ -1447,6 +1481,41 @@ def main():
           f"46_myday_dst: tomorrow is Nov 1, the pumpkin visit is NEXT, nothing NOW or DONE at 8:05 AM (date={md46['myday_tom_date']}, nextup={md46['myday_nextup']!r})")
     check(md46["myday_fresh"] == "Updated 7:02 AM",
           f"46_myday_dst: freshness line shows the pinned fetch time ({md46['myday_fresh']})")
+
+    # Iter-35: the stress and evening fixtures. Stress (9:20 AM):
+    # six events today (an all-day, a DONE naming both girls with
+    # a long street address, a NOW, a NEXT with a 61-char title),
+    # one tomorrow; only the first two cards fit, the rest fold.
+    md47 = dump("47_myday_stress")
+    check(md47["myday_state"] == "events" and md47["myday_today_n"] == "2" and md47["myday_tom_n"] == "0",
+          f"47_myday_stress: populated, 2 cards shown of 7 (state={md47['myday_state']}, {md47['myday_today_n']}/{md47['myday_tom_n']})")
+    check(md47["myday_more_today"] == "4" and md47["myday_more_tom"] == "1",
+          f"47_myday_stress: the fold counts 4 today, 1 tomorrow ({md47['myday_more_today']}/{md47['myday_more_tom']})")
+    check(md47["myday_today0"] == "ALL DAY|Autumn classroom photo retake day|",
+          f"47_myday_stress: the all-day row ({md47['myday_today0']})")
+    check(md47["myday_today1"] == "7:30-8:15 AM|Cleo and Lila dentist checkup and cleaning|Bright Smiles Dental, 214 Maplewood Avenue, Suite 3",
+          f"47_myday_stress: the dentist row carries its long address in full ({md47['myday_today1']})")
+    check(md47["myday_today3"] == "10:00-11:00 AM|Cleo's reading buddy celebration with second grade families|Watchung School library",
+          f"47_myday_stress: the 61-char title row ({md47['myday_today3']})")
+    check(md47["myday_done"] == "Cleo and Lila dentist checkup and cleaning"
+          and md47["myday_nowup"] == "Lila's occupational therapy evaluation"
+          and md47["myday_nextup"] == "Cleo's reading buddy celebration with second grade families",
+          f"47_myday_stress: DONE, NOW and NEXT at 9:20 (done={md47['myday_done']!r}, now={md47['myday_nowup']!r}, next={md47['myday_nextup']!r})")
+    check(md47["myday_icons"] == "camera,tooth",
+          f"47_myday_stress: the visible rows' icons ({md47['myday_icons']})")
+    # Evening (6:30 PM): three of today's events are finished and
+    # fold into the done line; tonight's call and one of
+    # tomorrow's two events show.
+    md48 = dump("48_myday_evening")
+    check(md48["myday_state"] == "events" and md48["myday_done_line"] == "3 done today",
+          f"48_myday_evening: the evening collapse line (done_line={md48['myday_done_line']!r})")
+    check(md48["myday_today_n"] == "1" and md48["myday_tom_n"] == "1" and md48["myday_more_tom"] == "1",
+          f"48_myday_evening: tonight's call and one tomorrow row show (today={md48['myday_today_n']}, tom={md48['myday_tom_n']}, more_tom={md48['myday_more_tom']})")
+    check(md48["myday_today0"] == "7:00-7:45 PM|Video call with Grandma|"
+          and md48["myday_nextup"] == "Video call with Grandma",
+          f"48_myday_evening: the call is tonight's row and carries NEXT ({md48['myday_today0']})")
+    check(md48["myday_done"] == "Cleo's morning swim lesson;Lila's library story time;Cleo's soccer practice",
+          f"48_myday_evening: the three folded titles are the finished ones ({md48['myday_done']!r})")
     # Iter-20 dumps: the stale flag the banner and the muting key
     # off, and the outfit the populated page resolved — the
     # message states must resolve the same look (round 16 caught
@@ -1526,7 +1595,9 @@ def main():
         return abs(r - 213) <= 8 and abs(g - 230) <= 8 and abs(b - 222) <= 8
 
     def is_done_fill(r, g, b):
-        return abs(r - 226) <= 10 and abs(g - 223) <= 10 and abs(b - 219) <= 10
+        # Iter-35: the DONE chip (COL_MD_DONE_BG) on the one white
+        # card style, as the framebuffer renders it.
+        return abs(r - 205) <= 10 and abs(g - 202) <= 10 and abs(b - 205) <= 10
 
     def is_full_ink(r, g, b):
         return r < 110 and g < 110 and b < 130
@@ -1616,359 +1687,109 @@ def main():
     img43 = Image.open(os.path.join(OUT, "43_myday_stale.png"))
     img45 = Image.open(os.path.join(OUT, "45_myday_late.png"))
 
+    # Iter-35: the flex design's pixel checks. The old block
+    # measured the absolute-positioned design (pills on detail
+    # lines, half cards, tinted card styles); the layout gate in
+    # the sim (ui_test_layout_check) now carries the structural
+    # proof, so these checks pin the new design's visible facts:
+    # one white bordered card style, pills on line 1 only, the
+    # fold line inside the list, and the DONE row's legibility.
+    img47 = Image.open(os.path.join(OUT, "47_myday_stress.png"))
+    img48 = Image.open(os.path.join(OUT, "48_myday_evening.png"))
+
     # The title's own band: ink bottom vs the Today accent bar's
     # top, plus a hard zero on accent pink inside the band.
-    # Iter-24: the band ends at the first header's top (MD_TOP_Y
-    # 46; the bar starts at 48) — iter-23's y<50 window caught the
-    # header's own first ink rows once the band moved up.
     for name, im in (("40_myday", img), ("45_myday_late", img45)):
-        rows = ink_rows(im, (20, 0, 200, 46), is_full_ink)
-        bar = ink_rows(im, (20, 40, 44, 84),
+        rows = ink_rows(im, (20, 0, 200, 48), is_full_ink)
+        bar = ink_rows(im, (20, 44, 44, 90),
                        lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
         gap = bar[0] - rows[-1] - 1 if rows and bar else -1
         check(gap >= 4, f"{name}: clear air between the title ink and the Today bar ({gap} px, need >= 4)")
     for name, im in (("40_myday", img), ("43_myday_stale", img43), ("45_myday_late", img45)):
-        n = count_where(im, (0, 0, 640, 48),
+        n = count_where(im, (0, 0, 640, 50),
                         lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
         check(n == 0, f"{name}: no accent bar strikes through the title band ({n} px, need 0)")
 
-    # Header air (owner, fix 7a): each section header's dense ink
-    # bottom vs the top of the element under it (first card, or
-    # the banner under Today's header while stale). Iter-24: the
-    # element under Today's header now starts at y=72 in every
-    # state (first card fresh, banner stale).
-    for name, im in (("40_myday", img), ("45_myday_late", img45), ("43_myday_stale", img43)):
-        bot = dense_bottom(im, (44, 46, 175, 72), is_full_ink, 10)
-        gap = 72 - 1 - bot if bot is not None else -1
-        check(gap >= 2, f"{name}: air between the Today header and what follows it ({gap} px, need >= 2)")
-    for name, im, box, top in (("40_myday", img, (44, 307, 215, 333), 333),
-                               ("45_myday_late", img45, (44, 338, 215, 364), 364),
-                               ("43_myday_stale", img43, (44, 342, 215, 368), 368)):
-        bot = dense_bottom(im, box, is_full_ink, 10)
-        gap = top - 1 - bot if bot is not None else -1
-        check(gap >= 2, f"{name}: air between the Tomorrow header and its first card ({gap} px, need >= 2)")
+    # One card style: white fill inside every visible card, and
+    # the border line present along a card's top edge.
+    for name, im, zone in (("40_myday", img, (350, 96, 480, 158)),
+                           ("40_myday", img, (500, 310, 580, 360)),
+                           ("45_myday_late", img45, (350, 96, 480, 158))):
+        n = count_where(im, zone, is_white)
+        check(n > (zone[2] - zone[0]) * (zone[3] - zone[1]) * 0.9,
+              f"{name}: card interior is the one white style ({n} white px in {zone})")
+    n = count_where(img, (100, 85, 500, 90), is_tile_line)
+    check(n > 100, f"40_myday: the card border line runs along the first card's top ({n} line px, need > 100)")
 
-    # Tags on the detail lines, never the title lines.
-    n = count_where(img, (273, 155, 614, 196), is_next_pink)
-    check(n > 400, f"40_myday: NEXT pill on the story row's detail line ({n} pink px, need > 400)")
-    n = count_where(img, (273, 155, 614, 196), is_lila_fill)
-    check(n > 400, f"40_myday: LILA tag on the story row's detail line ({n} fill px, need > 400)")
-    n = count_where(img, (273, 128, 614, 150), is_next_pink) + count_where(img, (273, 128, 614, 150), is_lila_fill)
-    check(n < 50, f"40_myday: no tags on the story row's title line ({n} px, need < 50)")
-    n = count_where(img, (273, 210, 614, 252), is_cleo_fill)
-    check(n > 400, f"40_myday: CLEO tag on the soccer row's detail line ({n} fill px, need > 400)")
-    n = count_where(img, (273, 191, 614, 214), is_cleo_fill)
-    check(n < 100, f"40_myday: no tag on the soccer row's title line ({n} px, need < 100)")
-    n = count_where(img, (660, 350, 790, 395), is_cleo_fill)
-    check(n > 400, f"40_myday: CLEO name tag in lavender at the piano half card's title block ({n} fill px, need > 400)")
-    n = count_where(img45, (273, 155, 614, 196), is_done_fill)
-    check(n > 400, f"45_myday_late: DONE pill on the story row's detail line ({n} fill px, need > 400)")
-    n = count_where(img45, (500, 155, 614, 196), is_lila_pale)
-    check(n > 400, f"45_myday_late: LILA tag beside DONE on the detail line ({n} fill px, need > 400)")
+    # Pills live on line 1 only: NEXT and LILA on the story row's
+    # first line, CLEO on the soccer row's first line, and no pill
+    # colours anywhere on the title lines under them.
+    n = count_where(img, (420, 184, 590, 212), is_next_pink)
+    check(n > 400, f"40_myday: NEXT pill on the story row's line 1 ({n} pink px, need > 400)")
+    n = count_where(img, (420, 184, 590, 212), is_lila_fill)
+    check(n > 400, f"40_myday: LILA tag on the story row's line 1 ({n} fill px, need > 400)")
+    n = count_where(img, (106, 214, 590, 248), is_next_pink) + count_where(img, (106, 214, 590, 248), is_lila_fill)
+    check(n == 0, f"40_myday: no pills on the story row's title line ({n} px, need 0)")
+    n = count_where(img, (420, 273, 590, 301), is_cleo_fill)
+    check(n > 400, f"40_myday: CLEO tag on the soccer row's line 1 ({n} fill px, need > 400)")
+    n = count_where(img45, (420, 184, 590, 212), is_done_fill)
+    check(n > 400, f"45_myday_late: DONE pill on the story row's line 1 ({n} fill px, need > 400)")
+    n = count_where(img45, (420, 273, 590, 301), is_now_green)
+    check(n > 400, f"45_myday_late: NOW pill in deep green on the soccer row's line 1 ({n} green px, need > 400)")
 
-    # NOW green vs NEXT pink.
-    n = count_where(img45, (425, 232, 500, 266), is_now_green)
-    check(n > 400, f"45_myday_late: NOW pill in deep green beside soccer ({n} green px, need > 400)")
-    n = count_where(img45, (425, 232, 500, 266), is_next_pink)
-    check(n == 0, f"45_myday_late: NOW pill carries no NEXT pink ({n} px, need 0)")
-    n = count_where(img45, (273, 295, 614, 335), is_next_pink)
-    check(n > 400, f"45_myday_late: NEXT pill in pink on the Grandma row's detail line ({n} pink px, need > 400)")
+    # DONE readability: the finished row's title keeps a floor of
+    # dark ink, in the lighter DONE colour (a higher mean than
+    # the same title in the morning), never faded to the card.
+    dark40, mean40 = ink_stats(img, (106, 214, 470, 248))
+    dark45, mean45 = ink_stats(img45, (106, 214, 470, 248))
+    check(dark45 > 800, f"45_myday_late: DONE title still legible ({dark45} dark px, need > 800)")
+    check(mean45 > mean40 + 15,
+          f"45_myday_late: DONE title steps down to the lighter ink (mean {mean45:.0f} vs morning {mean40:.0f})")
 
-    # Pills inside their cards, measured to the OUTER border
-    # (iter-22, round 18): every tag pill keeps card fill below
-    # it, and a group's last pill keeps fill to its right. The
-    # scan starts at the pill's own edge and walks the card's
-    # fill colour, stopping at the first non-fill pixel (the
-    # border itself, or the page beyond the card) — so the
-    # number is the fill a viewer actually sees between the pill
-    # and the card's outer edge. Iter-21's version compared pill
-    # rects against hardcoded card bottoms taken from the
-    # layout's content box, which is inset by the border, and
-    # passed a NEXT pill with 0 px of fill under it.
-    # Iter-24 (round 20): the table also walks UP from each
-    # pill's top across its own span to the card title's lowest
-    # ink row — the round's hard bug was a pill touching the
-    # title's ink, which no below/right walk could see. Minima:
-    # fresh bordered cards keep iter-23's 8 below / 6 right and
-    # add 6 clear of the title ink; the stale frame's budget
-    # (published in the iter-24 FIX-REPORT) funds 5 below with
-    # the same no-contact rule against the title's BASE ink
-    # (clearance is asserted against solid ink >= 6 on fresh and
-    # plain no-touch while stale; the DONE row's titles render
-    # dimmed at LV_OPA_70, so their ink walk uses a relative
-    # darkness predicate against the card fill). Half-card tags
-    # sit at the title block's right end (fix 6) and keep 4
-    # below / 4 right fresh, 3 below while stale. The one
-    # borderless stacked card (40's soccer row) is measured at
-    # the card's left edge column, where the rounded corners
-    # separate the abutting cards, plus the corner's 2 px arc
-    # allowance. Every row of the table prints, so the numbers
-    # land in the run log.
-    def pill_fill(im, rgb, tol, box, fill, ftol=8):
-        r = pill_rect(im, rgb, tol, box)
-        if not r:
-            return None, -1, -1
-        px = im.load()
-
-        def isf(p):
-            return abs(p[0] - fill[0]) <= ftol and abs(p[1] - fill[1]) <= ftol and abs(p[2] - fill[2]) <= ftol
-
-        cx = (r[0] + r[2]) // 2
-        cy = (r[1] + r[3]) // 2
-        fb = 0
-        while r[3] + 1 + fb < 424 and isf(px[cx, r[3] + 1 + fb]):
-            fb += 1
-        fr = 0
-        while r[2] + 1 + fr < 790 and isf(px[r[2] + 1 + fr, cy]):
-            fr += 1
-        return r, fb, fr
-
-    def pill_clear(im, r, fill, dim=False):
-        px = im.load()
-        if dim:
-            fl = (299 * fill[0] + 587 * fill[1] + 114 * fill[2]) / 1000
-
-            def isink(p):
-                return (299 * p[0] + 587 * p[1] + 114 * p[2]) / 1000 < fl - 60
-        else:
-            def isink(p):
-                return is_full_ink(*p)
-        for y in range(r[1] - 1, max(r[1] - 49, 0), -1):
-            if any(isink(px[x, y]) for x in range(r[0] + 2, r[2] - 1)):
-                return r[1] - y - 1
-        return None
-
-    MINT = (222, 246, 230)
-    PLAIN = (255, 242, 230)
-    DONEF = (246, 238, 238)
-    SDONE = (230, 226, 222)
-    SHIGH = (213, 218, 205)
-    SPLAIN = (238, 226, 213)
-    for name, im, rgb, tol, box, fill, ftol, last, minb, minr, minclr, dim in (
-            ("40_myday NEXT", img, (230, 68, 123), 8, (400, 150, 520, 200), MINT, 8, False, 8, 0, 6, False),
-            ("40_myday LILA", img, (180, 222, 213), 6, (495, 150, 600, 200), MINT, 8, True, 8, 6, 6, False),
-            ("40_myday half CLEO", img, (222, 206, 246), 6, (640, 340, 790, 400), PLAIN, 5, True, 4, 4, 6, False),
-            ("45_myday_late DONE", img45, (222, 218, 222), 6, (405, 158, 520, 195), DONEF, 8, False, 8, 0, 6, False),
-            ("45_myday_late LILA", img45, (213, 230, 222), 6, (495, 150, 600, 200), DONEF, 8, True, 8, 6, 6, False),
-            ("45_myday_late NOW", img45, (24, 125, 65), 8, (400, 225, 510, 275), MINT, 8, False, 8, 0, 6, False),
-            ("45_myday_late CLEO", img45, (222, 206, 246), 8, (485, 225, 600, 275), MINT, 8, True, 8, 6, 6, False),
-            ("45_myday_late NEXT", img45, (230, 68, 123), 8, (480, 290, 600, 340), MINT, 8, True, 8, 6, 6, False),
-            ("45_myday_late half CLEO", img45, (222, 206, 246), 6, (640, 370, 790, 425), PLAIN, 5, True, 4, 4, 6, False),
-            ("43_myday_stale DONE", img43, (213, 214, 205), 6, (405, 176, 520, 214), SDONE, 8, False, 5, 0, 0, True),
-            ("43_myday_stale LILA", img43, (205, 218, 213), 6, (495, 170, 600, 215), SDONE, 8, True, 5, 6, 0, True),
-            ("43_myday_stale NOW", img43, (139, 174, 148), 10, (400, 235, 510, 285), SHIGH, 8, False, 5, 0, 0, False),
-            ("43_myday_stale CLEO", img43, (213, 202, 222), 8, (485, 235, 600, 285), SHIGH, 8, True, 5, 6, 0, False),
-            ("43_myday_stale NEXT", img43, (213, 153, 164), 10, (480, 298, 600, 345), SHIGH, 8, True, 5, 6, 0, False),
-            ("43_myday_stale half CLEO", img43, (213, 202, 222), 8, (640, 370, 790, 425), SPLAIN, 5, True, 3, 4, 2, False)):
-        rect, fb, fr = pill_fill(im, rgb, tol, box, fill, ftol)
-        clr = pill_clear(im, rect, fill, dim) if rect else None
-        print(f"  pill {name}: below={fb} right={fr} title_clear={clr}")
-        check(rect is not None and rect[4] > 400 and fb >= minb,
-              f"{name}: pill keeps fill below to the outer border ({rect[4] if rect else 0} fill px, {fb} px below, need >= {minb})")
-        if last:
-            check(rect is not None and fr >= minr,
-                  f"{name}: pill keeps fill to the outer border on its right ({fr} px, need >= {minr})")
-        check(clr is not None and clr >= minclr,
-              f"{name}: pill clears the title ink above it ({clr} px clear, need >= {minclr})")
-    # 40's soccer CLEO, the borderless stacked card: bottom fill
-    # at the left edge column (see the note above).
-    rect = pill_rect(img, (222, 206, 246), 8, (490, 215, 617, 260))
-    if rect:
-        px = img.load()
-        edge = None
-        for y in range(rect[3], rect[3] + 40):
-            if (abs(px[35, y][0] - 255) <= 6 and abs(px[35, y][1] - 246) <= 6 and abs(px[35, y][2] - 238) <= 6
-                    and abs(px[35, y + 1][0] - 255) <= 6 and abs(px[35, y + 1][1] - 246) <= 6
-                    and abs(px[35, y + 1][2] - 238) <= 6):
-                edge = y - 1
-                break
-        fb = edge + 2 - rect[3] if edge is not None else -1
-    else:
-        fb = -1
-    check(rect is not None and rect[4] > 400 and fb >= 4,
-          f"40_myday CLEO: pill keeps fill below to the outer border ({rect[4] if rect else 0} fill px, {fb} px below at the edge column, need >= 4)")
-    rect, fb, fr = pill_fill(img, (222, 206, 246), 8, (490, 215, 617, 260), PLAIN, 6)
-    check(rect is not None and fr >= 4,
-          f"40_myday CLEO: pill keeps fill to the outer border on its right ({fr} px, need >= 4)")
-    clr = pill_clear(img, rect, PLAIN) if rect else None
-    print(f"  pill 40_myday CLEO (soccer): title_clear={clr}")
-    check(clr is not None and clr >= 6,
-          f"40_myday CLEO: pill clears the title ink above it ({clr} px clear, need >= 6)")
-
-    # Half-card tag placement (iter-24, round 20, fix 6): the
-    # piano CLEO sits at the title block's right end (its table
-    # row above measures the fill around it and its clearance of
-    # the title ink), and it has LEFT the "Music school" line:
-    # no tag lavender anywhere on the place line's band.
-    for name, im, rgb, tol, placebox in (
-            ("40_myday", img, (222, 206, 246), 6, (464, 366, 680, 390)),
-            ("45_myday_late", img45, (222, 206, 246), 6, (464, 397, 680, 421)),
-            ("43_myday_stale", img43, (213, 202, 222), 8, (464, 398, 680, 421))):
-        n = count_where(im, placebox,
-                        lambda r, g, b, c=rgb, t=tol + 4: abs(r - c[0]) <= t and abs(g - c[1]) <= t and abs(b - c[2]) <= t)
-        check(n == 0,
-              f"{name}: no name tag on the piano card's place line ({n} lavender px, need 0)")
-
-    # DONE readability: the title keeps a floor of dark ink,
-    # dimmer than the morning's same title; the time is dimmer
-    # than the title.
-    dark40, mean40 = ink_stats(img, (273, 136, 600, 164))
-    dark45, mean45 = ink_stats(img45, (273, 136, 600, 164))
-    check(dark45 > 1500, f"45_myday_late: DONE title still legible ({dark45} dark px, need > 1500)")
-    check(mean45 > mean40 + 20,
-          f"45_myday_late: DONE title dimmed vs the morning ({mean45:.0f} vs {mean40:.0f} mean ink luminance)")
-    darkt45, meant45 = ink_stats(img45, (92, 136, 262, 164))
-    check(darkt45 < 100 and meant45 > mean45 + 30,
-          f"45_myday_late: the past row's time dimmed harder than its title ({darkt45} dark px, {meant45:.0f} vs {mean45:.0f})")
-
-    # Times step down (concept, fix 8b): the soccer row's time ink
-    # is measurably lighter than its title ink, same size.
-    _, tmean_time = ink_stats(img, (92, 195, 270, 225))
-    _, tmean_title = ink_stats(img, (280, 195, 590, 222))
-    check(tmean_time > tmean_title + 40,
-          f"40_myday: time ink lighter than title ink ({tmean_time:.0f} vs {tmean_title:.0f} mean luminance, need +40)")
-
-    # Times step down one more notch (iter-22, round 18): the
-    # time type itself is now font_small, the size the other
-    # pages use for secondary times, so the soccer row's time
-    # carries a fraction of its title's dark ink at a much
-    # lighter mean, not just a lighter colour at the same size.
-    dark_time, mean_time = ink_stats(img45, (88, 196, 222, 222))
-    dark_title, mean_title = ink_stats(img45, (222, 196, 560, 222))
-    check(dark_time * 2 < dark_title and mean_time > mean_title + 40,
-          f"45_myday_late: time ink vs title ink ({dark_time} dark px at {mean_time:.0f} mean vs {dark_title} at {mean_title:.0f}, need under half the dark px and +40 mean)")
-
-    # Borderless plain rows and all-day band (concept, fix 8a):
-    # no daypart line colour on the plain cards' top edges, no
-    # peach line on the all-day card's edges; the bands are the
-    # separation.
-    n = count_where(img, (40, 195, 614, 199), is_tile_line) + count_where(img, (40, 253, 614, 257), is_tile_line)
-    check(n == 0, f"40_myday: plain cards carry no border line ({n} line px, need 0)")
-    n = count_where(img, (100, 288, 500, 292),
-                    lambda r, g, b: abs(r - 255) <= 4 and abs(g - 242) <= 4 and abs(b - 230) <= 4)
-    check(n > 1000, f"40_myday: the Grandma row's band is the plain soft tint ({n} tint px, need > 1000)")
-    n = count_where(img, (100, 72, 594, 76), is_peach_line) + count_where(img, (100, 120, 594, 124), is_peach_line)
-    check(n == 0, f"40_myday: the all-day band carries no hard border ({n} line px, need 0)")
-
-    # One medallion per fixture card in 40, at 48 px, and the
-    # past row's medallion visibly dimmed in 45.
-    for zone, what in (((33, 72, 86, 124), "camera in the Picture Day card"),
-                       ((33, 133, 86, 185), "book in the story time card"),
-                       ((33, 200, 86, 252), "soccer ball in the soccer card"),
-                       ((33, 255, 86, 307), "tablet in the Grandma call card"),
-                       ((33, 336, 86, 388), "cupcake in the bake sale half card"),
-                       ((407, 336, 462, 388), "piano in the piano half card")):
+    # One medallion per visible card, drawn at 48 px.
+    for what, zone in (("picture day", (44, 95, 104, 160)),
+                       ("story time", (44, 182, 104, 248)),
+                       ("soccer", (44, 271, 104, 362))):
         n = count_where(img, zone, is_saturated)
-        check(n > 400, f"40_myday: medallion present, {what} ({n} saturated px, need > 400)")
-    rows = ink_rows(img, (33, 72, 86, 124), is_saturated)
-    check(len(rows) >= 48, f"40_myday: medallion stands 52 px tall ({len(rows)} saturated rows, need >= 48)")
-    n = count_where(img45, (36, 136, 84, 184), is_saturated)
-    check(n < 400, f"45_myday_late: the past row's medallion takes the dimming ({n} saturated px, need < 400)")
-    n = count_where(img45, (36, 197, 84, 245), is_saturated)
-    check(n > 400, f"45_myday_late: the NOW row's medallion stays saturated ({n} saturated px, need > 400)")
+        check(n > 300, f"40_myday: medallion present, {what} ({n} saturated px, need > 300)")
+        rows = ink_rows(img, zone, is_saturated)
+        check(40 <= len(rows) <= 52, f"40_myday: medallion stands 48 px tall, {what} ({len(rows)} saturated rows; the disc's pale rim rows are not saturated)")
 
-    # Fresh "Updated" in the tab-bar row (fix 4): font_tiny, one
-    # line, clear of the last tab pill, real word gaps.
-    for name, im in (("40_myday", img), ("45_myday_late", img45), ("41_myday_empty", Image.open(os.path.join(OUT, "41_myday_empty.png")))):
-        rows = ink_rows(im, (612, 424, 790, 472), is_tab_ink)
-        extent = (rows[-1] - rows[0] + 1) if rows else 0
-        n = count_where(im, (612, 424, 790, 472), is_tab_ink)
-        check(n > 150 and 12 <= extent <= 20,
-              f"{name}: fresh Updated line, one line of ink in the tab-bar row ({n} px over {extent} rows, need > 150 px and 12-20 rows)")
-        px = im.load()
-        cols = [x for x in range(612, 790) if any(is_tab_ink(*px[x, y]) for y in range(424, 472))]
-        gaps = 0
-        if cols:
-            run = 0
-            seen = set(cols)
-            for x in range(cols[0], cols[-1] + 1):
-                if x in seen:
-                    if run >= 3:
-                        gaps += 1
-                    run = 0
-                else:
-                    run += 1
-        check(cols and cols[0] >= 625 and gaps >= 2,
-              f"{name}: Updated reads as separate words (starts x={cols[0] if cols else -1}, need >= 625; {gaps} word gaps >= 3 px, need >= 2)")
-        n = count_where(im, (612, 424, 790, 472), is_warn_tx)
-        check(n == 0, f"{name}: no warn colour in the fresh line ({n} px, need 0)")
-    n = count_where(img43, (620, 424, 790, 472), is_tab_ink)
-    check(n == 0, f"43_myday_stale: no Updated line in the tab-bar row while stale ({n} px, need 0)")
+    # The fold line lives inside the list: its ink is present
+    # above the list's bottom edge, and the 12 px band between
+    # the list and the tab row stays empty.
+    frac = non_bg_fraction(img, (28, 376, 220, 408))
+    check(frac > 0.005, f"40_myday: the '+3 more' line inks inside the list ({frac:.1%} non-background, need > 0.5%)")
+    n = count_where(img, (28, 413, 592, 423), is_full_ink)
+    check(n == 0, f"40_myday: nothing inks the band above the tab row ({n} px, need 0)")
 
-    # Stale (fix 3): the Today header STANDS and the warn banner
-    # is directly below it; nothing warn-coloured in the fresh
-    # renders' banner zone or left in the old footer zone.
-    n = count_where(img43, (28, 72, 617, 94), is_warn_bg)
-    check(n > 3000, f"43_myday_stale: warn banner below the Today header ({n} bg px, need > 3000)")
-    n = count_where(img43, (28, 72, 617, 94), is_full_ink)
-    check(n > 300, f"43_myday_stale: banner text in the page ink ({n} px, need > 300)")
-    n = count_where(img43, (20, 48, 44, 80),
-                    lambda r, g, b: abs(r - 240) <= 25 and abs(g - 70) <= 30 and abs(b - 120) <= 30)
-    check(n > 20, f"43_myday_stale: the Today accent bar stands while stale ({n} px, need > 20)")
-    n = count_where(img43, (44, 50, 175, 75), is_full_ink)
-    check(n > 200, f"43_myday_stale: the word Today stands while stale ({n} ink px, need > 200)")
-    rows = ink_rows(img43, (28, 60, 617, 110), is_warn_bg)
-    bot = dense_bottom(img43, (44, 46, 175, 72), is_full_ink, 10)
-    check(rows and bot is not None and rows[0] > bot,
-          f"43_myday_stale: banner top (y={rows[0] if rows else -1}) below the header ink (bottom y={bot})")
-    # Banner gap (iter-24, fix 3): page background between the
-    # banner's bottom and the first card's top, at least 4 px.
-    gaprows = 0
-    if rows:
-        px43 = img43.load()
-        y = rows[-1] + 1
-        while y < 110 and all(px43[x, y] == (255, 246, 238) for x in range(100, 500, 40)):
-            gaprows += 1
-            y += 1
-    check(gaprows >= 4, f"43_myday_stale: page air between the banner and the first card ({gaprows} bg rows, need >= 4)")
-    for name, im in (("40_myday", img), ("45_myday_late", img45)):
-        n = count_where(im, (28, 72, 617, 94), is_warn_bg)
-        check(n == 0, f"{name}: no warn banner while fresh ({n} px, need 0)")
-    n = count_where(img43, (480, 394, 790, 422), is_warn_tx)
-    check(n == 0, f"43_myday_stale: no stale stamp left in the old footer zone ({n} px, need 0)")
+    # Stale: the warn banner inks the top of the list, and the
+    # cards mute off the one white style.
+    n = count_where(img43, (28, 86, 500, 118), is_warn_bg)
+    check(n > 800, f"43_myday_stale: the stale banner inks its band ({n} banner px, need > 800)")
+    p43 = img43.convert("RGB").getpixel((560, 250))
+    p45 = img45.convert("RGB").getpixel((560, 250))
+    lum43 = (p43[0] + p43[1] + p43[2]) / 3
+    lum45 = (p45[0] + p45[1] + p45[2]) / 3
+    check(lum43 < lum45 - 8, f"43_myday_stale: card fill muted vs fresh (lum {lum43:.0f} vs {lum45:.0f})")
 
-    # Stale muting (fix 2): the pills are a fraction of fresh,
-    # and the highlighted tints and pills sit at the muted
-    # plain cards' level — the muted peach card is the page's
-    # own reference for "not live".
-    ratio = mean_sat(img43, (440, 252, 480, 266)) / mean_sat(img45, (440, 244, 480, 258))
-    check(ratio < 0.50, f"43_myday_stale: the NOW pill is muted under stale ({ratio:.2f} of fresh saturation, need < 0.50)")
-    ratio = mean_sat(img43, (520, 307, 570, 325)) / mean_sat(img45, (520, 302, 570, 320))
-    check(ratio < 0.50, f"43_myday_stale: the NEXT pill is muted under stale ({ratio:.2f} of fresh saturation, need < 0.50)")
-    peach = mean_sat(img43, (300, 130, 420, 135))
-    for what, zone in (("NOW card tint", (300, 272, 410, 277)), ("NEXT card tint", (300, 334, 420, 339)),
-                       ("NOW pill", (440, 252, 480, 266)), ("NEXT pill", (525, 315, 565, 329))):
-        s = mean_sat(img43, zone)
-        check(s <= peach * 1.15,
-              f"43_myday_stale: {what} muted to the plain cards' level ({s:.1f} vs muted peach {peach:.1f} saturation, need <= peach x 1.15)")
+    # Stress: the long location truncates inside its card (ink on
+    # the location line, none past the card's right border), and
+    # the evening collapse line inks above tonight's card.
+    n = count_where(img47, (106, 282, 590, 312), is_full_ink)
+    check(n > 200, f"47_myday_stress: the dentist location inks its line ({n} px, need > 200)")
+    # The gutter between the card's right border (x 591) and
+    # Pippa's ink stays empty: the truncated location stops at
+    # the border instead of running underneath her.
+    n = count_where(img47, (594, 282, 618, 312), is_full_ink)
+    check(n == 0, f"47_myday_stress: no location ink past the card's border ({n} px, need 0)")
+    frac = non_bg_fraction(img48, (28, 116, 300, 150))
+    check(frac > 0.01, f"48_myday_evening: the '3 done today' line inks ({frac:.1%} non-background, need > 1%)")
 
-    # Stale parity (iter-24, round 20, fix 3): Tomorrow's plain
-    # fills mute to the same measured level as Today's rows. In
-    # iter-23 the Tomorrow fills rendered at luminance ~243
-    # against Today's ~223-227 band; the check pins Tomorrow's
-    # bake card inside that band, saturation at or under the
-    # peach card's, and clearly muted against its fresh self.
-    def lum_sat(im, box):
-        px = im.load()
-        ls = ss = n = 0
-        for y in range(box[1], box[3]):
-            for x in range(box[0], box[2]):
-                r, g, b = px[x, y]
-                ls += (299 * r + 587 * g + 114 * b) / 1000
-                mx, mn = max(r, g, b), min(r, g, b)
-                ss += 0 if mx == 0 else (mx - mn) * 255 / mx
-                n += 1
-        return ls / n, ss / n
-
-    bake_l, bake_s = lum_sat(img43, (340, 380, 390, 400))
-    done_l, _ = lum_sat(img43, (100, 196, 250, 210))
-    peach_l, peach_s = lum_sat(img43, (100, 134, 220, 146))
-    fresh_l, _ = lum_sat(img45, (340, 380, 390, 400))
-    print(f"  stale parity: bake lum {bake_l:.1f} sat {bake_s:.1f}; DONE lum {done_l:.1f}; peach lum {peach_l:.1f} sat {peach_s:.1f}; fresh bake lum {fresh_l:.1f}")
-    check(abs(bake_l - done_l) <= 6 and bake_s <= peach_s + 4,
-          f"43_myday_stale: Tomorrow mutes to Today's level (bake lum {bake_l:.0f} vs DONE card {done_l:.0f}, sat {bake_s:.0f} vs peach {peach_s:.0f})")
-    check(bake_l < fresh_l - 10,
-          f"43_myday_stale: Tomorrow's fill really muted vs fresh (lum {bake_l:.0f} vs {fresh_l:.0f}, need 10+ darker)")
+    # Fresh "Updated" rides the tab-bar row at the right, one
+    # line of small ink clear of the last tab pill.
+    n = count_where(img, (620, 430, 795, 474), is_tab_ink)
+    check(n > 150, f"40_myday: freshness ink in the tab-bar row ({n} px, need > 150)")
     for name, im in (("43_myday_stale", img43), ("45_myday_late", img45)):
         n = count_where(im, (630, 48, 795, 92), is_warn_bg)
         check(n == 0, f"{name}: no weather-stale chip, only the calendar can be stale ({n} px, need 0)")
@@ -1977,6 +1798,8 @@ def main():
     # freshness line, if one were drawn, would ink this band.
     frac = non_bg_fraction(img44, (28, 392, 790, 422))
     check(frac < 0.005, f"44_myday_never: footer zone empty, no freshness line ({frac:.2%} non-background, need < 0.5%)")
+
+
 
     # Message states (fix 5): Pippa on the RIGHT like the
     # populated page, words on the left, and the cat's ink
@@ -2069,17 +1892,18 @@ def main():
           "stage crops differ: the logo hot sprite is not the standard hot sprite")
 
     # Iter-30: the warm tier's hat-day rotation. Two consecutive dry
-    # warm-coat-tier mornings that prescribe the hat (2026-12-13..14
-    # since iter-33 widened the band to 16 looks, identical weather):
-    # the first pick is the winter kit, the second the red winter kit
-    # (kit2), and the first day's Tomorrow already shows kit2. The
-    # prescription does NOT change between the two days: same tiles
-    # by name (the coat tile still reads "Winter coat"), same hat and
-    # gloves chips; what differs is the sprite on stage and the coat
-    # tile's PICTURE (the red coat icon replaces the pink kit coat),
-    # proven on the rendered pixels of the coat tile's icon box
-    # (third tile of the 2x2 grid: tile at (284,216), icon at tile +
-    # (10,4), 96 px).
+    # warm-coat-tier mornings that prescribe the hat (2026-12-13..14,
+    # identical weather): the first pick is the winter kit, the
+    # second steps to the next hat-band entry. Iter-35 reordered
+    # the band (coats alternate, shirt kinds interleave), so Dec 14
+    # now picks the red-coat navy SOLID shirt (band index 1) where
+    # iter-33 picked kit2. The prescription does NOT change between
+    # the two days: same tiles by name (the coat tile still reads
+    # "Winter coat"), same hat and gloves chips; what differs is
+    # the sprite on stage and the coat tile's PICTURE (the red coat
+    # icon replaces the pink kit coat), proven on the rendered
+    # pixels of the coat tile's icon box (third tile of the 2x2
+    # grid: tile at (284,216), icon at tile + (10,4), 96 px).
     def tile_icon_sha(name, box):
         img = Image.open(os.path.join(OUT, name)).crop(box)
         return hashlib.sha256(img.tobytes()).hexdigest()
@@ -2089,11 +1913,11 @@ def main():
     check(d["look_name"] == "snow",
           f"59_kit_dec13: rotation pick for 2026-12-13 is the winter kit (look={d['look_name']})")
     t = dumps["59_kit_dec13b_tomorrow"]
-    check(t["look_name"] == "kit2",
-          f"59_kit_dec13b_tomorrow: tomorrow's pick steps to the red winter kit (look={t['look_name']})")
+    check(t["look_name"] == "kitr_navy_solid",
+          f"59_kit_dec13b_tomorrow: tomorrow's pick steps to the red-coat navy solid (look={t['look_name']})")
     d = dumps["60_kit2_dec14"]
-    check(d["look_name"] == "kit2",
-          f"60_kit2_dec14: rotation pick for 2026-12-14 is kit2 (look={d['look_name']})")
+    check(d["look_name"] == "kitr_navy_solid",
+          f"60_kit2_dec14: rotation pick for 2026-12-14 is the red-coat navy solid (look={d['look_name']})")
     for name in ("59_kit_dec13", "59_kit_dec13b_tomorrow", "60_kit2_dec14", "61_kit2_pink"):
         dd = dumps[name]
         check(dd["tiles"] == "Long sleeves|Long pants|Winter coat|Warm boots",
@@ -2103,43 +1927,51 @@ def main():
         check("winter coat" in dd["advice"],
               f"{name}: the advice names the winter coat ({dd['advice']})")
     check(stage_sha("59_kit_dec13.png") != stage_sha("60_kit2_dec14.png"),
-          "stage crops differ: the kit2 sprite is not the kit sprite")
+          "stage crops differ: the red-coat solid sprite is not the kit sprite")
     check(tile_icon_sha("59_kit_dec13.png", COAT_ICON_BOX) != tile_icon_sha("60_kit2_dec14.png", COAT_ICON_BOX),
-          "coat tile pictures differ: kit2 day shows the red coat icon, kit day the pink one")
+          "coat tile pictures differ: the red-coat day shows the red coat icon, the kit day the pink one")
     d = dumps["61_kit2_pink"]
-    check(d["look_name"] == "kit2",
-          f"61_kit2_pink: the pink colourway resolves kit2 too (look={d['look_name']})")
+    check(d["look_name"] == "snow",
+          f"61_kit2_pink: the pink colourway renders the kit day (look={d['look_name']})")
     img = Image.open(os.path.join(OUT, "61_kit2_pink.png"))
     n_pink = sum(1 for px in img.crop(STAGE).getdata() if is_pink_fur(*px[:3]))
     check(n_pink > 400,
           f"61_kit2_pink: pink fur on stage ({n_pink} px, need > 400)")
-    # The hat-free control: the warmcoat morning's seed is odd, so a
-    # hat-blind rotation would have picked kit2 there; it must stay
-    # the warmcoat (kit2's sprite wears a hat the day never asked for).
+    # The hat-free control: the warmcoat morning's seed would land
+    # on a hat-band look if the rotation ignored the hat gate; it
+    # must stay the warmcoat (the hat looks wear a hat the day
+    # never asked for).
     check(dumps["56_warmcoat"]["look_name"] == "warmcoat",
-          "56_warmcoat: hat-free warm-tier day never picks kit2")
+          "56_warmcoat: hat-free warm-tier day never picks a hat-band look")
 
-    # Iter-33: the winter-variant hat days. The shirt variants keep
-    # the kit's prescription whole (same tiles by name, same hat and
-    # gloves chips); the pink-coat day tiles the standard coat
-    # picture (identical pixels to the kit day's coat tile) and the
-    # red-coat day the red one (identical to kit2's). The dress
-    # variants swap the dress tile in for Long pants and drop the
-    # Long sleeves tile: three tiles, the dress named by colour, the
-    # coat picture following the coat, Warm boots last; their advice
-    # names the dress. The pink-choice render of the dress day must
-    # be the SAME black sprite on stage (the batch is black fur
-    # only; the pink slot aliases it).
+    # Iter-33/35: the winter-variant hat days. Iter-35's reorder
+    # remapped the December dates (seed = the outfit date mod 16
+    # over the new band): Dec 11 -> kitp_navy_stripe (14),
+    # Dec 12 -> kitr_teal_solid (15), Dec 15 -> kitp_mustard_stripe
+    # (2), Dec 16 -> kitr_dress (3), Dec 21 -> kitp_rust_stripe
+    # (8). The shirt variants keep the kit's prescription whole
+    # (same tiles by name, same hat and gloves chips); the coat
+    # tile's picture follows the coat colour on both sides of the
+    # reorder. The dress variant swaps the dress tile in for Long
+    # pants and drops the Long sleeves tile: three tiles, the
+    # dress named by colour, Warm boots last; its advice names
+    # the dress. Dec 16 is the dress day now, and the pink-choice
+    # render of Dec 11 must be the SAME black sprite on stage
+    # (the batch is black fur only; the pink slot aliases it).
     d = dumps["62_hat_kitp_shirt"]
-    check(d["look_name"] == "kitp_navy_stripe",
-          f"62_hat_kitp_shirt: rotation pick for 2026-12-15 is the pink-coat navy-stripe kit (look={d['look_name']})")
-    t = dumps["62b_hat_kitp_shirt_tomorrow"]
-    check(t["look_name"] == "kitp_rust_stripe",
-          f"62b_hat_kitp_shirt_tomorrow: tomorrow's pick steps to the rust-stripe kit (look={t['look_name']})")
+    check(d["look_name"] == "kitp_mustard_stripe",
+          f"62_hat_kitp_shirt: rotation pick for 2026-12-15 is the pink-coat mustard-stripe kit (look={d['look_name']})")
     d = dumps["63_hat_kitr_shirt"]
-    check(d["look_name"] == "kitr_navy_stripe",
-          f"63_hat_kitr_shirt: rotation pick for 2026-12-21 is the red-coat navy-stripe kit (look={d['look_name']})")
-    for name in ("62_hat_kitp_shirt", "62b_hat_kitp_shirt_tomorrow", "63_hat_kitr_shirt"):
+    check(d["look_name"] == "kitp_rust_stripe",
+          f"63_hat_kitr_shirt: rotation pick for 2026-12-21 is the pink-coat rust-stripe kit (look={d['look_name']})")
+    d = dumps["64_hat_kitp_dress"]
+    check(d["look_name"] == "kitp_navy_stripe",
+          f"64_hat_kitp_dress: rotation pick for 2026-12-11 is the pink-coat navy-stripe kit (look={d['look_name']})")
+    t = dumps["64b_hat_kitr_dress_tomorrow"]
+    check(t["look_name"] == "kitr_teal_solid",
+          f"64b_hat_kitr_dress_tomorrow: tomorrow's pick steps to the red-coat teal solid (look={t['look_name']})")
+    for name in ("62_hat_kitp_shirt", "63_hat_kitr_shirt", "64_hat_kitp_dress",
+                 "64b_hat_kitr_dress_tomorrow", "65_hat_kitp_dress_pink"):
         dd = dumps[name]
         check(dd["tiles"] == "Long sleeves|Long pants|Winter coat|Warm boots",
               f"{name}: shirt variants keep the kit tiles ({dd['tiles']})")
@@ -2149,41 +1981,27 @@ def main():
               f"{name}: the advice names the winter coat ({dd['advice']})")
     check(tile_icon_sha("62_hat_kitp_shirt.png", COAT_ICON_BOX) == tile_icon_sha("59_kit_dec13.png", COAT_ICON_BOX),
           "coat tile pictures match: the pink-coat shirt day shows the kit's own coat icon")
-    check(tile_icon_sha("63_hat_kitr_shirt.png", COAT_ICON_BOX) == tile_icon_sha("60_kit2_dec14.png", COAT_ICON_BOX),
-          "coat tile pictures match: the red-coat shirt day shows kit2's red coat icon")
+    check(tile_icon_sha("64b_hat_kitr_dress_tomorrow.png", COAT_ICON_BOX) == tile_icon_sha("60_kit2_dec14.png", COAT_ICON_BOX),
+          "coat tile pictures match: two red-coat shirt days share the red coat icon")
     check(stage_sha("62_hat_kitp_shirt.png") != stage_sha("59_kit_dec13.png"),
-          "stage crops differ: the navy-stripe shirt sprite is not the kit sprite")
+          "stage crops differ: the mustard-stripe shirt sprite is not the kit sprite")
     check(stage_sha("63_hat_kitr_shirt.png") != stage_sha("60_kit2_dec14.png"),
-          "stage crops differ: the red-coat shirt sprite is not the kit2 sprite")
+          "stage crops differ: the rust-stripe shirt sprite is not the red-coat solid sprite")
     check(stage_sha("62_hat_kitp_shirt.png") != stage_sha("63_hat_kitr_shirt.png"),
-          "stage crops differ: the pink-coat and red-coat shirt sprites differ")
-    d = dumps["64_hat_kitp_dress"]
-    check(d["look_name"] == "kitp_dress",
-          f"64_hat_kitp_dress: rotation pick for 2026-12-11 is the lavender dress under the pink coat (look={d['look_name']})")
-    check(d["tiles"] == "Lavender dress|Winter coat|Warm boots",
-          f"64_hat_kitp_dress: dress tiles (dress in for Long pants, no Long sleeves) ({d['tiles']})")
-    check(d["chips"] == "Warm hat|Gloves",
-          f"64_hat_kitp_dress: hat and gloves chips stay ({d['chips']})")
-    check(d["advice"].startswith("Wear your dress."),
-          f"64_hat_kitp_dress: the advice names the dress ({d['advice']})")
-    t = dumps["64b_hat_kitr_dress_tomorrow"]
+          "stage crops differ: the mustard-stripe and rust-stripe sprites differ")
+    t = dumps["62b_hat_kitp_shirt_tomorrow"]
     check(t["look_name"] == "kitr_dress",
-          f"64b_hat_kitr_dress_tomorrow: tomorrow's pick steps to the mint dress under the red coat (look={t['look_name']})")
+          f"62b_hat_kitp_shirt_tomorrow: tomorrow's pick steps to the mint dress under the red coat (look={t['look_name']})")
     check(t["tiles"] == "Mint dress|Winter coat|Warm boots",
-          f"64b_hat_kitr_dress_tomorrow: dress tiles ({t['tiles']})")
+          f"62b_hat_kitp_shirt_tomorrow: dress tiles (dress in for Long pants, no Long sleeves) ({t['tiles']})")
+    check(t["chips"] == "Warm hat|Gloves",
+          f"62b_hat_kitp_shirt_tomorrow: hat and gloves chips stay ({t['chips']})")
     check(t["advice"].startswith("Wear your dress."),
-          f"64b_hat_kitr_dress_tomorrow: the advice names the dress ({t['advice']})")
-    # The dress tiles sit in a 3-tile row, so their icon boxes are
-    # not the 2x2 grid's: the coat is the SECOND tile here. Compare
-    # the two dress days' coat pictures against each other instead:
-    # pink coat on the lavender day, red on the mint day, so the
-    # stage crops must differ and neither may equal a shirt day.
-    check(stage_sha("64_hat_kitp_dress.png") != stage_sha("64b_hat_kitr_dress_tomorrow.png"),
-          "stage crops differ: the lavender-dress and mint-dress sprites differ")
-    check(stage_sha("64_hat_kitp_dress.png") != stage_sha("62_hat_kitp_shirt.png"),
+          f"62b_hat_kitp_shirt_tomorrow: the advice names the dress ({t['advice']})")
+    check(stage_sha("62b_hat_kitp_shirt_tomorrow.png") != stage_sha("62_hat_kitp_shirt.png"),
           "stage crops differ: the dress sprite is not a shirt sprite")
     d = dumps["65_hat_kitp_dress_pink"]
-    check(d["look_name"] == "kitp_dress",
+    check(d["look_name"] == "kitp_navy_stripe",
           f"65_hat_kitp_dress_pink: the pink choice resolves the same look (look={d['look_name']})")
     check(stage_sha("65_hat_kitp_dress_pink.png") == stage_sha("64_hat_kitp_dress.png"),
           "stage crops identical: the pink slot aliases the black sprite (black fur only)")

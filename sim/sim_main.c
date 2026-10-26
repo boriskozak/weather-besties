@@ -122,9 +122,12 @@ static void pump(int frames)
     lv_refr_now(NULL);
 }
 
+static int s_layout_fails;
+
 static void save(const char *dir, const char *name)
 {
     pump(30);
+    s_layout_fails += ui_test_layout_check(name);
     char path[512];
     snprintf(path, sizeof(path), "%s/%s.rgb565", dir, name);
     FILE *f = fopen(path, "wb");
@@ -375,6 +378,119 @@ static void fixture_fetched_at(int hour, int min)
 }
 
 /* The usual pin: a 7:02 AM fetch ("Updated 7:02 AM"). */
+/* Iter-35: the stress shapes the layout rework has to survive.
+ * Invented events (the repo is public), modelled on the lengths
+ * and tag combinations real family days produce: a 60+ character
+ * title, a long street-address location, an all-day event, names
+ * for one kid, the other, and both. The scenario clock is 9:20
+ * AM: one event is DONE, one is NOW, three are still to come, and
+ * tomorrow is sparse (a single event). */
+static void fixture_cal_stress(void)
+{
+    struct tm today = now_tm, tom = now_tm;
+    tom.tm_mday += 1;
+    tom.tm_isdst = -1;
+    mktime(&tom);
+    char d0[9], d1[9];
+    ymd(d0, &today);
+    ymd(d1, &tom);
+    char ics[6144];
+    int n = 0;
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s1\r\nDTSTART;VALUE=DATE:%s\r\nDTEND;VALUE=DATE:%s\r\n"
+                  "SUMMARY:Autumn classroom photo retake day\r\nEND:VEVENT\r\n",
+                  d0, d1);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s2\r\nDTSTART;TZID=America/New_York:%sT073000\r\n"
+                  "DTEND;TZID=America/New_York:%sT081500\r\nSUMMARY:Cleo and Lila dentist checkup and cleaning\r\n"
+                  "LOCATION:Bright Smiles Dental\\, 214 Maplewood Avenue\\, Suite 3\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s3\r\nDTSTART;TZID=America/New_York:%sT090000\r\n"
+                  "DTEND;TZID=America/New_York:%sT100000\r\nSUMMARY:Lila's occupational therapy evaluation\r\n"
+                  "LOCATION:Kids Progress Center\\, 88 Valley Road\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s4\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
+                  "DTEND;TZID=America/New_York:%sT110000\r\nSUMMARY:Cleo's reading buddy celebration with second grade families\r\n"
+                  "LOCATION:Watchung School library\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s5\r\nDTSTART;TZID=America/New_York:%sT121500\r\n"
+                  "DTEND;TZID=America/New_York:%sT130000\r\nSUMMARY:Lila's gymnastics make-up class\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s6\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
+                  "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's piano lesson\r\n"
+                  "LOCATION:Music school\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-s7\r\nDTSTART;TZID=America/New_York:%sT083000\r\n"
+                  "DTEND;TZID=America/New_York:%sT091500\r\nSUMMARY:Lila's book fair preview morning\r\n"
+                  "LOCATION:Watchung School library\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
+    if (!cal_parse(ics, (size_t)n)) {
+        fprintf(stderr, "stress fixture calendar did not parse\n");
+        exit(1);
+    }
+}
+
+/* Iter-35: the evening shape. At 6:30 PM three of today's events
+ * are finished, so they fold into the "3 done today" line and
+ * tomorrow gets the room; one event is still to come tonight. */
+static void fixture_cal_evening(void)
+{
+    struct tm today = now_tm, tom = now_tm;
+    tom.tm_mday += 1;
+    tom.tm_isdst = -1;
+    mktime(&tom);
+    char d0[9], d1[9];
+    ymd(d0, &today);
+    ymd(d1, &tom);
+    char ics[4096];
+    int n = 0;
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e1\r\nDTSTART;TZID=America/New_York:%sT080000\r\n"
+                  "DTEND;TZID=America/New_York:%sT084500\r\nSUMMARY:Cleo's morning swim lesson\r\n"
+                  "LOCATION:Aquatics center\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e2\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
+                  "DTEND;TZID=America/New_York:%sT104500\r\nSUMMARY:Lila's library story time\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e3\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
+                  "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's soccer practice\r\n"
+                  "LOCATION:Roosevelt Field\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e4\r\nDTSTART;TZID=America/New_York:%sT190000\r\n"
+                  "DTEND;TZID=America/New_York:%sT194500\r\nSUMMARY:Video call with Grandma\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e5\r\nDTSTART;TZID=America/New_York:%sT080000\r\n"
+                  "DTEND;TZID=America/New_York:%sT090000\r\nSUMMARY:School bake sale\r\n"
+                  "LOCATION:Watchung School gym\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-e6\r\nDTSTART;TZID=America/New_York:%sT160000\r\n"
+                  "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Cleo's piano lesson\r\n"
+                  "LOCATION:Music school\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
+    if (!cal_parse(ics, (size_t)n)) {
+        fprintf(stderr, "evening fixture calendar did not parse\n");
+        exit(1);
+    }
+}
+
 static void fixture_fetched(void)
 {
     fixture_fetched_at(7, 2);
@@ -637,9 +753,12 @@ int main(int argc, char **argv)
      * Tomorrow page must already show kit2 (the seed is the outfit's
      * own date). Both days prescribe identically (same tiles by
      * name, hat and gloves chips); only the sprite and the coat
-     * tile's picture differ. A third render shows the kit2 day in
-     * the pink colourway, then the choice is restored to the black
-     * pin the blocks above run under. */
+     * tile's picture differ. A third render shows the kit day in
+     * the pink colourway (iter-35: it loaded the Dec 14 scenario
+     * through iter-33, but that date's pick is a black-fur-only
+     * variant now, so the pink proof rides the kit day, whose
+     * sprite has pink art), then the choice is restored to the
+     * black pin the blocks above run under. */
     load(sc, "rot_kit_0");
     show();
     save(out, "59_kit_dec13");
@@ -653,6 +772,7 @@ int main(int argc, char **argv)
     show();
     save(out, "60_kit2_dec14");
     dump(out, "60_kit2_dec14");
+    load(sc, "rot_kit_0");
     ui_set_cat_choice(1);
     show();
     save(out, "61_kit2_pink");
@@ -780,6 +900,65 @@ int main(int argc, char **argv)
     pump(10);
     save(out, "46_myday_dst");
     dump(out, "46_myday_dst");
+
+    /* Iter-35: the stress and evening shapes on the same page.
+     * The weather reload parks the clock back at the morning, so
+     * each fixture's clock is set explicitly before its capture,
+     * like renders 43/45 above. */
+    load(sc, "brief_morning");
+    show();
+    ui_set_calendar_configured(true);
+    ui_test_set_page(2);
+    fixture_cal_stress();
+    fixture_fetched();
+    now_tm.tm_hour = 9;
+    now_tm.tm_min = 20;
+    ui_refresh_clock();
+    pump(10);
+    save(out, "47_myday_stress");
+    dump(out, "47_myday_stress");
+
+    fixture_cal_evening();
+    fixture_fetched_at(18, 2);
+    now_tm.tm_hour = 18;
+    now_tm.tm_min = 30;
+    ui_refresh_clock();
+    pump(10);
+    save(out, "48_myday_evening");
+    dump(out, "48_myday_evening");
+
+    /* Iter-35: a LOCAL-ONLY real-data fixture, gated on an env
+     * var so `make shots` never sees it. The file named by
+     * WB_SIM_CAL_FILE is an iCal export kept in the gitignored
+     * sim/local-fixtures/ (see its README): parsed as-is and
+     * rendered on the morning clock, purely so the layout gate
+     * walks a real day's shapes. Nothing from it is ever
+     * committed, and reports cite violation counts only. */
+    const char *local_cal = getenv("WB_SIM_CAL_FILE");
+    if (local_cal != NULL && local_cal[0] != '\0') {
+        FILE *lf = fopen(local_cal, "rb");
+        if (lf != NULL) {
+            static char lbuf[262144];
+            size_t ln = fread(lbuf, 1, sizeof(lbuf) - 1, lf);
+            fclose(lf);
+            lbuf[ln] = '\0';
+            load(sc, "brief_morning");
+            show();
+            ui_set_calendar_configured(true);
+            ui_test_set_page(2);
+            if (!cal_parse(lbuf, ln)) {
+                fprintf(stderr, "local calendar file did not parse\n");
+                exit(1);
+            }
+            fixture_fetched();
+            pump(10);
+            save(out, "49_myday_local");
+            dump(out, "49_myday_local");
+        } else {
+            fprintf(stderr, "WB_SIM_CAL_FILE set but unreadable: %s\n", local_cal);
+            exit(1);
+        }
+    }
     ui_test_set_page(0);
 
     ui_show_wifi_error("HomeWiFi", NULL);
@@ -791,5 +970,10 @@ int main(int argc, char **argv)
            (unsigned)mon.total_size, (unsigned)mon.used_pct, (unsigned)mon.free_biggest_size);
     printf("LVGL allocations (sim): live %u bytes, peak %u bytes (peak = the internal DRAM the PSRAM allocator frees on the board)\n",
            (unsigned)s_lv_live, (unsigned)s_lv_peak);
+    if (s_layout_fails > 0) {
+        printf("LAYOUT CHECK: %d violation(s)\n", s_layout_fails);
+        return 1;
+    }
+    printf("LAYOUT CHECK: clean\n");
     return 0;
 }

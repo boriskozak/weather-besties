@@ -1,0 +1,61 @@
+avail=1
+bucket=0
+look=28
+look_name=kitr_navy_solid
+ntiles=4
+tiles=Long sleeves|Long pants|Winter coat|Warm boots
+chips=Warm hat|Gloves
+advice=Wear long sleeves. Bring your winter coat. Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
+advice_shown=Cold this morning, warm after lunch. Take your winter coat off later. Don't forget your warm hat and gloves.
+wx1=33° now
+wx_icon=0
+stale_banner=0
+stale_checks=enabled
+checks=0
+title=Let's get dressed!
+compare=Warmer than yesterday
+myday_state=events
+myday_fresh=Updated 6:02 PM
+myday_nextup=Video call with Grandma
+myday_nowup=
+myday_done=Cleo's morning swim lesson;Lila's library story time;Cleo's soccer practice
+myday_nametags=CLEO:Cleo's piano lesson
+myday_nametag=CLEO
+myday_nametag_row=Cleo's piano lesson
+myday_dimmed=Cleo's morning swim lesson;Lila's library story time;Cleo's soccer practice
+myday_tom_date=Wed, Oct 28
+myday_icons=videocall,cupcake
+myday_half=0
+myday_more_today=0
+myday_more_tom=1
+myday_done_line=3 done today
+myday_stale=0
+myday_cat_look=uniform_fall
+myday_today_n=1
+myday_tom_n=1
+myday_today0=7:00-7:45 PM|Video call with Grandma|
+myday_today1=
+myday_today2=
+myday_today3=
+myday_today4=
+myday_today5=
+myday_tom0=8:00-9:00 AM|School bake sale|Watchung School gym
+myday_tom1=4:00-4:30 PM|Cleo's piano lesson|Music school
+myday_tom2=
+myday_tom3=
+myday_tom4=
+myday_tom5=
+fc0_tiles=Long sleeves|Long pants|Rain jacket|Rain boots
+fc0_labels=Long sleeves|Long pants|Rain jacket|Rain boots
+fc1_tiles=Mint dress|Light jacket|Tights|Dress shoes
+fc1_labels=Mint dress|Light jacket|Tights|Dress shoes
+fc2_tiles=Mustard dress|Light jacket|Tights|Dress shoes
+fc2_labels=Mustard dress|Light jacket|Tights|Dress shoes
+info_begin
+WiFi: HomeWiFi
+Town: Upper Montclair, New Jersey
+Updated: 7:30 AM
+Address: 192.168.1.42
+Version: 2.0.0
+info_end
+speed_label=Speed test: off

@@ -27,3 +27,7 @@ __pycache__/
 
 # case CAD: intermediate assembly meshes (render.py inputs)
 cad/out/_asm_*.stl
+
+# Iter-35: local-only real-data My Day fixtures (never committed;
+# the repo is public and the calendar is the family's).
+sim/local-fixtures/
