@@ -47,6 +47,20 @@ LV_IMAGE_DECLARE(img_pippa_uniform_fall);
 LV_IMAGE_DECLARE(img_pippa_pink_uniform_fall);
 LV_IMAGE_DECLARE(img_pippa_kit2);
 LV_IMAGE_DECLARE(img_pippa_pink_kit2);
+LV_IMAGE_DECLARE(img_pippa_kitp_navy_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitp_rust_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitp_mustard_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitp_navy_solid);
+LV_IMAGE_DECLARE(img_pippa_kitp_mustard_solid);
+LV_IMAGE_DECLARE(img_pippa_kitp_teal_solid);
+LV_IMAGE_DECLARE(img_pippa_kitr_navy_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitr_rust_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitr_mustard_stripe);
+LV_IMAGE_DECLARE(img_pippa_kitr_navy_solid);
+LV_IMAGE_DECLARE(img_pippa_kitr_mustard_solid);
+LV_IMAGE_DECLARE(img_pippa_kitr_teal_solid);
+LV_IMAGE_DECLARE(img_pippa_kitp_dress);
+LV_IMAGE_DECLARE(img_pippa_kitr_dress);
 LV_IMAGE_DECLARE(img_pippa_base);
 LV_IMAGE_DECLARE(img_pippa_heart_0);
 LV_IMAGE_DECLARE(img_pippa_heart_1);
@@ -93,6 +107,20 @@ LV_IMAGE_DECLARE(img_pippa_mini_uniform_fall);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_uniform_fall);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_kit2);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_mini_pink_kit2);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_navy_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_rust_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_mustard_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_navy_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_mustard_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_teal_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_navy_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_rust_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_mustard_stripe);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_navy_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_mustard_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_teal_solid);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitp_dress);   /* forecast-card mini */
+LV_IMAGE_DECLARE(img_pippa_mini_kitr_dress);   /* forecast-card mini */
 LV_IMAGE_DECLARE(img_pippa_head_thumb);   /* Settings cat-pill thumbnail */
 LV_IMAGE_DECLARE(img_pippa_head_pink_thumb);   /* Settings cat-pill thumbnail */
 LV_IMAGE_DECLARE(img_pippa_heart_overlay);   /* all-done heart overlay */
@@ -141,8 +169,36 @@ typedef enum {
     PIPPA_PINK_UNIFORM_FALL = 35,
     PIPPA_KIT2 = 36,
     PIPPA_PINK_KIT2 = 37,
-    PIPPA_BASE = 38,
-    PIPPA_COUNT = 39
+    PIPPA_KITP_NAVY_STRIPE = 38,
+    PIPPA_PINK_KITP_NAVY_STRIPE = 39,
+    PIPPA_KITP_RUST_STRIPE = 40,
+    PIPPA_PINK_KITP_RUST_STRIPE = 41,
+    PIPPA_KITP_MUSTARD_STRIPE = 42,
+    PIPPA_PINK_KITP_MUSTARD_STRIPE = 43,
+    PIPPA_KITP_NAVY_SOLID = 44,
+    PIPPA_PINK_KITP_NAVY_SOLID = 45,
+    PIPPA_KITP_MUSTARD_SOLID = 46,
+    PIPPA_PINK_KITP_MUSTARD_SOLID = 47,
+    PIPPA_KITP_TEAL_SOLID = 48,
+    PIPPA_PINK_KITP_TEAL_SOLID = 49,
+    PIPPA_KITR_NAVY_STRIPE = 50,
+    PIPPA_PINK_KITR_NAVY_STRIPE = 51,
+    PIPPA_KITR_RUST_STRIPE = 52,
+    PIPPA_PINK_KITR_RUST_STRIPE = 53,
+    PIPPA_KITR_MUSTARD_STRIPE = 54,
+    PIPPA_PINK_KITR_MUSTARD_STRIPE = 55,
+    PIPPA_KITR_NAVY_SOLID = 56,
+    PIPPA_PINK_KITR_NAVY_SOLID = 57,
+    PIPPA_KITR_MUSTARD_SOLID = 58,
+    PIPPA_PINK_KITR_MUSTARD_SOLID = 59,
+    PIPPA_KITR_TEAL_SOLID = 60,
+    PIPPA_PINK_KITR_TEAL_SOLID = 61,
+    PIPPA_KITP_DRESS = 62,
+    PIPPA_PINK_KITP_DRESS = 63,
+    PIPPA_KITR_DRESS = 64,
+    PIPPA_PINK_KITR_DRESS = 65,
+    PIPPA_BASE = 66,
+    PIPPA_COUNT = 67
 } pippa_variant_t;
 #define PIPPA_NONE (-1)
 

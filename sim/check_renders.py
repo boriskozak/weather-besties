@@ -887,7 +887,9 @@ def main():
               "54_rot_nov12", "54_rot_nov12b_tomorrow", "55_rot_nov13", "55_rot_nov13b_tomorrow",
               "56_warmcoat",
               "57_rot_jul13", "57_rot_jul13b_tomorrow", "58_rot_jul14",
-              "59_kit_dec15", "59_kit_dec15b_tomorrow", "60_kit2_dec16", "61_kit2_pink")
+              "59_kit_dec13", "59_kit_dec13b_tomorrow", "60_kit2_dec14", "61_kit2_pink",
+              "62_hat_kitp_shirt", "62b_hat_kitp_shirt_tomorrow", "63_hat_kitr_shirt",
+              "64_hat_kitp_dress", "64b_hat_kitr_dress_tomorrow", "65_hat_kitp_dress_pink")
     dumps = {n: dump(n) for n in DUMPED}
 
     # The dress bound (iter-09 fix 1, panel round 7's headline): the
@@ -899,12 +901,23 @@ def main():
     # (the old warm-up carve-out is gone), the long-text day, and the
     # bike-bus Friday, whose gloves are now the kit's own chips.
     KIT_TILES = "Long sleeves|Long pants|Winter coat|Warm boots"
+    # Iter-33: the kit family is the 16-look hat band (the kit, kit2,
+    # the twelve shirt variants, the two dress variants); the dress
+    # variants tile differently, so they are not in this list.
+    KIT_FAMILY = ("snow", "kit2",
+                  "kitp_navy_stripe", "kitp_rust_stripe", "kitp_mustard_stripe",
+                  "kitp_navy_solid", "kitp_mustard_solid", "kitp_teal_solid",
+                  "kitr_navy_stripe", "kitr_rust_stripe", "kitr_mustard_stripe",
+                  "kitr_navy_solid", "kitr_mustard_solid", "kitr_teal_solid")
     for name in ("20_morning", "34_long_text", "36_bike_bus"):
         d = dumps[name]
         # Iter-30: on a warm-tier hat day the kit family resolves to
         # the kit or its red colourway by date; both are the winter
         # kit this bound protects (the failure mode is the dress).
-        check(d["look_name"] in ("snow", "kit2") and d["tiles"] == KIT_TILES,
+        # Iter-33: the band is 16 looks now; any shirt-family pick is
+        # still the winter kit this bound protects, with the kit's
+        # tiles by name.
+        check(d["look_name"] in KIT_FAMILY and d["tiles"] == KIT_TILES,
               f"{name}: warm-coat departure is the winter kit (look={d['look_name']}, tiles={d['tiles']})")
         check(d["chips"] == "Warm hat|Gloves",
               f"{name}: the kit's hat and gloves are checkable chips (chips={d['chips']})")
@@ -2056,31 +2069,32 @@ def main():
           "stage crops differ: the logo hot sprite is not the standard hot sprite")
 
     # Iter-30: the warm tier's hat-day rotation. Two consecutive dry
-    # warm-coat-tier mornings that prescribe the hat (2026-12-15..16,
-    # identical weather): the first pick is the winter kit, the
-    # second the red winter kit (kit2), and the first day's Tomorrow
-    # already shows kit2. The prescription does NOT change between
-    # the two days: same tiles by name (the coat tile still reads
-    # "Winter coat"), same hat and gloves chips; what differs is the
-    # sprite on stage and the coat tile's PICTURE (the red coat icon
-    # replaces the pink kit coat), proven on the rendered pixels of
-    # the coat tile's icon box (third tile of the 2x2 grid: tile at
-    # (284,216), icon at tile + (10,4), 96 px).
+    # warm-coat-tier mornings that prescribe the hat (2026-12-13..14
+    # since iter-33 widened the band to 16 looks, identical weather):
+    # the first pick is the winter kit, the second the red winter kit
+    # (kit2), and the first day's Tomorrow already shows kit2. The
+    # prescription does NOT change between the two days: same tiles
+    # by name (the coat tile still reads "Winter coat"), same hat and
+    # gloves chips; what differs is the sprite on stage and the coat
+    # tile's PICTURE (the red coat icon replaces the pink kit coat),
+    # proven on the rendered pixels of the coat tile's icon box
+    # (third tile of the 2x2 grid: tile at (284,216), icon at tile +
+    # (10,4), 96 px).
     def tile_icon_sha(name, box):
         img = Image.open(os.path.join(OUT, name)).crop(box)
         return hashlib.sha256(img.tobytes()).hexdigest()
 
     COAT_ICON_BOX = (294, 220, 390, 316)
-    d = dumps["59_kit_dec15"]
+    d = dumps["59_kit_dec13"]
     check(d["look_name"] == "snow",
-          f"59_kit_dec15: rotation pick for 2026-12-15 is the winter kit (look={d['look_name']})")
-    t = dumps["59_kit_dec15b_tomorrow"]
+          f"59_kit_dec13: rotation pick for 2026-12-13 is the winter kit (look={d['look_name']})")
+    t = dumps["59_kit_dec13b_tomorrow"]
     check(t["look_name"] == "kit2",
-          f"59_kit_dec15b_tomorrow: tomorrow's pick steps to the red winter kit (look={t['look_name']})")
-    d = dumps["60_kit2_dec16"]
+          f"59_kit_dec13b_tomorrow: tomorrow's pick steps to the red winter kit (look={t['look_name']})")
+    d = dumps["60_kit2_dec14"]
     check(d["look_name"] == "kit2",
-          f"60_kit2_dec16: rotation pick for 2026-12-16 is kit2 (look={d['look_name']})")
-    for name in ("59_kit_dec15", "59_kit_dec15b_tomorrow", "60_kit2_dec16", "61_kit2_pink"):
+          f"60_kit2_dec14: rotation pick for 2026-12-14 is kit2 (look={d['look_name']})")
+    for name in ("59_kit_dec13", "59_kit_dec13b_tomorrow", "60_kit2_dec14", "61_kit2_pink"):
         dd = dumps[name]
         check(dd["tiles"] == "Long sleeves|Long pants|Winter coat|Warm boots",
               f"{name}: kit tiles unchanged by the rotation ({dd['tiles']})")
@@ -2088,9 +2102,9 @@ def main():
               f"{name}: hat and gloves chips prescribed ({dd['chips']})")
         check("winter coat" in dd["advice"],
               f"{name}: the advice names the winter coat ({dd['advice']})")
-    check(stage_sha("59_kit_dec15.png") != stage_sha("60_kit2_dec16.png"),
+    check(stage_sha("59_kit_dec13.png") != stage_sha("60_kit2_dec14.png"),
           "stage crops differ: the kit2 sprite is not the kit sprite")
-    check(tile_icon_sha("59_kit_dec15.png", COAT_ICON_BOX) != tile_icon_sha("60_kit2_dec16.png", COAT_ICON_BOX),
+    check(tile_icon_sha("59_kit_dec13.png", COAT_ICON_BOX) != tile_icon_sha("60_kit2_dec14.png", COAT_ICON_BOX),
           "coat tile pictures differ: kit2 day shows the red coat icon, kit day the pink one")
     d = dumps["61_kit2_pink"]
     check(d["look_name"] == "kit2",
@@ -2104,6 +2118,75 @@ def main():
     # the warmcoat (kit2's sprite wears a hat the day never asked for).
     check(dumps["56_warmcoat"]["look_name"] == "warmcoat",
           "56_warmcoat: hat-free warm-tier day never picks kit2")
+
+    # Iter-33: the winter-variant hat days. The shirt variants keep
+    # the kit's prescription whole (same tiles by name, same hat and
+    # gloves chips); the pink-coat day tiles the standard coat
+    # picture (identical pixels to the kit day's coat tile) and the
+    # red-coat day the red one (identical to kit2's). The dress
+    # variants swap the dress tile in for Long pants and drop the
+    # Long sleeves tile: three tiles, the dress named by colour, the
+    # coat picture following the coat, Warm boots last; their advice
+    # names the dress. The pink-choice render of the dress day must
+    # be the SAME black sprite on stage (the batch is black fur
+    # only; the pink slot aliases it).
+    d = dumps["62_hat_kitp_shirt"]
+    check(d["look_name"] == "kitp_navy_stripe",
+          f"62_hat_kitp_shirt: rotation pick for 2026-12-15 is the pink-coat navy-stripe kit (look={d['look_name']})")
+    t = dumps["62b_hat_kitp_shirt_tomorrow"]
+    check(t["look_name"] == "kitp_rust_stripe",
+          f"62b_hat_kitp_shirt_tomorrow: tomorrow's pick steps to the rust-stripe kit (look={t['look_name']})")
+    d = dumps["63_hat_kitr_shirt"]
+    check(d["look_name"] == "kitr_navy_stripe",
+          f"63_hat_kitr_shirt: rotation pick for 2026-12-21 is the red-coat navy-stripe kit (look={d['look_name']})")
+    for name in ("62_hat_kitp_shirt", "62b_hat_kitp_shirt_tomorrow", "63_hat_kitr_shirt"):
+        dd = dumps[name]
+        check(dd["tiles"] == "Long sleeves|Long pants|Winter coat|Warm boots",
+              f"{name}: shirt variants keep the kit tiles ({dd['tiles']})")
+        check(dd["chips"] == "Warm hat|Gloves",
+              f"{name}: hat and gloves chips prescribed ({dd['chips']})")
+        check("winter coat" in dd["advice"],
+              f"{name}: the advice names the winter coat ({dd['advice']})")
+    check(tile_icon_sha("62_hat_kitp_shirt.png", COAT_ICON_BOX) == tile_icon_sha("59_kit_dec13.png", COAT_ICON_BOX),
+          "coat tile pictures match: the pink-coat shirt day shows the kit's own coat icon")
+    check(tile_icon_sha("63_hat_kitr_shirt.png", COAT_ICON_BOX) == tile_icon_sha("60_kit2_dec14.png", COAT_ICON_BOX),
+          "coat tile pictures match: the red-coat shirt day shows kit2's red coat icon")
+    check(stage_sha("62_hat_kitp_shirt.png") != stage_sha("59_kit_dec13.png"),
+          "stage crops differ: the navy-stripe shirt sprite is not the kit sprite")
+    check(stage_sha("63_hat_kitr_shirt.png") != stage_sha("60_kit2_dec14.png"),
+          "stage crops differ: the red-coat shirt sprite is not the kit2 sprite")
+    check(stage_sha("62_hat_kitp_shirt.png") != stage_sha("63_hat_kitr_shirt.png"),
+          "stage crops differ: the pink-coat and red-coat shirt sprites differ")
+    d = dumps["64_hat_kitp_dress"]
+    check(d["look_name"] == "kitp_dress",
+          f"64_hat_kitp_dress: rotation pick for 2026-12-11 is the lavender dress under the pink coat (look={d['look_name']})")
+    check(d["tiles"] == "Lavender dress|Winter coat|Warm boots",
+          f"64_hat_kitp_dress: dress tiles (dress in for Long pants, no Long sleeves) ({d['tiles']})")
+    check(d["chips"] == "Warm hat|Gloves",
+          f"64_hat_kitp_dress: hat and gloves chips stay ({d['chips']})")
+    check(d["advice"].startswith("Wear your dress."),
+          f"64_hat_kitp_dress: the advice names the dress ({d['advice']})")
+    t = dumps["64b_hat_kitr_dress_tomorrow"]
+    check(t["look_name"] == "kitr_dress",
+          f"64b_hat_kitr_dress_tomorrow: tomorrow's pick steps to the mint dress under the red coat (look={t['look_name']})")
+    check(t["tiles"] == "Mint dress|Winter coat|Warm boots",
+          f"64b_hat_kitr_dress_tomorrow: dress tiles ({t['tiles']})")
+    check(t["advice"].startswith("Wear your dress."),
+          f"64b_hat_kitr_dress_tomorrow: the advice names the dress ({t['advice']})")
+    # The dress tiles sit in a 3-tile row, so their icon boxes are
+    # not the 2x2 grid's: the coat is the SECOND tile here. Compare
+    # the two dress days' coat pictures against each other instead:
+    # pink coat on the lavender day, red on the mint day, so the
+    # stage crops must differ and neither may equal a shirt day.
+    check(stage_sha("64_hat_kitp_dress.png") != stage_sha("64b_hat_kitr_dress_tomorrow.png"),
+          "stage crops differ: the lavender-dress and mint-dress sprites differ")
+    check(stage_sha("64_hat_kitp_dress.png") != stage_sha("62_hat_kitp_shirt.png"),
+          "stage crops differ: the dress sprite is not a shirt sprite")
+    d = dumps["65_hat_kitp_dress_pink"]
+    check(d["look_name"] == "kitp_dress",
+          f"65_hat_kitp_dress_pink: the pink choice resolves the same look (look={d['look_name']})")
+    check(stage_sha("65_hat_kitp_dress_pink.png") == stage_sha("64_hat_kitp_dress.png"),
+          "stage crops identical: the pink slot aliases the black sprite (black fur only)")
 
     if failures:
         print(f"\n{len(failures)} render check(s) FAILED")

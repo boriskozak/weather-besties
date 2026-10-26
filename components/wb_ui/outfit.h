@@ -102,7 +102,7 @@ typedef enum {
                            * (see outfit.c's iter-27 note) */
     LOOK_UNIFORM_FALL,    /* hoodie band: logo tee + lavender hooded
                            * jacket, no scarf */
-    LOOK_KIT2             /* iter-30: the red winter kit (red quilted
+    LOOK_KIT2,            /* iter-30: the red winter kit (red quilted
                            * coat, hat, scarf, mittens). A rotation
                            * variant of LOOK_SNOW inside the dry
                            * warm-coat tier on days that prescribe a
@@ -111,6 +111,36 @@ typedef enum {
                            * exactly like the kit, so it canonicalises
                            * to the kit's outfit whole; only the coat
                            * tile's picture changes (WINTER_COAT_RED) */
+    /* Iter-33: the winter-variant batch (art/pippa-winter-variants),
+     * appended so every existing look keeps its value. Fourteen more
+     * rotation variants of LOOK_SNOW inside the same dry warm-coat
+     * tier hat band, which is now all 16 truthful hat looks picked by
+     * the outfit-date seed: the twelve shirt variants wear a named
+     * long-sleeve shirt under the pink (kitp) or red (kitr) winter
+     * coat and canonicalise to the kit's outfit whole, with the coat
+     * tile following the coat colour exactly like kit2's; the two
+     * dress variants wear a dress under the open coat (lavender
+     * under pink, mint under red) with warm leggings instead of long
+     * pants, so their tiles swap the dress in for Long pants and
+     * drop the Long sleeves tile (the dress is the torso garment;
+     * the coat's arms cover the arms). Every one wears hat, scarf,
+     * mittens and winter boots, so hat and gloves chips stay. The
+     * batch is wired black fur only: the pink enum slots alias the
+     * black sprites (see tools/make_pippa_assets.py). */
+    LOOK_KITP_NAVY_STRIPE,
+    LOOK_KITP_RUST_STRIPE,
+    LOOK_KITP_MUSTARD_STRIPE,
+    LOOK_KITP_NAVY_SOLID,
+    LOOK_KITP_MUSTARD_SOLID,
+    LOOK_KITP_TEAL_SOLID,
+    LOOK_KITR_NAVY_STRIPE,
+    LOOK_KITR_RUST_STRIPE,
+    LOOK_KITR_MUSTARD_STRIPE,
+    LOOK_KITR_NAVY_SOLID,
+    LOOK_KITR_MUSTARD_SOLID,
+    LOOK_KITR_TEAL_SOLID,
+    LOOK_KITP_DRESS,      /* lavender dress under the open pink coat */
+    LOOK_KITR_DRESS       /* mint dress under the open red coat */
 } look_t;
 
 typedef struct {

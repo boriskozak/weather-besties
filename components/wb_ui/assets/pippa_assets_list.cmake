@@ -38,6 +38,20 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_pink_uniform_fall.c
     assets/img_pippa_kit2.c
     assets/img_pippa_pink_kit2.c
+    assets/img_pippa_kitp_navy_stripe.c
+    assets/img_pippa_kitp_rust_stripe.c
+    assets/img_pippa_kitp_mustard_stripe.c
+    assets/img_pippa_kitp_navy_solid.c
+    assets/img_pippa_kitp_mustard_solid.c
+    assets/img_pippa_kitp_teal_solid.c
+    assets/img_pippa_kitr_navy_stripe.c
+    assets/img_pippa_kitr_rust_stripe.c
+    assets/img_pippa_kitr_mustard_stripe.c
+    assets/img_pippa_kitr_navy_solid.c
+    assets/img_pippa_kitr_mustard_solid.c
+    assets/img_pippa_kitr_teal_solid.c
+    assets/img_pippa_kitp_dress.c
+    assets/img_pippa_kitr_dress.c
     assets/img_pippa_base.c
     assets/img_pippa_heart_0.c
     assets/img_pippa_heart_1.c
@@ -84,6 +98,20 @@ set(WB_PIPPA_ASSET_SRCS
     assets/img_pippa_mini_pink_uniform_fall.c
     assets/img_pippa_mini_kit2.c
     assets/img_pippa_mini_pink_kit2.c
+    assets/img_pippa_mini_kitp_navy_stripe.c
+    assets/img_pippa_mini_kitp_rust_stripe.c
+    assets/img_pippa_mini_kitp_mustard_stripe.c
+    assets/img_pippa_mini_kitp_navy_solid.c
+    assets/img_pippa_mini_kitp_mustard_solid.c
+    assets/img_pippa_mini_kitp_teal_solid.c
+    assets/img_pippa_mini_kitr_navy_stripe.c
+    assets/img_pippa_mini_kitr_rust_stripe.c
+    assets/img_pippa_mini_kitr_mustard_stripe.c
+    assets/img_pippa_mini_kitr_navy_solid.c
+    assets/img_pippa_mini_kitr_mustard_solid.c
+    assets/img_pippa_mini_kitr_teal_solid.c
+    assets/img_pippa_mini_kitp_dress.c
+    assets/img_pippa_mini_kitr_dress.c
     assets/img_pippa_head_thumb.c
     assets/img_pippa_head_pink_thumb.c
     assets/img_pippa_heart_overlay.c

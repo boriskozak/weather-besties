@@ -560,31 +560,71 @@ int main(int argc, char **argv)
 
     /* Iter-30: the warm tier's hat-day rotation. Two consecutive dry
      * warm-coat-tier mornings that prescribe the hat (scenarios
-     * rot_kit_0..1, 2026-12-15..16): the first day's pick is the
-     * winter kit, the next day's is the red winter kit (kit2), and
-     * the first day's Tomorrow page must already show kit2 (the seed
-     * is the outfit's own date). Both days prescribe identically
-     * (same tiles by name, hat and gloves chips); only the sprite
-     * and the coat tile's picture differ. A third render shows the
-     * kit2 day in the pink colourway, then the choice is restored to
-     * the black pin the blocks above run under. */
+     * rot_kit_0..1, 2026-12-13..14 since iter-33 widened the band to
+     * 16 looks): the first day's pick is the winter kit, the next
+     * day's is the red winter kit (kit2), and the first day's
+     * Tomorrow page must already show kit2 (the seed is the outfit's
+     * own date). Both days prescribe identically (same tiles by
+     * name, hat and gloves chips); only the sprite and the coat
+     * tile's picture differ. A third render shows the kit2 day in
+     * the pink colourway, then the choice is restored to the black
+     * pin the blocks above run under. */
     load(sc, "rot_kit_0");
     show();
-    save(out, "59_kit_dec15");
-    dump(out, "59_kit_dec15");
+    save(out, "59_kit_dec13");
+    dump(out, "59_kit_dec13");
     ui_test_set_page(1);
     pump(10);
-    save(out, "59_kit_dec15b_tomorrow");
-    dump(out, "59_kit_dec15b_tomorrow");
+    save(out, "59_kit_dec13b_tomorrow");
+    dump(out, "59_kit_dec13b_tomorrow");
     ui_test_set_page(0);
     load(sc, "rot_kit_1");
     show();
-    save(out, "60_kit2_dec16");
-    dump(out, "60_kit2_dec16");
+    save(out, "60_kit2_dec14");
+    dump(out, "60_kit2_dec14");
     ui_set_cat_choice(1);
     show();
     save(out, "61_kit2_pink");
     dump(out, "61_kit2_pink");
+    ui_set_cat_choice(0);
+
+    /* Iter-33: the winter-variant hat days (scenarios rot_hat_0..2,
+     * same weather as rot_kit_*). A pink-coat shirt day (Dec 15,
+     * kitp_navy_stripe) whose Tomorrow steps to the next shirt
+     * (Dec 16, kitp_rust_stripe), a red-coat shirt day (Dec 21,
+     * kitr_navy_stripe), and the dress pair: Dec 11 (kitp_dress, the
+     * lavender dress under the pink coat) whose Tomorrow is Dec 12
+     * (kitr_dress, the mint dress under the red coat). The last
+     * render shows the kitp_dress day under the PINK cat choice: the
+     * batch is black fur only, so the pink slot aliases the black
+     * sprite and the stage must be pixel-identical to the black
+     * render. The choice is restored to the black pin after. */
+    load(sc, "rot_hat_0");
+    show();
+    save(out, "62_hat_kitp_shirt");
+    dump(out, "62_hat_kitp_shirt");
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "62b_hat_kitp_shirt_tomorrow");
+    dump(out, "62b_hat_kitp_shirt_tomorrow");
+    ui_test_set_page(0);
+    load(sc, "rot_hat_1");
+    show();
+    save(out, "63_hat_kitr_shirt");
+    dump(out, "63_hat_kitr_shirt");
+    load(sc, "rot_hat_2");
+    show();
+    save(out, "64_hat_kitp_dress");
+    dump(out, "64_hat_kitp_dress");
+    ui_test_set_page(1);
+    pump(10);
+    save(out, "64b_hat_kitr_dress_tomorrow");
+    dump(out, "64b_hat_kitr_dress_tomorrow");
+    ui_test_set_page(0);
+    ui_set_cat_choice(1);
+    show();
+    save(out, "65_hat_kitp_dress_pink");
+    dump(out, "65_hat_kitp_dress_pink");
     ui_set_cat_choice(0);
 
     /* Iter-14: the My Day page, third screen. The populated state

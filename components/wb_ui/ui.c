@@ -2553,7 +2553,16 @@ static void cat2_apply(const outfit_t *o, const cat_season_t *seas, bool unavail
                                                PIPPA_TOP_RUST,     PIPPA_DRESS_LAVENDER, PIPPA_DRESS_MINT,
                                                PIPPA_DRESS_MUSTARD, PIPPA_FALL_HOODIE,  PIPPA_UNIFORM_DRESS,
                                                PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL,
-                                               PIPPA_KIT2};
+                                               PIPPA_KIT2,
+                                               /* iter-33: the winter variants (black fur only;
+                                                * the pink slots alias the black sprites) */
+                                               PIPPA_KITP_NAVY_STRIPE,    PIPPA_KITP_RUST_STRIPE,
+                                               PIPPA_KITP_MUSTARD_STRIPE, PIPPA_KITP_NAVY_SOLID,
+                                               PIPPA_KITP_MUSTARD_SOLID,  PIPPA_KITP_TEAL_SOLID,
+                                               PIPPA_KITR_NAVY_STRIPE,    PIPPA_KITR_RUST_STRIPE,
+                                               PIPPA_KITR_MUSTARD_STRIPE, PIPPA_KITR_NAVY_SOLID,
+                                               PIPPA_KITR_MUSTARD_SOLID,  PIPPA_KITR_TEAL_SOLID,
+                                               PIPPA_KITP_DRESS,          PIPPA_KITR_DRESS};
             int v = look_variant[o->look];
             /* Outfit variants come in black/pink pairs (pippa_sets.h):
              * the pink variant is the black one's value + 1. */
@@ -2756,7 +2765,12 @@ static const char *look_name_str(int look)
     static const char *names[] = {"dress",    "pants",        "snow",          "rain",        "hot",          "fall",
                                   "warmcoat", "top_mustard",  "top_navy",      "top_rust",    "dress_lavender", "dress_mint",
                                   "dress_mustard", "fall_hoodie", "uniform_dress", "uniform_pants", "uniform_hot", "uniform_fall",
-                                  "kit2"};
+                                  "kit2",
+                                  "kitp_navy_stripe", "kitp_rust_stripe", "kitp_mustard_stripe", "kitp_navy_solid",
+                                  "kitp_mustard_solid", "kitp_teal_solid",
+                                  "kitr_navy_stripe", "kitr_rust_stripe", "kitr_mustard_stripe", "kitr_navy_solid",
+                                  "kitr_mustard_solid", "kitr_teal_solid",
+                                  "kitp_dress", "kitr_dress"};
     return (look >= 0 && look < (int)(sizeof(names) / sizeof(names[0]))) ? names[look] : "none";
 }
 
@@ -2772,7 +2786,16 @@ static int pippa_variant_for(int look, int y, int m, int d)
                                        PIPPA_TOP_RUST,     PIPPA_DRESS_LAVENDER, PIPPA_DRESS_MINT,
                                        PIPPA_DRESS_MUSTARD, PIPPA_FALL_HOODIE,  PIPPA_UNIFORM_DRESS,
                                        PIPPA_UNIFORM_PANTS, PIPPA_UNIFORM_HOT,  PIPPA_UNIFORM_FALL,
-                                       PIPPA_KIT2};
+                                       PIPPA_KIT2,
+                                       /* iter-33: the winter variants (black fur only;
+                                        * the pink slots alias the black sprites) */
+                                       PIPPA_KITP_NAVY_STRIPE,    PIPPA_KITP_RUST_STRIPE,
+                                       PIPPA_KITP_MUSTARD_STRIPE, PIPPA_KITP_NAVY_SOLID,
+                                       PIPPA_KITP_MUSTARD_SOLID,  PIPPA_KITP_TEAL_SOLID,
+                                       PIPPA_KITR_NAVY_STRIPE,    PIPPA_KITR_RUST_STRIPE,
+                                       PIPPA_KITR_MUSTARD_STRIPE, PIPPA_KITR_NAVY_SOLID,
+                                       PIPPA_KITR_MUSTARD_SOLID,  PIPPA_KITR_TEAL_SOLID,
+                                       PIPPA_KITP_DRESS,          PIPPA_KITR_DRESS};
     int choice = s_cat_choice;
     if (choice == 2) {
         long doy = days_from_civil(y, m, d) - days_from_civil(y, 1, 1) + 1;
