@@ -77,6 +77,7 @@ Honest fine print: the prebuilt images in `firmware/` are still the older v1.4.0
 ## Hardware
 
 - Waveshare ESP32-S3-Touch-LCD-4.3B (ESP32-S3-WROOM-1-N16R8: 16 MB flash, 8 MB octal PSRAM)
+- [Buy the board on Amazon](https://a.co/d/0a7hHUrl). Tip: get the board without the case (around $37) and 3D print a case instead, see [The case and the insides](#the-case-and-the-insides) below.
 - 800 x 480 RGB display with GT911 capacitive touch
 - Any USB-C 5V supply. The board has two USB-C ports: **UART** (serial, used for flashing) and **USB** (native USB)
 
