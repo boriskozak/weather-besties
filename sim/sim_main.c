@@ -510,6 +510,54 @@ static void fixture_cal_evening(void)
     }
 }
 
+/* Iter-38: the custom-names shape. Same fictional day as the
+ * stress fixture, but the events name another family's kids:
+ * Piper (kid 1) and Kymbrely (kid 2), plus one event naming
+ * Cleo, who is NOT a configured kid in this render and must
+ * carry no tag. Rendered with ui_set_kid_names("Piper",
+ * "Kymbrely") at the 9:20 AM clock: Piper's lesson is NEXT,
+ * the other two are still to come. */
+static void fixture_cal_custom_names(void)
+{
+    struct tm today = now_tm, tom = now_tm;
+    tom.tm_mday += 1;
+    tom.tm_isdst = -1;
+    mktime(&tom);
+    char d0[9], d1[9];
+    ymd(d0, &today);
+    ymd(d1, &tom);
+    char ics[4096];
+    int n = 0;
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VCALENDAR\r\nPRODID:-//WeatherBesties Sim//EN\r\nVERSION:2.0\r\n");
+    n += snprintf(ics + n, sizeof(ics) - n, "%s", VTZ_NY);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-c1\r\nDTSTART;TZID=America/New_York:%sT100000\r\n"
+                  "DTEND;TZID=America/New_York:%sT110000\r\nSUMMARY:Piper's piano lesson\r\n"
+                  "LOCATION:Music school\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-c2\r\nDTSTART;TZID=America/New_York:%sT121500\r\n"
+                  "DTEND;TZID=America/New_York:%sT130000\r\nSUMMARY:Cleo's reading buddy celebration party\r\n"
+                  "LOCATION:Watchung School library\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-c3\r\nDTSTART;TZID=America/New_York:%sT153000\r\n"
+                  "DTEND;TZID=America/New_York:%sT163000\r\nSUMMARY:Kymbrely's soccer practice\r\n"
+                  "LOCATION:Roosevelt Field\r\nEND:VEVENT\r\n",
+                  d0, d0);
+    n += snprintf(ics + n, sizeof(ics) - n,
+                  "BEGIN:VEVENT\r\nUID:sim-c4\r\nDTSTART;TZID=America/New_York:%sT080000\r\n"
+                  "DTEND;TZID=America/New_York:%sT090000\r\nSUMMARY:School bake sale\r\n"
+                  "LOCATION:Watchung School gym\r\nEND:VEVENT\r\n",
+                  d1, d1);
+    n += snprintf(ics + n, sizeof(ics) - n, "END:VCALENDAR\r\n");
+    if (!cal_parse(ics, (size_t)n)) {
+        fprintf(stderr, "custom-names fixture calendar did not parse\n");
+        exit(1);
+    }
+}
+
 static void fixture_fetched(void)
 {
     fixture_fetched_at(7, 2);
@@ -868,6 +916,30 @@ int main(int argc, char **argv)
     save(out, "58_rot_jul14");
     dump(out, "58_rot_jul14");
 
+    /* Iter-38: fresh-board defaults. No bike bus day: the cold
+     * Friday (36's scenario) loses its bike-bus glove callout.
+     * Uniform outfits off: the dress-band day that picks the logo
+     * dress with uniforms on (54) and the hot-band day that picks
+     * the logo hot look (58) pick from the remaining candidates
+     * instead. Both settings are restored after, so the renders
+     * below run under the set-up-board defaults again. */
+    ui_set_bike_bus_day(-1);
+    load(sc, "bike_bus_cold_friday");
+    show();
+    save(out, "36b_bike_bus_none");
+    dump(out, "36b_bike_bus_none");
+    ui_set_bike_bus_day(5);
+    ui_set_uniform(false);
+    load(sc, "rot_dress_4");
+    show();
+    save(out, "54b_rot_nov12_nouniform");
+    dump(out, "54b_rot_nov12_nouniform");
+    load(sc, "rot_hot_1");
+    show();
+    save(out, "58b_rot_jul14_nouniform");
+    dump(out, "58b_rot_jul14_nouniform");
+    ui_set_uniform(true);
+
     /* Iter-30: the warm tier's hat-day rotation. Two consecutive dry
      * warm-coat-tier mornings that prescribe the hat (scenarios
      * rot_kit_0..1, 2026-12-13..14 since iter-33 widened the band to
@@ -1078,6 +1150,24 @@ int main(int argc, char **argv)
     ui_test_scroll_myday_bottom();
     save(out, "47c_myday_stress_scrolled");
     dump(out, "47c_myday_stress_scrolled");
+
+    /* Iter-38: the same page with custom kid names configured.
+     * Piper's event tags PIPER in kid 1's lavender slot,
+     * Kymbrely's tags KYMBRELY (8 characters) in kid 2's teal
+     * slot, and the event naming Cleo tags nobody. save() runs
+     * the layout gate on this state too, so the long tag is
+     * proven to fit its pill. The defaults are restored after,
+     * so nothing later in the run sees the custom pair. */
+    ui_set_kid_names("Piper", "Kymbrely");
+    fixture_cal_custom_names();
+    fixture_fetched();
+    now_tm.tm_hour = 9;
+    now_tm.tm_min = 20;
+    ui_refresh_clock();
+    pump(10);
+    save(out, "47d_myday_custom_names");
+    dump(out, "47d_myday_custom_names");
+    ui_set_kid_names("Cleo", "Lila");
 
     /* Iter-35: a LOCAL-ONLY real-data fixture, gated on an env
      * var so `make shots` never sees it. The file named by

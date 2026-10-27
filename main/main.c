@@ -100,9 +100,11 @@ void app_main(void)
 
     board_lvgl_lock(-1);
     ui_init(S.names);
+    ui_set_kid_names(S.kid1, S.kid2);
     ui_set_cat_cb(cat_cb);
     ui_set_cat_choice(S.cat);
     ui_set_bike_bus_day(S.bike_bus <= 6 ? S.bike_bus : -1);
+    ui_set_uniform(S.uniform);
     ui_set_action_cb(net_ui_action, NULL);
     ui_set_time_cb(net_local_time);
     ui_set_speed_cb(speed_cb);

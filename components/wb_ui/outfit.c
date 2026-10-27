@@ -616,8 +616,31 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
             nband = n;
         }
         if (nband > 1) {
-            long seed = days_from_civil(out->year, out->month, out->day);
-            look = band[(int)(((seed % nband) + nband) % nband)];
+            if (o && !o->uniform) {
+                /* School uniform outfits turned off in setup: drop
+                 * the four logo looks from the band before the date
+                 * seed picks, so they are never prescribed. Bands
+                 * without a uniform look are unchanged, and a band
+                 * left with one candidate simply keeps it. */
+                int kept[16];
+                int nk = 0;
+                for (int i = 0; i < nband; i++) {
+                    int lk = band[i];
+                    if (lk == LOOK_UNIFORM_DRESS || lk == LOOK_UNIFORM_PANTS ||
+                        lk == LOOK_UNIFORM_HOT || lk == LOOK_UNIFORM_FALL) {
+                        continue;
+                    }
+                    kept[nk++] = lk;
+                }
+                band = kept;
+                nband = nk;
+            }
+            if (nband > 1) {
+                long seed = days_from_civil(out->year, out->month, out->day);
+                look = band[(int)(((seed % nband) + nband) % nband)];
+            } else if (nband == 1) {
+                look = band[0];
+            }
         }
     }
 

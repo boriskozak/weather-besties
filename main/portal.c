@@ -193,7 +193,7 @@ static esp_err_t page_root(httpd_req_t *req)
     if (!b.p) {
         return httpd_resp_send_500(req);
     }
-    char e1[200], e2[200], e3[120], e4[1700];
+    char e1[200], e2[200], e3[120], e4[1700], e5[120];
     sb_add(&b, "<!doctype html><html><head><meta charset=\"utf-8\">"
                "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
                "<title>Weather Besties setup</title><style>%s</style></head><body><main>"
@@ -218,18 +218,23 @@ static esp_err_t page_root(httpd_req_t *req)
            S->pass[0] ? "Leave blank to keep the saved one" : "");
 
     html_esc(S->place_query, e2, sizeof(e2));
-    html_esc(S->names, e3, sizeof(e3));
+    html_esc(S->kid1, e3, sizeof(e3));
+    html_esc(S->kid2, e5, sizeof(e5));
     html_esc(S->cal_url, e4, sizeof(e4));
     sb_add(&b, "<div class=\"card\"><label for=\"place\">Town or ZIP code</label>"
                "<input id=\"place\" name=\"place\" value=\"%s\" required>"
                "<p class=\"hint\">Like \"Montclair, NJ\" or \"07043\".</p>"
-               "<label for=\"names\" style=\"margin-top:14px\">Names on the screen</label>"
-               "<input id=\"names\" name=\"names\" value=\"%s\" maxlength=\"40\">"
+               "<label for=\"kid1\" style=\"margin-top:14px\">First kid's name</label>"
+               "<input id=\"kid1\" name=\"kid1\" value=\"%s\" maxlength=\"20\">"
+               "<label for=\"kid2\" style=\"margin-top:14px\">Second kid's name</label>"
+               "<input id=\"kid2\" name=\"kid2\" value=\"%s\" maxlength=\"20\">"
+               "<p class=\"hint\">Used in the greeting and for the name tags on the My Day page. "
+               "One kid? Fill in just the first.</p>"
                "<label for=\"cal\" style=\"margin-top:14px\">Kids calendar link (iCal)</label>"
                "<input id=\"cal\" name=\"cal\" value=\"%s\" autocomplete=\"off\" autocapitalize=\"none\">"
                "<p class=\"hint\">Optional. Paste the secret iCal link of the kids calendar and the "
-               "My Day page will show what the girls have today and tomorrow. Leave blank for none.</p></div>",
-           e2, e3, e4);
+               "My Day page will show what the kids have today and tomorrow. Leave blank for none.</p></div>",
+           e2, e3, e5, e4);
 
     sb_add(&b, "<div class=\"card\"><label>Temperature</label><div class=\"units\">"
                "<label><input type=\"radio\" name=\"units\" value=\"f\"%s>&deg;F</label>"
@@ -245,6 +250,10 @@ static esp_err_t page_root(httpd_req_t *req)
                "Install updates automatically</label><p class=\"hint\">Checks around 3 AM. Settings on the screen "
                "has an Update button too. Off unless you turn it on.</p>",
            S->auto_update ? " checked" : "");
+    sb_add(&b, "<label class=\"check\" style=\"margin-top:16px\"><input type=\"checkbox\" name=\"unif\" value=\"1\"%s>"
+               "School uniform outfits</label><p class=\"hint\">Pippa can wear the school logo looks. "
+               "Off if your school has no uniform.</p>",
+           S->uniform ? " checked" : "");
     sb_add(&b, "<label for=\"bbus\" style=\"margin-top:16px\">Bike bus day</label><select id=\"bbus\" name=\"bbus\">");
     static const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "No bike bus"};
     for (int d = 0; d < 8; d++) {
@@ -302,8 +311,24 @@ static esp_err_t page_save(httpd_req_t *req)
         n.has_coords = false; /* look it up after restart */
         snprintf(n.place_name, sizeof(n.place_name), "%s", v);
     }
-    if (form_get(body, "names", v, sizeof(v))) {
-        snprintf(n.names, sizeof(n.names), "%s", v);
+    /* Iter-38: the two kid-name fields replace the old single
+     * "Names on the screen" input. The greeting string is derived
+     * from them ("Kid1 & Kid2", or the one name when only one is
+     * set); when both come back blank, the saved names and
+     * greeting stay untouched. */
+    {
+        char nk1[24] = "", nk2[24] = "";
+        bool got1 = form_get(body, "kid1", nk1, sizeof(nk1));
+        bool got2 = form_get(body, "kid2", nk2, sizeof(nk2));
+        if ((got1 || got2) && (nk1[0] || nk2[0])) {
+            snprintf(n.kid1, sizeof(n.kid1), "%s", nk1);
+            snprintf(n.kid2, sizeof(n.kid2), "%s", nk2);
+            if (nk1[0] && nk2[0]) {
+                snprintf(n.names, sizeof(n.names), "%s & %s", nk1, nk2);
+            } else {
+                snprintf(n.names, sizeof(n.names), "%s", nk1[0] ? nk1 : nk2);
+            }
+        }
     }
     char cv[300];
     if (form_get(body, "cal", cv, sizeof(cv))) {
@@ -312,6 +337,7 @@ static esp_err_t page_save(httpd_req_t *req)
     n.celsius = form_get(body, "units", v, sizeof(v)) && v[0] == 'c';
     n.night_off = form_get(body, "noff", v, sizeof(v)) && v[0] == '1';
     n.auto_update = form_get(body, "autoup", v, sizeof(v)) && v[0] == '1';
+    n.uniform = form_get(body, "unif", v, sizeof(v)) && v[0] == '1';
     if (form_get(body, "from", v, sizeof(v))) {
         n.off_from = (uint8_t)(atoi(v) % 24);
     }

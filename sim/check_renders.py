@@ -945,6 +945,16 @@ def main():
     d36 = dumps["36_bike_bus"]
     check("Bike bus today" in d36["advice"] and "gloves" in d36["advice"].lower(),
           f"36_bike_bus: sentence carries the bike-bus gloves ({d36['advice']})")
+    # Iter-38: a fresh board has no bike bus day. The same cold
+    # Friday loses the callout and the ride extras it carries (the
+    # hat and gloves chips are the bike bus's), and falls back to
+    # the plain warm-coat prescription.
+    d36b = dump("36b_bike_bus_none")
+    check("Bike bus today" not in d36b["advice"],
+          f"36b_bike_bus_none: no bike-bus callout with no bike bus day set ({d36b['advice']})")
+    check(d36b["look_name"] == "warmcoat" and d36b["chips"] == "" and
+          d36b["tiles"] == "Long sleeves|Long pants|Warm coat|Warm boots",
+          f"36b_bike_bus_none: plain warm-coat day, no ride extras (look={d36b['look_name']}, chips={d36b['chips']}, tiles={d36b['tiles']})")
     check(dumps["28_snow"]["look_name"] == "snow",
           f"28_snow: the snow day IS the winter kit (look={dumps['28_snow']['look_name']})")
     check(dumps["31_halloween"]["look_name"] == "snow",
@@ -1809,6 +1819,32 @@ def main():
     n = count_where(img47c, (28, 413, 592, 423), is_full_ink)
     check(n == 0, f"47c_myday_stress_scrolled: nothing inks the band above the tab row ({n} px, need 0)")
 
+    # Iter-38: custom kid names. The configured kids are Piper
+    # and Kymbrely for this render: Piper's event tags PIPER in
+    # kid 1's lavender slot, Kymbrely's tags KYMBRELY in kid 2's
+    # teal slot, and the event naming Cleo (not a configured kid
+    # here) carries no tag at all. The layout gate already ran
+    # inside save(); these checks pin the tag words, the slots'
+    # colours and the 8-character tag's full width.
+    md47d = dump("47d_myday_custom_names")
+    check(md47d["myday_state"] == "events" and md47d["myday_today_n"] == "3" and md47d["myday_tom_n"] == "1",
+          f"47d_myday_custom_names: populated, 3 cards today, 1 tomorrow (state={md47d['myday_state']}, {md47d['myday_today_n']}/{md47d['myday_tom_n']})")
+    check(md47d["myday_nametags"] == "PIPER:Piper's piano lesson;KYMBRELY:Kymbrely's soccer practice",
+          f"47d_myday_custom_names: PIPER and KYMBRELY tags, no tag for Cleo ({md47d['myday_nametags']!r})")
+    check(md47d["myday_nametag"] == "KYMBRELY" and md47d["myday_nametag_row"] == "Kymbrely's soccer practice",
+          f"47d_myday_custom_names: last tag is KYMBRELY on the soccer row (tag={md47d['myday_nametag']!r}, row={md47d['myday_nametag_row']!r})")
+    check(md47d["myday_nextup"] == "Piper's piano lesson",
+          f"47d_myday_custom_names: NEXT on Piper's row at 9:20 ({md47d['myday_nextup']!r})")
+    img47d = Image.open(os.path.join(OUT, "47d_myday_custom_names.png"))
+    lav = pill_rect(img47d, (216, 204, 242), 12, (540, 80, 790, 175))
+    tea = pill_rect(img47d, (181, 223, 213), 12, (540, 240, 790, 360))
+    check(lav is not None and lav[4] > 400,
+          f"47d_myday_custom_names: PIPER tag filled lavender, kid 1's slot (rect={lav})")
+    check(tea is not None and tea[4] > 400,
+          f"47d_myday_custom_names: KYMBRELY tag filled teal, kid 2's slot (rect={tea})")
+    check(tea is not None and tea[2] - tea[0] + 1 >= 75,
+          f"47d_myday_custom_names: the 8-character KYMBRELY tag is fully drawn, not clipped (width {tea[2] - tea[0] + 1 if tea else 0} px, need >= 75)")
+
     # Fresh "Updated" rides the tab-bar row at the right, one
     # line of small ink clear of the last tab pill.
     n = count_where(img, (620, 430, 795, 474), is_tab_ink)
@@ -1916,6 +1952,23 @@ def main():
               f"{name}: the advice names both chips ({dd['advice']})")
     check(stage_sha("57_rot_jul13.png") != stage_sha("58_rot_jul14.png"),
           "stage crops differ: the logo hot sprite is not the standard hot sprite")
+
+    # Iter-38: uniform outfits off (a fresh board, or setup turned
+    # off). The logo days above pick from the remaining candidates;
+    # the prescription (tiles, chips) is the band's own and does not
+    # change. With uniforms on (the default here), 54 and 58 above
+    # prove the logo looks stay reachable.
+    d54b = dump("54b_rot_nov12_nouniform")
+    check(d54b["look_name"] in ("dress", "dress_lavender", "dress_mint", "dress_mustard"),
+          f"54b_rot_nov12_nouniform: no logo dress with uniforms off (look={d54b['look_name']})")
+    check(d54b["tiles"].split("|")[1:] == dumps["54_rot_nov12"]["tiles"].split("|")[1:] and
+          d54b["advice"] == dumps["54_rot_nov12"]["advice"],
+          f"54b_rot_nov12_nouniform: same prescription past the dress tile (tiles={d54b['tiles']})")
+    d58b = dump("58b_rot_jul14_nouniform")
+    check(d58b["look_name"] == "hot",
+          f"58b_rot_jul14_nouniform: the hot band keeps its standard look (look={d58b['look_name']})")
+    check(d58b["tiles"] == "Short sleeves|Shorts|Sneakers" and d58b["chips"] == "Sunglasses|Water bottle",
+          f"58b_rot_jul14_nouniform: hot prescription unchanged (tiles={d58b['tiles']}, chips={d58b['chips']})")
 
     # Iter-30: the warm tier's hat-day rotation. Two consecutive dry
     # warm-coat-tier mornings that prescribe the hat (2026-12-13..14,

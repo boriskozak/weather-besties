@@ -155,7 +155,7 @@ typedef struct {
     float t_now, hi, lo; int pop_day; int wx_code; bool is_day;  /* for the weather block */
 } outfit_t;
 
-typedef struct { int bike_bus_wday; } outfit_opts_t;
+typedef struct { int bike_bus_wday; bool uniform; } outfit_opts_t;
 
 /* now: real local clock. day_offset: 0 = the clock's today, 1 = tomorrow, 2, 3 (forecast page). */
 bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const outfit_opts_t *o, outfit_t *out);

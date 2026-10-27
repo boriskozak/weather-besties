@@ -44,7 +44,11 @@ void ui_set_speed_cb(ui_speed_cb_t cb);
 
 void ui_init(const char *names);
 void ui_set_names(const char *names);
+/* The two kids My Day tags by name (iter-38): from settings at
+ * boot. Either may be empty (that kid simply never tags). */
+void ui_set_kid_names(const char *kid1, const char *kid2);
 void ui_set_bike_bus_day(int wday);  /* 0 = Sunday ... 6 = Saturday, -1 = none. Default Friday. */
+void ui_set_uniform(bool on);       /* school uniform outfits in the rotation. Default on. */
 void ui_set_action_cb(ui_action_cb_t cb, void *user);
 void ui_set_time_cb(ui_time_cb_t cb);
 

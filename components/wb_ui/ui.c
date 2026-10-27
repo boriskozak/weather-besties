@@ -121,13 +121,22 @@ static const lv_image_dsc_t *GARMENT_96_PINK[GARMENT_COUNT];
 static const lv_image_dsc_t *GARMENT_56_PINK[GARMENT_COUNT];
 
 static char s_names[48] = "Cleo & Lila";
+/* The two kids whose names My Day tags (iter-38). Defaults match
+ * the shipped settings defaults; ui_set_kid_names overwrites them
+ * from settings at boot, so another family's names tag their own
+ * events. */
+static char s_kid1[24] = "Cleo";
+static char s_kid2[24] = "Lila";
 static ui_action_cb_t s_act_cb;
 static void *s_act_user;
 static ui_time_cb_t s_time_cb;
 static ui_cat_cb_t s_cat_cb;
 static int s_cat_choice;   /* 0 black, 1 pink, 2 take turns */
 
-static outfit_opts_t s_opts = {.bike_bus_wday = 5}; /* Friday */
+/* Sim/firmware default mirrors a set-up board: bike bus Friday,
+ * uniform outfits on. main.c pushes the saved settings at boot;
+ * the sim overrides both for the fresh-board renders. */
+static outfit_opts_t s_opts = {.bike_bus_wday = 5, .uniform = true};
 
 /* Weather: our own copy, so the firmware's fetch buffer can be reused. */
 static wx_t s_wx;
@@ -594,7 +603,7 @@ static char s_md_nextup[96];                         /* title of today's row car
 static char s_md_nowup[96];                          /* title of today's row carrying the NOW tag, "" = none */
 static char s_md_done[192];                          /* today's DONE rows' titles, ';'-joined */
 static char s_md_nametags[256];                      /* every name tag shown, "TAG:title" ';'-joined */
-static char s_md_nametag[8];                         /* the name tag's text ("" = none shown) */
+static char s_md_nametag[24];                        /* the name tag's text ("" = none shown) */
 static char s_md_nametag_row[96];                    /* title of the row carrying the name tag */
 static char s_md_dimmed[192];                        /* today's past rows' titles, ';'-joined ("" = none) */
 static char s_md_tom_date[32];                       /* the Tomorrow header's date ("Wed, Oct 28") */
@@ -3148,13 +3157,33 @@ static void md_time_text(const cal_event_t *ev, char *buf, size_t n)
     }
 }
 
-/* The name tag a title carries (iter-17): "CLEO" or "LILA" when
- * the title names one of the girls as a whole word, matched
- * case-insensitively ("Cleo's piano lesson" carries CLEO; a name
- * inside a longer word does not count). Returns false when the
- * title names nobody. */
-static bool md_name_tag(const char *title, char *out, size_t n)
+/* The name tag a title carries (iter-17; iter-38: the names are
+ * the configured kids' from settings, no longer hard-coded).
+ * Returns the kid index (0 or 1) when the title names one of them
+ * as a whole word, matched case-insensitively ("Piper's piano
+ * lesson" carries kid 0's tag; a name inside a longer word does
+ * not count), or -1 when the title names nobody. The tag text in
+ * out is the kid's configured name, uppercased. A configured name
+ * with several words ("Mary Jane") matches on its FIRST word
+ * only; the tag still shows the full configured name. An empty
+ * configured name never matches. */
+static int md_name_tag(const char *title, char *out, size_t n)
 {
+    const char *kids[2] = {s_kid1, s_kid2};
+    const char *kw[2];   /* first word of each configured name */
+    size_t kl[2];
+    for (int k = 0; k < 2; k++) {
+        const char *p = kids[k];
+        while (*p && !isalpha((unsigned char)*p)) {
+            p++;
+        }
+        kw[k] = p;
+        size_t len = 0;
+        while (p[len] && isalpha((unsigned char)p[len])) {
+            len++;
+        }
+        kl[k] = len;
+    }
     const char *p = title;
     while (*p) {
         while (*p && !isalpha((unsigned char)*p)) {
@@ -3165,25 +3194,28 @@ static bool md_name_tag(const char *title, char *out, size_t n)
             p++;
         }
         size_t len = (size_t)(p - w);
-        if ((len == 4 && strncasecmp(w, "cleo", 4) == 0) || (len == 4 && strncasecmp(w, "lila", 4) == 0)) {
-            snprintf(out, n, "%.*s", (int)len, w);
-            for (size_t i = 0; out[i]; i++) {
-                out[i] = (char)toupper((unsigned char)out[i]);
+        for (int k = 0; k < 2; k++) {
+            if (kl[k] > 0 && len == kl[k] && strncasecmp(w, kw[k], len) == 0) {
+                snprintf(out, n, "%s", kids[k]);
+                for (size_t i = 0; out[i]; i++) {
+                    out[i] = (char)toupper((unsigned char)out[i]);
+                }
+                return k;
             }
-            return true;
         }
     }
-    return false;
+    return -1;
 }
 
 /* Fill one card's slot with an event and show it (iter-35). status
  * is the iter-18 verdict (0 none, 1 DONE, 2 NOW, 3 NEXT) computed by
  * the caller against the clock; named/namebuf are md_name_tag's
- * verdict. The sim dump fields are written here, per row, as the
- * old section code wrote them. DONE rows lighten their TEXT (the
- * title in ink2, full opacity), never the card: the spec's floor
- * is 70% text opacity, and iter-34's 40-50% fades are gone. */
-static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, const char *namebuf)
+ * verdict (named is the kid index, -1 for nobody). The sim dump
+ * fields are written here, per row, as the old section code wrote
+ * them. DONE rows lighten their TEXT (the title in ink2, full
+ * opacity), never the card: the spec's floor is 70% text opacity,
+ * and iter-34's 40-50% fades are gone. */
+static void md_fill_card(int r, const cal_event_t *ev, int status, int named, const char *namebuf)
 {
     bool past = status == 1;
     char tbuf[40];
@@ -3241,8 +3273,10 @@ static void md_fill_card(int r, const cal_event_t *ev, int status, bool named, c
     } else {
         hide(md_next[r]);
     }
-    if (named) {
-        int base = strcmp(namebuf, "CLEO") == 0 ? COL_TAG_CLEO : COL_TAG_LILA;
+    if (named >= 0) {
+        /* Kid 1 keeps the lavender slot, kid 2 the teal one,
+         * whatever their names are (iter-38). */
+        int base = named == 0 ? COL_TAG_CLEO : COL_TAG_LILA;
         lv_label_set_text(md_tag_lbl[r], namebuf);
         lv_obj_set_style_bg_color(md_tag[r], s_md_stale ? md_mute(base, 150) : C(base), 0);
         lv_obj_set_style_text_color(md_tag_lbl[r], s_md_stale ? md_mute(COL_INK, 185) : C(COL_INK), 0);
@@ -3330,8 +3364,8 @@ static int md_fill_section(int sec, int slot0, int max_rows, const cal_event_t *
         if (status == 3) {
             *next_used = true;
         }
-        char namebuf[8];
-        bool named = md_name_tag(ev->summary, namebuf, sizeof(namebuf));
+        char namebuf[24];
+        int named = md_name_tag(ev->summary, namebuf, sizeof(namebuf));
         md_fill_card(slot0 + shown, ev, status, named, namebuf);
         shown++;
     }
@@ -4475,9 +4509,24 @@ void ui_set_names(const char *names)
     render();
 }
 
+void ui_set_kid_names(const char *kid1, const char *kid2)
+{
+    snprintf(s_kid1, sizeof(s_kid1), "%s", kid1 ? kid1 : "");
+    snprintf(s_kid2, sizeof(s_kid2), "%s", kid2 ? kid2 : "");
+    s_force = true;
+    render();
+}
+
 void ui_set_bike_bus_day(int wday)
 {
     s_opts.bike_bus_wday = wday;
+    s_force = true;
+    render();
+}
+
+void ui_set_uniform(bool on)
+{
+    s_opts.uniform = on;
     s_force = true;
     render();
 }
