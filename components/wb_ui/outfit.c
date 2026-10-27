@@ -616,30 +616,38 @@ bool outfit_make(const wx_t *wx, const struct tm *now, int day_offset, const out
             nband = n;
         }
         if (nband > 1) {
+            long seed = days_from_civil(out->year, out->month, out->day);
             if (o && !o->uniform) {
-                /* School uniform outfits turned off in setup: drop
-                 * the four logo looks from the band before the date
-                 * seed picks, so they are never prescribed. Bands
-                 * without a uniform look are unchanged, and a band
-                 * left with one candidate simply keeps it. */
-                int kept[16];
-                int nk = 0;
+                /* School uniform outfits turned off in setup: pick
+                 * the (seed mod eligible)-th non-uniform entry of
+                 * the band, which is the pick the filtered band
+                 * would have made. Bands without a uniform look are
+                 * unchanged, and a band left with one candidate
+                 * simply keeps it. */
+                int elig = 0;
                 for (int i = 0; i < nband; i++) {
                     int lk = band[i];
-                    if (lk == LOOK_UNIFORM_DRESS || lk == LOOK_UNIFORM_PANTS ||
-                        lk == LOOK_UNIFORM_HOT || lk == LOOK_UNIFORM_FALL) {
-                        continue;
+                    if (lk != LOOK_UNIFORM_DRESS && lk != LOOK_UNIFORM_PANTS &&
+                        lk != LOOK_UNIFORM_HOT && lk != LOOK_UNIFORM_FALL) {
+                        elig++;
                     }
-                    kept[nk++] = lk;
                 }
-                band = kept;
-                nband = nk;
-            }
-            if (nband > 1) {
-                long seed = days_from_civil(out->year, out->month, out->day);
+                if (elig > 0) {
+                    int want = (int)(((seed % elig) + elig) % elig);
+                    for (int i = 0; i < nband; i++) {
+                        int lk = band[i];
+                        if (lk == LOOK_UNIFORM_DRESS || lk == LOOK_UNIFORM_PANTS ||
+                            lk == LOOK_UNIFORM_HOT || lk == LOOK_UNIFORM_FALL) {
+                            continue;
+                        }
+                        if (want-- == 0) {
+                            look = lk;
+                            break;
+                        }
+                    }
+                }
+            } else {
                 look = band[(int)(((seed % nband) + nband) % nband)];
-            } else if (nband == 1) {
-                look = band[0];
             }
         }
     }
